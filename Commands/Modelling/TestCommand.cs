@@ -6,11 +6,11 @@ using Rhino.Input.Custom;
 using System;
 using System.Collections.Generic;
 
-namespace Numbat
+namespace Numbat.Commands.Modelling
 {
-    public class NumbatCommand : Command
+    public class TestCommand : Command
     {
-        public NumbatCommand()
+        public TestCommand()
         {
             // Rhino only creates one instance of each command class defined in a
             // plug-in, so it is safe to store a refence in a static property.
@@ -18,10 +18,10 @@ namespace Numbat
         }
 
         ///<summary>The only instance of this command.</summary>
-        public static NumbatCommand Instance { get; private set; }
+        public static TestCommand Instance { get; private set; }
 
         ///<returns>The command name as it appears on the Rhino command line.</returns>
-        public override string EnglishName => "NumbatCommand";
+        public override string EnglishName => "NumbatTest";
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
