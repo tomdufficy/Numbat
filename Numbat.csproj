@@ -15,10 +15,10 @@
   
   <PropertyGroup>
     <!-- Specifies information for Assembly and Yak -->
-    <Version>1.0</Version>
+    <Version>0.1.0-beta.1</Version>
     <Title>Numbat</Title>
-    <Company>Numbat Authors</Company>
-    <Description>Description of Numbat</Description>
+    <Company>Tom Dufficy</Company>
+    <Description>Architectural productivity tools</Description>
   </PropertyGroup>
   
   <ItemGroup>
