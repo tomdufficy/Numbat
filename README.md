@@ -12,7 +12,7 @@ Architectural productivity tools for Rhino 8.
 ## Commands
 
 ### nbRandomColour
-Randomises the colours of selected layers.
+Randomises the colours of file layers.
 
 ### nbGFA
 Calculates GFA from selected closed polysurfaces by measuring the area of the bottom face of each volume.
