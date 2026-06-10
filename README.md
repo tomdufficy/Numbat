@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="Icons/Numbat.png" width="128" alt="Numbat logo">
+</p>
+
 # Numbat
 
 Architectural productivity tools for Rhino 8.
