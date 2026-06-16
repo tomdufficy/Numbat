@@ -2,12 +2,9 @@ $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $PSScriptRoot
 $PackageDir = Join-Path $Root "Package"
-$CsprojPath = Join-Path $Root "Numbat.csproj"
+$Version = ([xml](Get-Content (Join-Path $Root "Numbat.csproj"))).Project.PropertyGroup.Version
 
-[xml]$Csproj = Get-Content $CsprojPath
-$Version = $Csproj.Project.PropertyGroup.Version | Select-Object -First 1
-
-dotnet build $CsprojPath -c Release
+dotnet build (Join-Path $Root "Numbat.csproj") -c Release
 
 if (Test-Path $PackageDir) {
     Remove-Item $PackageDir -Recurse -Force
@@ -23,22 +20,12 @@ Copy-Item (Join-Path $Root "bin\Release\net48\Numbat.rhp") (Join-Path $PackageDi
 Copy-Item (Join-Path $Root "bin\Release\net7.0\Numbat.rhp") (Join-Path $PackageDir "net7.0\Numbat.rhp")
 
 Push-Location $PackageDir
-
 yak spec
-
 $ManifestPath = Join-Path $PackageDir "manifest.yml"
 $Manifest = Get-Content $ManifestPath -Raw
-
 $Manifest = $Manifest -replace "(?m)^version:.*$", "version: $Version"
 $Manifest = $Manifest -replace "url: <url>", "url: https://github.com/tomdufficy/Numbat"
-
-if ($Manifest -notmatch "(?m)^icon:")
-{
-    $Manifest += "`r`nicon: icon.png`r`n"
-}
-
+$Manifest += "`r`nicon: icon.png`r`n"
 Set-Content $ManifestPath $Manifest
-
 yak build
-
 Pop-Location
