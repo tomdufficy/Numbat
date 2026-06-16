@@ -62,7 +62,15 @@ namespace Numbat.Commands.Modelling
             if (targetCurves.Count == 0)
                 return Result.Failure;
 
-            var gap = new OptionDouble(5.0, true, 0.0);
+            var paverSizes = GetPaverSizes(paverCurve);
+            var defaultGap = 5.0;
+            var defaultPatternOffset = paverSizes.AcrossSize + defaultGap;
+
+            var gap = new OptionDouble(defaultGap, true, 0.0);
+            var expandPattern = new OptionInteger(0, true, 0);
+            var patternOffset = new OptionDouble(defaultPatternOffset, true, 0.0);
+            var flipPatternDirection = new OptionToggle(false, "Original", "Flipped");
+
             var randomStartPoint = new OptionToggle(false, "Original", "Random");
             var randomScale = new OptionToggle(false, "No", "Yes");
             var maxScalePercent = new OptionDouble(2.0, true, 0.0);
@@ -85,6 +93,9 @@ namespace Numbat.Commands.Modelling
                 while (true)
                 {
                     settings.Gap = gap.CurrentValue;
+                    settings.ExpandPatternCount = expandPattern.CurrentValue;
+                    settings.PatternOffset = patternOffset.CurrentValue;
+                    settings.FlipPatternDirection = flipPatternDirection.CurrentValue;
                     settings.SideIndex = sideIndex;
                     settings.StartIndex = startIndex;
                     settings.RandomStartPoint = randomStartPoint.CurrentValue;
@@ -93,7 +104,8 @@ namespace Numbat.Commands.Modelling
                     settings.RandomRotation = randomRotation.CurrentValue;
                     settings.MaxRotationDegrees = maxRotationDegrees.CurrentValue;
 
-                    conduit.PreviewCurves = CreatePaversForTargets(paverCurve, targetCurves, settings);
+                    var placementCurves = CreatePlacementCurves(targetCurves, settings, doc.ModelAbsoluteTolerance);
+                    conduit.PreviewCurves = CreatePaversForTargets(paverCurve, placementCurves, settings);
                     doc.Views.Redraw();
 
                     var getOptions = new GetOption();
@@ -101,6 +113,9 @@ namespace Numbat.Commands.Modelling
                     getOptions.AcceptNothing(true);
 
                     getOptions.AddOptionDouble("Gap", ref gap);
+                    getOptions.AddOptionInteger("ExpandPattern", ref expandPattern);
+                    getOptions.AddOptionDouble("PatternOffset", ref patternOffset);
+                    getOptions.AddOptionToggle("PatternDirection", ref flipPatternDirection);
                     getOptions.AddOptionList("Side", sideOptions, sideIndex);
                     getOptions.AddOptionList("Start", startOptions, startIndex);
                     getOptions.AddOptionToggle("RandomStartPoint", ref randomStartPoint);
@@ -123,10 +138,10 @@ namespace Numbat.Commands.Modelling
 
                         if (option != null)
                         {
-                            if (option.Index == 2)
+                            if (option.Index == 5)
                                 sideIndex = option.CurrentListOptionIndex;
 
-                            if (option.Index == 3)
+                            if (option.Index == 6)
                                 startIndex = option.CurrentListOptionIndex;
                         }
                     }
@@ -139,6 +154,9 @@ namespace Numbat.Commands.Modelling
             }
 
             settings.Gap = gap.CurrentValue;
+            settings.ExpandPatternCount = expandPattern.CurrentValue;
+            settings.PatternOffset = patternOffset.CurrentValue;
+            settings.FlipPatternDirection = flipPatternDirection.CurrentValue;
             settings.SideIndex = sideIndex;
             settings.StartIndex = startIndex;
             settings.RandomStartPoint = randomStartPoint.CurrentValue;
@@ -147,16 +165,21 @@ namespace Numbat.Commands.Modelling
             settings.RandomRotation = randomRotation.CurrentValue;
             settings.MaxRotationDegrees = maxRotationDegrees.CurrentValue;
 
-            var finalPavers = CreatePaversForTargets(paverCurve, targetCurves, settings);
+            var finalPlacementCurves = CreatePlacementCurves(targetCurves, settings, doc.ModelAbsoluteTolerance);
+            var finalPavers = CreatePaversForTargets(paverCurve, finalPlacementCurves, settings);
 
             foreach (var curve in finalPavers)
                 doc.Objects.AddCurve(curve);
 
             doc.Views.Redraw();
 
-            RhinoApp.WriteLine($"Target curves selected: {targetCurves.Count}");
+            RhinoApp.WriteLine($"Original target curves selected: {targetCurves.Count}");
+            RhinoApp.WriteLine($"Placement curves used: {finalPlacementCurves.Count}");
             RhinoApp.WriteLine($"Pavers placed: {finalPavers.Count}");
             RhinoApp.WriteLine($"Gap: {gap.CurrentValue}");
+            RhinoApp.WriteLine($"Expand pattern: {expandPattern.CurrentValue}");
+            RhinoApp.WriteLine($"Pattern offset: {patternOffset.CurrentValue}");
+            RhinoApp.WriteLine($"Pattern direction: {(flipPatternDirection.CurrentValue ? "Flipped" : "Original")}");
             RhinoApp.WriteLine($"Side: {sideOptions[sideIndex]}");
             RhinoApp.WriteLine($"Start: {startOptions[startIndex]}");
             RhinoApp.WriteLine($"Random start point: {(randomStartPoint.CurrentValue ? "Random" : "Original")}");
@@ -164,6 +187,77 @@ namespace Numbat.Commands.Modelling
             RhinoApp.WriteLine($"Random rotation: {(randomRotation.CurrentValue ? "Yes" : "No")}");
 
             return Result.Success;
+        }
+
+        private static List<Curve> CreatePlacementCurves(List<Curve> originalCurves, PavementSettings settings, double tolerance)
+        {
+            var result = new List<Curve>();
+
+            foreach (var originalCurve in originalCurves)
+            {
+                result.Add(originalCurve.DuplicateCurve());
+
+                if (settings.ExpandPatternCount <= 0)
+                    continue;
+
+                for (var i = 1; i <= settings.ExpandPatternCount; i++)
+                {
+                    var offsetDistance = settings.PatternOffset * i;
+
+                    if (settings.FlipPatternDirection)
+                        offsetDistance *= -1.0;
+
+                    if (originalCurve.IsClosed)
+                    {
+                        if (!originalCurve.TryGetPlane(out var plane))
+                            plane = Plane.WorldXY;
+
+                        var orientation = originalCurve.ClosedCurveOrientation(plane);
+
+                        if (orientation == CurveOrientation.Clockwise)
+                            offsetDistance *= -1.0;
+
+                        var offsetCurves = originalCurve.Offset(
+                            plane,
+                            offsetDistance,
+                            tolerance,
+                            CurveOffsetCornerStyle.Round
+                        );
+
+                        if (offsetCurves == null)
+                            continue;
+
+                        foreach (var offsetCurve in offsetCurves)
+                        {
+                            if (offsetCurve != null)
+                                result.Add(offsetCurve);
+                        }
+                    }
+                    else
+                    {
+                        if (!originalCurve.TryGetPlane(out var plane))
+                            plane = Plane.WorldXY;
+
+                        var offsetCurves = originalCurve.Offset(
+                            plane,
+                            offsetDistance,
+                            tolerance,
+                            CurveOffsetCornerStyle.Round
+                        );
+
+                        if (offsetCurves == null)
+                            continue;
+
+                        foreach (var offsetCurve in offsetCurves)
+                        {
+                            if (offsetCurve != null)
+                                result.Add(offsetCurve);
+                        }
+                    }
+                }
+            }
+
+            return result;
         }
 
         private static List<Curve> CreatePaversForTargets(Curve paverCurve, List<Curve> targetCurves, PavementSettings settings)
@@ -304,9 +398,35 @@ namespace Numbat.Commands.Modelling
             return result;
         }
 
+        private static PaverSizes GetPaverSizes(Curve paverCurve)
+        {
+            if (!paverCurve.TryGetPlane(out var paverPlane))
+                paverPlane = Plane.WorldXY;
+
+            var paverBox = paverCurve.GetBoundingBox(paverPlane);
+
+            var xSize = paverBox.Max.X - paverBox.Min.X;
+            var ySize = paverBox.Max.Y - paverBox.Min.Y;
+
+            return new PaverSizes
+            {
+                AlongSize = Math.Max(xSize, ySize),
+                AcrossSize = Math.Min(xSize, ySize)
+            };
+        }
+
+        private class PaverSizes
+        {
+            public double AlongSize { get; set; }
+            public double AcrossSize { get; set; }
+        }
+
         private class PavementSettings
         {
             public double Gap { get; set; }
+            public int ExpandPatternCount { get; set; }
+            public double PatternOffset { get; set; }
+            public bool FlipPatternDirection { get; set; }
             public int SideIndex { get; set; }
             public int StartIndex { get; set; }
             public bool RandomStartPoint { get; set; }
@@ -328,8 +448,10 @@ namespace Numbat.Commands.Modelling
 
             protected override void DrawOverlay(DrawEventArgs e)
             {
+                var previewColor = System.Drawing.Color.FromArgb(246, 217, 245);
+
                 foreach (var curve in PreviewCurves)
-                    e.Display.DrawCurve(curve, System.Drawing.Color.CornflowerBlue, 2);
+                    e.Display.DrawCurve(curve, previewColor, 2);
             }
         }
     }
