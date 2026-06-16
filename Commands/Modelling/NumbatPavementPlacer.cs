@@ -43,7 +43,7 @@ namespace Numbat.Commands.Modelling
             var gc = new GetObject();
             gc.SetCommandPrompt("Select one or more target curves for pavement placement");
             gc.GeometryFilter = ObjectType.Curve;
-            gc.EnablePreSelect(true, true);
+            gc.EnablePreSelect(false, true);
             gc.GetMultiple(1, 0);
 
             if (gc.CommandResult() != Result.Success)
