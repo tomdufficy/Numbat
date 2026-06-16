@@ -21,6 +21,9 @@ Randomises the colours of file layers.
 ### nbGFA
 Calculates GFA from selected closed polysurfaces by measuring the area of the bottom face of each volume.
 
+### nbTextureShuffle
+Randomly shuffles texture mapping across selected objects for more variation in rendering.
+
 ### nbPavementPlacer
 Select a closed curve representing a paving stone, and select one or more target curves to automatically array. Option to offset for additional rows and tweak gaps, rotation, scale.
 
