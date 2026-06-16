@@ -64,14 +64,14 @@ namespace Numbat.Commands.Modelling
 
             var paverSizes = GetPaverSizes(paverCurve);
             var defaultGap = 5.0;
-            var defaultPatternOffset = paverSizes.AcrossSize + defaultGap;
 
             var gap = new OptionDouble(defaultGap, true, 0.0);
-            var expandPattern = new OptionInteger(0, true, 0);
-            var patternOffset = new OptionDouble(defaultPatternOffset, true, 0.0);
+            var expandPattern = new OptionToggle(false, "No", "Yes");
+            var qtyPatterns = new OptionInteger(1, true, 1);
             var flipPatternDirection = new OptionToggle(false, "Original", "Flipped");
 
             var randomStartPoint = new OptionToggle(false, "Original", "Random");
+            var randomQuarterTurn = new OptionToggle(false, "No", "Yes");
             var randomScale = new OptionToggle(false, "No", "Yes");
             var maxScalePercent = new OptionDouble(2.0, true, 0.0);
             var randomRotation = new OptionToggle(false, "No", "Yes");
@@ -79,9 +79,6 @@ namespace Numbat.Commands.Modelling
 
             var sideIndex = 0;
             string[] sideOptions = { "Center", "Left", "Right" };
-
-            var startIndex = 0;
-            string[] startOptions = { "CurveStart", "HalfGapInset" };
 
             var settings = new PavementSettings();
 
@@ -93,12 +90,13 @@ namespace Numbat.Commands.Modelling
                 while (true)
                 {
                     settings.Gap = gap.CurrentValue;
-                    settings.ExpandPatternCount = expandPattern.CurrentValue;
-                    settings.PatternOffset = patternOffset.CurrentValue;
+                    settings.ExpandPattern = expandPattern.CurrentValue;
+                    settings.ExpandPatternCount = expandPattern.CurrentValue ? qtyPatterns.CurrentValue : 0;
+                    settings.PatternOffset = paverSizes.AcrossSize + gap.CurrentValue;
                     settings.FlipPatternDirection = flipPatternDirection.CurrentValue;
                     settings.SideIndex = sideIndex;
-                    settings.StartIndex = startIndex;
                     settings.RandomStartPoint = randomStartPoint.CurrentValue;
+                    settings.RandomQuarterTurn = randomQuarterTurn.CurrentValue;
                     settings.RandomScale = randomScale.CurrentValue;
                     settings.MaxScalePercent = maxScalePercent.CurrentValue;
                     settings.RandomRotation = randomRotation.CurrentValue;
@@ -113,12 +111,17 @@ namespace Numbat.Commands.Modelling
                     getOptions.AcceptNothing(true);
 
                     getOptions.AddOptionDouble("Gap", ref gap);
-                    getOptions.AddOptionInteger("ExpandPattern", ref expandPattern);
-                    getOptions.AddOptionDouble("PatternOffset", ref patternOffset);
-                    getOptions.AddOptionToggle("PatternDirection", ref flipPatternDirection);
+                    getOptions.AddOptionToggle("ExpandPattern", ref expandPattern);
+
+                    if (expandPattern.CurrentValue)
+                    {
+                        getOptions.AddOptionInteger("QtyPatterns", ref qtyPatterns);
+                        getOptions.AddOptionToggle("PatternDirection", ref flipPatternDirection);
+                    }
+
                     getOptions.AddOptionList("Side", sideOptions, sideIndex);
-                    getOptions.AddOptionList("Start", startOptions, startIndex);
                     getOptions.AddOptionToggle("RandomStartPoint", ref randomStartPoint);
+                    getOptions.AddOptionToggle("RandomQuarterTurn", ref randomQuarterTurn);
                     getOptions.AddOptionToggle("RandomScale", ref randomScale);
                     getOptions.AddOptionDouble("MaxScalePercent", ref maxScalePercent);
                     getOptions.AddOptionToggle("RandomRotation", ref randomRotation);
@@ -136,14 +139,8 @@ namespace Numbat.Commands.Modelling
                     {
                         var option = getOptions.Option();
 
-                        if (option != null)
-                        {
-                            if (option.Index == 5)
-                                sideIndex = option.CurrentListOptionIndex;
-
-                            if (option.Index == 6)
-                                startIndex = option.CurrentListOptionIndex;
-                        }
+                        if (option != null && option.EnglishName == "Side")
+                            sideIndex = option.CurrentListOptionIndex;
                     }
                 }
             }
@@ -154,12 +151,13 @@ namespace Numbat.Commands.Modelling
             }
 
             settings.Gap = gap.CurrentValue;
-            settings.ExpandPatternCount = expandPattern.CurrentValue;
-            settings.PatternOffset = patternOffset.CurrentValue;
+            settings.ExpandPattern = expandPattern.CurrentValue;
+            settings.ExpandPatternCount = expandPattern.CurrentValue ? qtyPatterns.CurrentValue : 0;
+            settings.PatternOffset = paverSizes.AcrossSize + gap.CurrentValue;
             settings.FlipPatternDirection = flipPatternDirection.CurrentValue;
             settings.SideIndex = sideIndex;
-            settings.StartIndex = startIndex;
             settings.RandomStartPoint = randomStartPoint.CurrentValue;
+            settings.RandomQuarterTurn = randomQuarterTurn.CurrentValue;
             settings.RandomScale = randomScale.CurrentValue;
             settings.MaxScalePercent = maxScalePercent.CurrentValue;
             settings.RandomRotation = randomRotation.CurrentValue;
@@ -177,12 +175,18 @@ namespace Numbat.Commands.Modelling
             RhinoApp.WriteLine($"Placement curves used: {finalPlacementCurves.Count}");
             RhinoApp.WriteLine($"Pavers placed: {finalPavers.Count}");
             RhinoApp.WriteLine($"Gap: {gap.CurrentValue}");
-            RhinoApp.WriteLine($"Expand pattern: {expandPattern.CurrentValue}");
-            RhinoApp.WriteLine($"Pattern offset: {patternOffset.CurrentValue}");
-            RhinoApp.WriteLine($"Pattern direction: {(flipPatternDirection.CurrentValue ? "Flipped" : "Original")}");
+            RhinoApp.WriteLine($"Expand pattern: {(expandPattern.CurrentValue ? "Yes" : "No")}");
+
+            if (expandPattern.CurrentValue)
+            {
+                RhinoApp.WriteLine($"Qty patterns: {qtyPatterns.CurrentValue}");
+                RhinoApp.WriteLine($"Pattern offset: {paverSizes.AcrossSize + gap.CurrentValue}");
+                RhinoApp.WriteLine($"Pattern direction: {(flipPatternDirection.CurrentValue ? "Flipped" : "Original")}");
+            }
+
             RhinoApp.WriteLine($"Side: {sideOptions[sideIndex]}");
-            RhinoApp.WriteLine($"Start: {startOptions[startIndex]}");
             RhinoApp.WriteLine($"Random start point: {(randomStartPoint.CurrentValue ? "Random" : "Original")}");
+            RhinoApp.WriteLine($"Random quarter turn: {(randomQuarterTurn.CurrentValue ? "Yes" : "No")}");
             RhinoApp.WriteLine($"Random scale: {(randomScale.CurrentValue ? "Yes" : "No")}");
             RhinoApp.WriteLine($"Random rotation: {(randomRotation.CurrentValue ? "Yes" : "No")}");
 
@@ -197,7 +201,7 @@ namespace Numbat.Commands.Modelling
             {
                 result.Add(originalCurve.DuplicateCurve());
 
-                if (settings.ExpandPatternCount <= 0)
+                if (!settings.ExpandPattern || settings.ExpandPatternCount <= 0)
                     continue;
 
                 for (var i = 1; i <= settings.ExpandPatternCount; i++)
@@ -207,52 +211,31 @@ namespace Numbat.Commands.Modelling
                     if (settings.FlipPatternDirection)
                         offsetDistance *= -1.0;
 
+                    if (!originalCurve.TryGetPlane(out var plane))
+                        plane = Plane.WorldXY;
+
                     if (originalCurve.IsClosed)
                     {
-                        if (!originalCurve.TryGetPlane(out var plane))
-                            plane = Plane.WorldXY;
-
                         var orientation = originalCurve.ClosedCurveOrientation(plane);
 
                         if (orientation == CurveOrientation.Clockwise)
                             offsetDistance *= -1.0;
-
-                        var offsetCurves = originalCurve.Offset(
-                            plane,
-                            offsetDistance,
-                            tolerance,
-                            CurveOffsetCornerStyle.Round
-                        );
-
-                        if (offsetCurves == null)
-                            continue;
-
-                        foreach (var offsetCurve in offsetCurves)
-                        {
-                            if (offsetCurve != null)
-                                result.Add(offsetCurve);
-                        }
                     }
-                    else
+
+                    var offsetCurves = originalCurve.Offset(
+                        plane,
+                        offsetDistance,
+                        tolerance,
+                        CurveOffsetCornerStyle.Round
+                    );
+
+                    if (offsetCurves == null)
+                        continue;
+
+                    foreach (var offsetCurve in offsetCurves)
                     {
-                        if (!originalCurve.TryGetPlane(out var plane))
-                            plane = Plane.WorldXY;
-
-                        var offsetCurves = originalCurve.Offset(
-                            plane,
-                            offsetDistance,
-                            tolerance,
-                            CurveOffsetCornerStyle.Round
-                        );
-
-                        if (offsetCurves == null)
-                            continue;
-
-                        foreach (var offsetCurve in offsetCurves)
-                        {
-                            if (offsetCurve != null)
-                                result.Add(offsetCurve);
-                        }
+                        if (offsetCurve != null)
+                            result.Add(offsetCurve);
                     }
                 }
             }
@@ -313,14 +296,10 @@ namespace Numbat.Commands.Modelling
 
             var startDistance = 0.0;
 
-            if (targetCurve.IsClosed && settings.RandomStartPoint)
+            if (settings.RandomStartPoint)
             {
                 var startRandom = new Random(1000 + targetIndex);
                 startDistance = startRandom.NextDouble() * actualSpacing;
-            }
-            else if (!targetCurve.IsClosed && settings.StartIndex == 1)
-            {
-                startDistance = settings.Gap * 0.5;
             }
 
             var random = new Random(1 + targetIndex * 10000);
@@ -378,6 +357,14 @@ namespace Numbat.Commands.Modelling
                 var orient = Transform.PlaneToPlane(sourcePlane, targetPlane);
                 copy.Transform(orient);
 
+                if (settings.RandomQuarterTurn)
+                {
+                    var quarterTurns = random.Next(0, 4);
+                    var angle = RhinoMath.ToRadians(quarterTurns * 90.0);
+                    var rotate = Transform.Rotation(angle, targetPlane.ZAxis, targetPlane.Origin);
+                    copy.Transform(rotate);
+                }
+
                 if (settings.RandomRotation)
                 {
                     var angle = RhinoMath.ToRadians((random.NextDouble() * 2.0 - 1.0) * settings.MaxRotationDegrees);
@@ -424,12 +411,13 @@ namespace Numbat.Commands.Modelling
         private class PavementSettings
         {
             public double Gap { get; set; }
+            public bool ExpandPattern { get; set; }
             public int ExpandPatternCount { get; set; }
             public double PatternOffset { get; set; }
             public bool FlipPatternDirection { get; set; }
             public int SideIndex { get; set; }
-            public int StartIndex { get; set; }
             public bool RandomStartPoint { get; set; }
+            public bool RandomQuarterTurn { get; set; }
             public bool RandomScale { get; set; }
             public double MaxScalePercent { get; set; }
             public bool RandomRotation { get; set; }
