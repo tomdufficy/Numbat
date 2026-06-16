@@ -41,20 +41,29 @@ namespace Numbat.Commands.Modelling
             }
 
             var gc = new GetObject();
-            gc.SetCommandPrompt("Select target curve for pavement placement");
+            gc.SetCommandPrompt("Select one or more target curves for pavement placement");
             gc.GeometryFilter = ObjectType.Curve;
-            gc.EnablePreSelect(false, true);
-            gc.Get();
+            gc.EnablePreSelect(true, true);
+            gc.GetMultiple(1, 0);
 
             if (gc.CommandResult() != Result.Success)
                 return gc.CommandResult();
 
-            var targetCurve = gc.Object(0).Curve()?.DuplicateCurve();
+            var targetCurves = new List<Curve>();
 
-            if (targetCurve == null)
+            for (var i = 0; i < gc.ObjectCount; i++)
+            {
+                var curve = gc.Object(i).Curve()?.DuplicateCurve();
+
+                if (curve != null)
+                    targetCurves.Add(curve);
+            }
+
+            if (targetCurves.Count == 0)
                 return Result.Failure;
 
             var gap = new OptionDouble(5.0, true, 0.0);
+            var randomStartPoint = new OptionToggle(false, "Original", "Random");
             var randomScale = new OptionToggle(false, "No", "Yes");
             var maxScalePercent = new OptionDouble(2.0, true, 0.0);
             var randomRotation = new OptionToggle(false, "No", "Yes");
@@ -78,12 +87,13 @@ namespace Numbat.Commands.Modelling
                     settings.Gap = gap.CurrentValue;
                     settings.SideIndex = sideIndex;
                     settings.StartIndex = startIndex;
+                    settings.RandomStartPoint = randomStartPoint.CurrentValue;
                     settings.RandomScale = randomScale.CurrentValue;
                     settings.MaxScalePercent = maxScalePercent.CurrentValue;
                     settings.RandomRotation = randomRotation.CurrentValue;
                     settings.MaxRotationDegrees = maxRotationDegrees.CurrentValue;
 
-                    conduit.PreviewCurves = CreatePavers(paverCurve, targetCurve, settings, true);
+                    conduit.PreviewCurves = CreatePaversForTargets(paverCurve, targetCurves, settings);
                     doc.Views.Redraw();
 
                     var getOptions = new GetOption();
@@ -93,6 +103,7 @@ namespace Numbat.Commands.Modelling
                     getOptions.AddOptionDouble("Gap", ref gap);
                     getOptions.AddOptionList("Side", sideOptions, sideIndex);
                     getOptions.AddOptionList("Start", startOptions, startIndex);
+                    getOptions.AddOptionToggle("RandomStartPoint", ref randomStartPoint);
                     getOptions.AddOptionToggle("RandomScale", ref randomScale);
                     getOptions.AddOptionDouble("MaxScalePercent", ref maxScalePercent);
                     getOptions.AddOptionToggle("RandomRotation", ref randomRotation);
@@ -130,29 +141,42 @@ namespace Numbat.Commands.Modelling
             settings.Gap = gap.CurrentValue;
             settings.SideIndex = sideIndex;
             settings.StartIndex = startIndex;
+            settings.RandomStartPoint = randomStartPoint.CurrentValue;
             settings.RandomScale = randomScale.CurrentValue;
             settings.MaxScalePercent = maxScalePercent.CurrentValue;
             settings.RandomRotation = randomRotation.CurrentValue;
             settings.MaxRotationDegrees = maxRotationDegrees.CurrentValue;
 
-            var finalPavers = CreatePavers(paverCurve, targetCurve, settings, false);
+            var finalPavers = CreatePaversForTargets(paverCurve, targetCurves, settings);
 
             foreach (var curve in finalPavers)
                 doc.Objects.AddCurve(curve);
 
             doc.Views.Redraw();
 
+            RhinoApp.WriteLine($"Target curves selected: {targetCurves.Count}");
             RhinoApp.WriteLine($"Pavers placed: {finalPavers.Count}");
             RhinoApp.WriteLine($"Gap: {gap.CurrentValue}");
             RhinoApp.WriteLine($"Side: {sideOptions[sideIndex]}");
             RhinoApp.WriteLine($"Start: {startOptions[startIndex]}");
+            RhinoApp.WriteLine($"Random start point: {(randomStartPoint.CurrentValue ? "Random" : "Original")}");
             RhinoApp.WriteLine($"Random scale: {(randomScale.CurrentValue ? "Yes" : "No")}");
             RhinoApp.WriteLine($"Random rotation: {(randomRotation.CurrentValue ? "Yes" : "No")}");
 
             return Result.Success;
         }
 
-        private static List<Curve> CreatePavers(Curve paverCurve, Curve targetCurve, PavementSettings settings, bool deterministicPreview)
+        private static List<Curve> CreatePaversForTargets(Curve paverCurve, List<Curve> targetCurves, PavementSettings settings)
+        {
+            var result = new List<Curve>();
+
+            for (var i = 0; i < targetCurves.Count; i++)
+                result.AddRange(CreatePavers(paverCurve, targetCurves[i], settings, i));
+
+            return result;
+        }
+
+        private static List<Curve> CreatePavers(Curve paverCurve, Curve targetCurve, PavementSettings settings, int targetIndex)
         {
             var result = new List<Curve>();
 
@@ -195,10 +219,17 @@ namespace Numbat.Commands.Modelling
 
             var startDistance = 0.0;
 
-            if (!targetCurve.IsClosed && settings.StartIndex == 1)
+            if (targetCurve.IsClosed && settings.RandomStartPoint)
+            {
+                var startRandom = new Random(1000 + targetIndex);
+                startDistance = startRandom.NextDouble() * actualSpacing;
+            }
+            else if (!targetCurve.IsClosed && settings.StartIndex == 1)
+            {
                 startDistance = settings.Gap * 0.5;
+            }
 
-            var random = deterministicPreview ? new Random(1) : new Random();
+            var random = new Random(1 + targetIndex * 10000);
 
             for (var i = 0; i < count; i++)
             {
@@ -278,6 +309,7 @@ namespace Numbat.Commands.Modelling
             public double Gap { get; set; }
             public int SideIndex { get; set; }
             public int StartIndex { get; set; }
+            public bool RandomStartPoint { get; set; }
             public bool RandomScale { get; set; }
             public double MaxScalePercent { get; set; }
             public bool RandomRotation { get; set; }
