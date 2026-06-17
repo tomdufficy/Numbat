@@ -52,9 +52,16 @@ namespace Numbat.Commands.Modelling
             var height = new OptionDouble(1100.0, true, 100.0);
             var railDepth = new OptionDouble(40.0, true, 1.0);
             var railHeight = new OptionDouble(20.0, true, 1.0);
+
+            var balusterStyleIndex = 0;
+            string[] balusterStyleOptions = { "Vertical", "ZigZag" };
+
             var balusterWidth = new OptionDouble(10.0, true, 1.0);
             var balusterDepth = new OptionDouble(20.0, true, 1.0);
             var maxBalusterSpacing = new OptionDouble(100.0, true, 10.0);
+
+            var zigZagDiameter = new OptionDouble(10.0, true, 1.0);
+            var zigZagBayLength = new OptionDouble(100.0, true, 10.0);
 
             var bottomRailRaised = new OptionToggle(true, "Ground", "Raised");
             var bottomRailHeight = new OptionDouble(100.0, true, 0.0);
@@ -74,9 +81,12 @@ namespace Numbat.Commands.Modelling
                     settings.Height = height.CurrentValue;
                     settings.RailDepth = railDepth.CurrentValue;
                     settings.RailHeight = railHeight.CurrentValue;
+                    settings.BalusterStyleIndex = balusterStyleIndex;
                     settings.BalusterWidth = balusterWidth.CurrentValue;
                     settings.BalusterDepth = balusterDepth.CurrentValue;
                     settings.MaxBalusterSpacing = maxBalusterSpacing.CurrentValue;
+                    settings.ZigZagDiameter = zigZagDiameter.CurrentValue;
+                    settings.ZigZagBayLength = zigZagBayLength.CurrentValue;
                     settings.BottomRailRaised = bottomRailRaised.CurrentValue;
                     settings.BottomRailHeight = bottomRailHeight.CurrentValue;
                     settings.SupportFeet = bottomRailRaised.CurrentValue && bottomRailHeight.CurrentValue > RhinoMath.ZeroTolerance && supportFeet.CurrentValue;
@@ -96,9 +106,20 @@ namespace Numbat.Commands.Modelling
                     getOptions.AddOptionDouble("Height", ref height);
                     getOptions.AddOptionDouble("RailDepth", ref railDepth);
                     getOptions.AddOptionDouble("RailHeight", ref railHeight);
-                    getOptions.AddOptionDouble("BalusterWidth", ref balusterWidth);
-                    getOptions.AddOptionDouble("BalusterDepth", ref balusterDepth);
-                    getOptions.AddOptionDouble("MaxBalusterSpacing", ref maxBalusterSpacing);
+                    getOptions.AddOptionList("BalusterStyle", balusterStyleOptions, balusterStyleIndex);
+
+                    if (balusterStyleIndex == 0)
+                    {
+                        getOptions.AddOptionDouble("BalusterWidth", ref balusterWidth);
+                        getOptions.AddOptionDouble("BalusterDepth", ref balusterDepth);
+                        getOptions.AddOptionDouble("MaxBalusterSpacing", ref maxBalusterSpacing);
+                    }
+                    else
+                    {
+                        getOptions.AddOptionDouble("ZigZagDiameter", ref zigZagDiameter);
+                        getOptions.AddOptionDouble("ZigZagBayLength", ref zigZagBayLength);
+                    }
+
                     getOptions.AddOptionToggle("BottomRail", ref bottomRailRaised);
 
                     if (bottomRailRaised.CurrentValue)
@@ -121,6 +142,14 @@ namespace Numbat.Commands.Modelling
 
                     if (result == GetResult.Cancel)
                         return Result.Cancel;
+
+                    if (result == GetResult.Option)
+                    {
+                        var option = getOptions.Option();
+
+                        if (option != null && option.EnglishName == "BalusterStyle")
+                            balusterStyleIndex = option.CurrentListOptionIndex;
+                    }
                 }
             }
             finally
@@ -132,9 +161,12 @@ namespace Numbat.Commands.Modelling
             settings.Height = height.CurrentValue;
             settings.RailDepth = railDepth.CurrentValue;
             settings.RailHeight = railHeight.CurrentValue;
+            settings.BalusterStyleIndex = balusterStyleIndex;
             settings.BalusterWidth = balusterWidth.CurrentValue;
             settings.BalusterDepth = balusterDepth.CurrentValue;
             settings.MaxBalusterSpacing = maxBalusterSpacing.CurrentValue;
+            settings.ZigZagDiameter = zigZagDiameter.CurrentValue;
+            settings.ZigZagBayLength = zigZagBayLength.CurrentValue;
             settings.BottomRailRaised = bottomRailRaised.CurrentValue;
             settings.BottomRailHeight = bottomRailHeight.CurrentValue;
             settings.SupportFeet = bottomRailRaised.CurrentValue && bottomRailHeight.CurrentValue > RhinoMath.ZeroTolerance && supportFeet.CurrentValue;
@@ -151,8 +183,19 @@ namespace Numbat.Commands.Modelling
             RhinoApp.WriteLine("nbHandrail created.");
             RhinoApp.WriteLine($"Height: {settings.Height}");
             RhinoApp.WriteLine($"Rail section: {settings.RailDepth} x {settings.RailHeight}");
-            RhinoApp.WriteLine($"Baluster section: {settings.BalusterWidth} x {settings.BalusterDepth}");
-            RhinoApp.WriteLine($"Max baluster spacing: {settings.MaxBalusterSpacing}");
+            RhinoApp.WriteLine($"Baluster style: {balusterStyleOptions[settings.BalusterStyleIndex]}");
+
+            if (settings.BalusterStyleIndex == 0)
+            {
+                RhinoApp.WriteLine($"Baluster section: {settings.BalusterWidth} x {settings.BalusterDepth}");
+                RhinoApp.WriteLine($"Max baluster spacing: {settings.MaxBalusterSpacing}");
+            }
+            else
+            {
+                RhinoApp.WriteLine($"Zig-zag diameter: {settings.ZigZagDiameter}");
+                RhinoApp.WriteLine($"Zig-zag bay length: {settings.ZigZagBayLength}");
+            }
+
             RhinoApp.WriteLine($"Bottom rail: {(settings.BottomRailRaised ? "Raised" : "Ground")}");
             RhinoApp.WriteLine($"Support feet: {(settings.SupportFeet ? "Yes" : "No")}");
             RhinoApp.WriteLine($"Wall tabs: {(settings.WallTabs ? "Yes" : "No")}");
@@ -240,14 +283,31 @@ namespace Numbat.Commands.Modelling
                 settings.GroundZ + settings.Height
             ));
 
-            geometry.Balusters.AddRange(CreateBalusters(
-                workingCurve,
-                settings.BalusterWidth,
-                settings.BalusterDepth,
-                bottomRailBottomZ + settings.RailHeight,
-                settings.GroundZ + settings.Height - settings.RailHeight,
-                settings.MaxBalusterSpacing
-            ));
+            var balusterBottomZ = bottomRailBottomZ + settings.RailHeight;
+            var balusterTopZ = settings.GroundZ + settings.Height - settings.RailHeight;
+
+            if (settings.BalusterStyleIndex == 0)
+            {
+                geometry.Balusters.AddRange(CreateBalusters(
+                    workingCurve,
+                    settings.BalusterWidth,
+                    settings.BalusterDepth,
+                    balusterBottomZ,
+                    balusterTopZ,
+                    settings.MaxBalusterSpacing
+                ));
+            }
+            else
+            {
+                geometry.Balusters.AddRange(CreateZigZagBalusters(
+                    workingCurve,
+                    balusterBottomZ,
+                    balusterTopZ,
+                    settings.ZigZagDiameter,
+                    settings.ZigZagBayLength,
+                    tolerance
+                ));
+            }
 
             if (settings.WallTabs)
             {
@@ -369,6 +429,91 @@ namespace Numbat.Commands.Modelling
             return breps;
         }
 
+        private static List<Brep> CreateZigZagBalusters(
+            Curve path,
+            double bottomZ,
+            double topZ,
+            double diameter,
+            double bayLength,
+            double tolerance
+        )
+        {
+            var breps = new List<Brep>();
+            var length = path.GetLength();
+
+            if (length <= RhinoMath.ZeroTolerance || bayLength <= RhinoMath.ZeroTolerance || diameter <= RhinoMath.ZeroTolerance)
+                return breps;
+
+            var stationCount = Math.Max(1, (int)Math.Ceiling(length / bayLength));
+            var actualBayLength = length / stationCount;
+
+            var previousPoint = PointAtDistanceAndZ(path, 0.0, topZ);
+
+            for (var i = 1; i <= stationCount; i++)
+            {
+                var distance = i * actualBayLength;
+
+                if (distance > length)
+                    distance = length;
+
+                var nextZ = i % 2 == 1 ? bottomZ : topZ;
+                var nextPoint = PointAtDistanceAndZ(path, distance, nextZ);
+
+                var line = new Line(previousPoint, nextPoint);
+
+                if (line.Length > RhinoMath.ZeroTolerance)
+                {
+                    var rail = new LineCurve(line);
+
+                    var pipes = Brep.CreatePipe(
+                        rail,
+                        diameter * 0.5,
+                        false,
+                        PipeCapMode.Flat,
+                        true,
+                        tolerance,
+                        RhinoMath.ToRadians(1.0)
+                    );
+
+                    if (pipes != null)
+                    {
+                        foreach (var pipe in pipes)
+                        {
+                            if (pipe != null)
+                                breps.Add(pipe);
+                        }
+                    }
+                }
+
+                previousPoint = nextPoint;
+            }
+
+            return breps;
+        }
+
+        private static Point3d PointAtDistanceAndZ(Curve path, double distance, double z)
+        {
+            var length = path.GetLength();
+
+            if (distance < 0.0)
+                distance = 0.0;
+
+            if (distance > length)
+                distance = length;
+
+            if (!path.LengthParameter(distance, out var t))
+            {
+                var fallback = path.PointAtStart;
+                fallback.Z = z;
+                return fallback;
+            }
+
+            var point = path.PointAt(t);
+            point.Z = z;
+
+            return point;
+        }
+
         private static List<Brep> CreateVerticalElementsAlongCurve(
             Curve path,
             double widthAlongCurve,
@@ -472,21 +617,28 @@ namespace Numbat.Commands.Modelling
 
         private static void AddGeometryToDocument(RhinoDoc doc, HandrailGeometry geometry)
         {
+            var allBreps = geometry.AllBreps();
+
+            if (allBreps.Count == 0)
+                return;
+
             var parentLayerIndex = EnsureLayer(doc, "nbHandrail", -1);
 
-            var topRailLayer = EnsureLayer(doc, "Top Rails", parentLayerIndex);
-            var bottomRailLayer = EnsureLayer(doc, "Bottom Rails", parentLayerIndex);
-            var balusterLayer = EnsureLayer(doc, "Balusters", parentLayerIndex);
-            var endPostLayer = EnsureLayer(doc, "End Posts", parentLayerIndex);
-            var supportLayer = EnsureLayer(doc, "Bottom Supports", parentLayerIndex);
-            var wallTabLayer = EnsureLayer(doc, "Wall Tabs", parentLayerIndex);
+            AddBrepsToChildLayerIfAny(doc, geometry.TopRails, "Top Rails", parentLayerIndex);
+            AddBrepsToChildLayerIfAny(doc, geometry.BottomRails, "Bottom Rails", parentLayerIndex);
+            AddBrepsToChildLayerIfAny(doc, geometry.Balusters, "Balusters", parentLayerIndex);
+            AddBrepsToChildLayerIfAny(doc, geometry.EndPosts, "End Posts", parentLayerIndex);
+            AddBrepsToChildLayerIfAny(doc, geometry.Supports, "Bottom Supports", parentLayerIndex);
+            AddBrepsToChildLayerIfAny(doc, geometry.WallTabs, "Wall Tabs", parentLayerIndex);
+        }
 
-            AddBrepsToLayer(doc, geometry.TopRails, topRailLayer);
-            AddBrepsToLayer(doc, geometry.BottomRails, bottomRailLayer);
-            AddBrepsToLayer(doc, geometry.Balusters, balusterLayer);
-            AddBrepsToLayer(doc, geometry.EndPosts, endPostLayer);
-            AddBrepsToLayer(doc, geometry.Supports, supportLayer);
-            AddBrepsToLayer(doc, geometry.WallTabs, wallTabLayer);
+        private static void AddBrepsToChildLayerIfAny(RhinoDoc doc, List<Brep> breps, string layerName, int parentLayerIndex)
+        {
+            if (breps.Count == 0)
+                return;
+
+            var layerIndex = EnsureLayer(doc, layerName, parentLayerIndex);
+            AddBrepsToLayer(doc, breps, layerIndex);
         }
 
         private static int EnsureLayer(RhinoDoc doc, string name, int parentLayerIndex)
@@ -529,9 +681,12 @@ namespace Numbat.Commands.Modelling
             public double Height { get; set; }
             public double RailDepth { get; set; }
             public double RailHeight { get; set; }
+            public int BalusterStyleIndex { get; set; }
             public double BalusterWidth { get; set; }
             public double BalusterDepth { get; set; }
             public double MaxBalusterSpacing { get; set; }
+            public double ZigZagDiameter { get; set; }
+            public double ZigZagBayLength { get; set; }
             public bool BottomRailRaised { get; set; }
             public double BottomRailHeight { get; set; }
             public bool SupportFeet { get; set; }
