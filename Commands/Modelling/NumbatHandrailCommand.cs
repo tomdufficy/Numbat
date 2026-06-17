@@ -58,6 +58,7 @@ namespace Numbat.Commands.Modelling
 
             var bottomRailRaised = new OptionToggle(true, "Ground", "Raised");
             var bottomRailHeight = new OptionDouble(100.0, true, 0.0);
+            var supportFeet = new OptionToggle(true, "No", "Yes");
 
             var wallTabs = new OptionToggle(false, "No", "Yes");
             var tabLength = new OptionDouble(100.0, true, 1.0);
@@ -78,6 +79,7 @@ namespace Numbat.Commands.Modelling
                     settings.MaxBalusterSpacing = maxBalusterSpacing.CurrentValue;
                     settings.BottomRailRaised = bottomRailRaised.CurrentValue;
                     settings.BottomRailHeight = bottomRailHeight.CurrentValue;
+                    settings.SupportFeet = bottomRailRaised.CurrentValue && bottomRailHeight.CurrentValue > RhinoMath.ZeroTolerance && supportFeet.CurrentValue;
                     settings.WallTabs = wallTabs.CurrentValue;
                     settings.TabLength = tabLength.CurrentValue;
                     settings.GroundZ = groundZ;
@@ -100,7 +102,12 @@ namespace Numbat.Commands.Modelling
                     getOptions.AddOptionToggle("BottomRail", ref bottomRailRaised);
 
                     if (bottomRailRaised.CurrentValue)
+                    {
                         getOptions.AddOptionDouble("BottomRailHeight", ref bottomRailHeight);
+
+                        if (bottomRailHeight.CurrentValue > RhinoMath.ZeroTolerance)
+                            getOptions.AddOptionToggle("SupportFeet", ref supportFeet);
+                    }
 
                     getOptions.AddOptionToggle("WallTabs", ref wallTabs);
 
@@ -130,6 +137,7 @@ namespace Numbat.Commands.Modelling
             settings.MaxBalusterSpacing = maxBalusterSpacing.CurrentValue;
             settings.BottomRailRaised = bottomRailRaised.CurrentValue;
             settings.BottomRailHeight = bottomRailHeight.CurrentValue;
+            settings.SupportFeet = bottomRailRaised.CurrentValue && bottomRailHeight.CurrentValue > RhinoMath.ZeroTolerance && supportFeet.CurrentValue;
             settings.WallTabs = wallTabs.CurrentValue;
             settings.TabLength = tabLength.CurrentValue;
             settings.GroundZ = groundZ;
@@ -146,6 +154,7 @@ namespace Numbat.Commands.Modelling
             RhinoApp.WriteLine($"Baluster section: {settings.BalusterWidth} x {settings.BalusterDepth}");
             RhinoApp.WriteLine($"Max baluster spacing: {settings.MaxBalusterSpacing}");
             RhinoApp.WriteLine($"Bottom rail: {(settings.BottomRailRaised ? "Raised" : "Ground")}");
+            RhinoApp.WriteLine($"Support feet: {(settings.SupportFeet ? "Yes" : "No")}");
             RhinoApp.WriteLine($"Wall tabs: {(settings.WallTabs ? "Yes" : "No")}");
 
             return Result.Success;
@@ -199,7 +208,7 @@ namespace Numbat.Commands.Modelling
             geometry.BottomRails.AddRange(CreateSweptRectangularRail(bottomRailCurve, settings.RailDepth, settings.RailHeight, tolerance));
             geometry.TopRails.AddRange(CreateSweptRectangularRail(topRailCurve, settings.RailDepth, settings.RailHeight, tolerance));
 
-            if (settings.BottomRailRaised)
+            if (settings.BottomRailRaised && settings.SupportFeet)
             {
                 var supports = CreateVerticalElementsAlongCurve(
                     workingCurve,
@@ -525,6 +534,7 @@ namespace Numbat.Commands.Modelling
             public double MaxBalusterSpacing { get; set; }
             public bool BottomRailRaised { get; set; }
             public double BottomRailHeight { get; set; }
+            public bool SupportFeet { get; set; }
             public bool WallTabs { get; set; }
             public double TabLength { get; set; }
             public double GroundZ { get; set; }
