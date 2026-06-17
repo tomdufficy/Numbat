@@ -257,16 +257,11 @@ namespace Numbat.Commands.Modelling
         {
             var result = new List<Curve>();
 
-            if (!paverCurve.TryGetPlane(out var paverPlane))
-                paverPlane = Plane.WorldXY;
-
+            var paverPlane = Plane.WorldXY;
             var paverBox = paverCurve.GetBoundingBox(paverPlane);
 
-            var xSize = paverBox.Max.X - paverBox.Min.X;
-            var ySize = paverBox.Max.Y - paverBox.Min.Y;
-
-            var alongSize = Math.Max(xSize, ySize);
-            var acrossSize = Math.Min(xSize, ySize);
+            var alongSize = paverBox.Max.X - paverBox.Min.X;
+            var acrossSize = paverBox.Max.Y - paverBox.Min.Y;
 
             if (alongSize <= RhinoMath.ZeroTolerance)
                 return result;
@@ -276,9 +271,7 @@ namespace Numbat.Commands.Modelling
                 (paverBox.Min.Y + paverBox.Max.Y) * 0.5
             );
 
-            var sourceXAxis = xSize >= ySize ? paverPlane.XAxis : paverPlane.YAxis;
-            var sourceYAxis = xSize >= ySize ? paverPlane.YAxis : -paverPlane.XAxis;
-            var sourcePlane = new Plane(center, sourceXAxis, sourceYAxis);
+            var sourcePlane = new Plane(center, Vector3d.XAxis, Vector3d.YAxis);
 
             var targetLength = targetCurve.GetLength();
             var baseSpacing = alongSize + settings.Gap;
@@ -387,9 +380,7 @@ namespace Numbat.Commands.Modelling
 
         private static PaverSizes GetPaverSizes(Curve paverCurve)
         {
-            if (!paverCurve.TryGetPlane(out var paverPlane))
-                paverPlane = Plane.WorldXY;
-
+            var paverPlane = Plane.WorldXY;
             var paverBox = paverCurve.GetBoundingBox(paverPlane);
 
             var xSize = paverBox.Max.X - paverBox.Min.X;
@@ -397,8 +388,8 @@ namespace Numbat.Commands.Modelling
 
             return new PaverSizes
             {
-                AlongSize = Math.Max(xSize, ySize),
-                AcrossSize = Math.Min(xSize, ySize)
+                AlongSize = xSize,
+                AcrossSize = ySize
             };
         }
 
