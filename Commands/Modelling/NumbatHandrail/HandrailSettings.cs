@@ -26,7 +26,6 @@
         public double InfillDepth { get; set; }
         public double MaxInfillSpacing { get; set; }
 
-        public int ZigZagStyleIndex { get; set; }
         public double ZigZagDiameter { get; set; }
         public double ZigZagBayLength { get; set; }
 

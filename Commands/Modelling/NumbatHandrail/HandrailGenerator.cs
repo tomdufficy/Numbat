@@ -13,20 +13,14 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
         private const int TopRailRound = 1;
 
         private const int BottomRailNone = 0;
-        private const int BottomRailGround = 1;
         private const int BottomRailRaised = 2;
 
-        private const int PostPlacementAuto = 0;
         private const int PostPlacementFixedSpacing = 1;
 
         private const int PostDistributionEqualize = 0;
         private const int PostDistributionExact = 1;
 
         private const int InfillVertical = 0;
-        private const int InfillZigZag = 1;
-
-        private const int ZigZagHard = 0;
-        private const int ZigZagSoft = 1;
 
         public static HandrailGeometry CreateHandrailGeometry(Curve originalCurve, HandrailSettings settings, double tolerance)
         {
@@ -77,23 +71,29 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 postDistances.Add(railLength);
             }
 
-            geometry.EndPosts.Add(CreateVerticalElementAtDistance(
+            var startPost = CreateVerticalElementAtDistance(
                 workingCurve,
                 0.0,
                 settings.BoxRailHeight,
                 settings.BoxRailDepth,
                 postBottomZ,
                 postTopZ
-            ));
+            );
 
-            geometry.EndPosts.Add(CreateVerticalElementAtDistance(
+            if (startPost != null)
+                geometry.EndPosts.Add(startPost);
+
+            var endPost = CreateVerticalElementAtDistance(
                 workingCurve,
                 railLength,
                 settings.BoxRailHeight,
                 settings.BoxRailDepth,
                 postBottomZ,
                 postTopZ
-            ));
+            );
+
+            if (endPost != null)
+                geometry.EndPosts.Add(endPost);
 
             for (var i = 1; i < postDistances.Count - 1; i++)
             {
@@ -142,28 +142,14 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 }
                 else
                 {
-                    if (settings.ZigZagStyleIndex == ZigZagHard)
-                    {
-                        geometry.Infill.AddRange(CreateHardZigZagInfill(
-                            bay,
-                            infillBottomZ,
-                            infillTopZ,
-                            settings.ZigZagDiameter,
-                            settings.ZigZagBayLength,
-                            tolerance
-                        ));
-                    }
-                    else
-                    {
-                        geometry.Infill.AddRange(CreateSoftZigZagInfill(
-                            bay,
-                            infillBottomZ,
-                            infillTopZ,
-                            settings.ZigZagDiameter,
-                            settings.ZigZagBayLength,
-                            tolerance
-                        ));
-                    }
+                    geometry.Infill.AddRange(CreateHardZigZagInfill(
+                        bay,
+                        infillBottomZ,
+                        infillTopZ,
+                        settings.ZigZagDiameter,
+                        settings.ZigZagBayLength,
+                        tolerance
+                    ));
                 }
             }
 
@@ -465,60 +451,6 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 previousPoint = nextPoint;
             }
 
-            return breps;
-        }
-
-        private static List<Brep> CreateSoftZigZagInfill(Curve bayCurve, double bottomZ, double topZ, double diameter, double bayLength, double tolerance)
-        {
-            var breps = new List<Brep>();
-            var length = bayCurve.GetLength();
-
-            if (length <= RhinoMath.ZeroTolerance || bayLength <= RhinoMath.ZeroTolerance || diameter <= RhinoMath.ZeroTolerance)
-                return breps;
-
-            var stationCount = Math.Max(1, (int)Math.Ceiling(length / bayLength));
-            var actualBayLength = length / stationCount;
-
-            var points = new List<Point3d>();
-
-            for (var i = 0; i <= stationCount; i++)
-            {
-                var distance = i * actualBayLength;
-
-                if (distance > length)
-                    distance = length;
-
-                var z = i % 2 == 0 ? topZ : bottomZ;
-                points.Add(PointAtDistanceAndZ(bayCurve, distance, z));
-            }
-
-            if (points.Count < 2)
-                return breps;
-
-            var polyline = new PolylineCurve(points);
-
-            if (points.Count == 2)
-            {
-                breps.AddRange(CreatePipe(polyline, diameter, tolerance));
-                return breps;
-            }
-
-            var verticalRange = Math.Abs(topZ - bottomZ);
-            var filletRadius = Math.Min(actualBayLength * 0.25, verticalRange * 0.25);
-            filletRadius = Math.Min(filletRadius, 75.0);
-            filletRadius = Math.Max(filletRadius, diameter * 1.5);
-
-            var softCurve = Curve.CreateFilletCornersCurve(
-                polyline,
-                filletRadius,
-                tolerance,
-                RhinoMath.ToRadians(1.0)
-            );
-
-            if (softCurve == null)
-                softCurve = polyline;
-
-            breps.AddRange(CreatePipe(softCurve, diameter, tolerance));
             return breps;
         }
 

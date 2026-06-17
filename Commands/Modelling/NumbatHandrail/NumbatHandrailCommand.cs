@@ -76,8 +76,6 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             var infillDepth = new OptionDouble(20.0, true, 1.0);
             var maxInfillSpacing = new OptionDouble(100.0, true, 10.0);
 
-            var zigZagStyleIndex = 0;
-            string[] zigZagStyleOptions = { "Hard", "Soft" };
             var zigZagDiameter = new OptionDouble(10.0, true, 1.0);
             var zigZagBayLength = new OptionDouble(100.0, true, 10.0);
 
@@ -111,7 +109,6 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                         infillWidth,
                         infillDepth,
                         maxInfillSpacing,
-                        zigZagStyleIndex,
                         zigZagDiameter,
                         zigZagBayLength
                     );
@@ -179,7 +176,6 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                     }
                     else
                     {
-                        getOptions.AddOptionList("ZigZagStyle", zigZagStyleOptions, zigZagStyleIndex);
                         getOptions.AddOptionDouble("ZigZagDiameter", ref zigZagDiameter);
                         getOptions.AddOptionDouble("ZigZagBayLength", ref zigZagBayLength);
                     }
@@ -212,9 +208,6 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
                             if (option.EnglishName == "InfillStyle")
                                 infillStyleIndex = option.CurrentListOptionIndex;
-
-                            if (option.EnglishName == "ZigZagStyle")
-                                zigZagStyleIndex = option.CurrentListOptionIndex;
                         }
                     }
                 }
@@ -247,7 +240,6 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 infillWidth,
                 infillDepth,
                 maxInfillSpacing,
-                zigZagStyleIndex,
                 zigZagDiameter,
                 zigZagBayLength
             );
@@ -263,10 +255,6 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             RhinoApp.WriteLine($"Bottom rail: {bottomRailOptions[settings.BottomRailModeIndex]}");
             RhinoApp.WriteLine($"Post placement: {postPlacementOptions[settings.PostPlacementIndex]}");
             RhinoApp.WriteLine($"Infill style: {infillStyleOptions[settings.InfillStyleIndex]}");
-
-            if (settings.InfillStyleIndex == 1)
-                RhinoApp.WriteLine($"Zig-zag style: {zigZagStyleOptions[settings.ZigZagStyleIndex]}");
-
             RhinoApp.WriteLine($"Wall tabs: {(settings.WallTabs ? "Yes" : "No")}");
 
             return Result.Success;
@@ -294,7 +282,6 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             OptionDouble infillWidth,
             OptionDouble infillDepth,
             OptionDouble maxInfillSpacing,
-            int zigZagStyleIndex,
             OptionDouble zigZagDiameter,
             OptionDouble zigZagBayLength
         )
@@ -323,7 +310,6 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             settings.InfillDepth = infillDepth.CurrentValue;
             settings.MaxInfillSpacing = maxInfillSpacing.CurrentValue;
 
-            settings.ZigZagStyleIndex = zigZagStyleIndex;
             settings.ZigZagDiameter = zigZagDiameter.CurrentValue;
             settings.ZigZagBayLength = zigZagBayLength.CurrentValue;
 
