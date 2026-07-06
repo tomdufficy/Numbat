@@ -1,0 +1,8 @@
+name: Numbat
+version: $version
+authors:
+- Tom Dufficy
+description: >
+  Architectural productivity tools for Rhino.
+url: https://github.com/tomdufficy/Numbat
+icon: numbat-icon-512.png
