@@ -1,9 +1,19 @@
+# Build output
 bin/
 obj/
 Package/
+
+# IDE
 .vs/
+.idea/
 *.user
 *.suo
-.idea/
+
+# Rhino
+*.3dmbak
+*.3dm.rhl
+*.rhl
+
+# OS
 .DS_Store
 Thumbs.db
