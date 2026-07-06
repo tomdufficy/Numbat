@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Icons/Numbat.png" width="128" alt="Numbat logo">
+  <img src="assets/brand/numbat-icon-512.png" width="128" alt="Numbat logo">
 </p>
 
 # Numbat
