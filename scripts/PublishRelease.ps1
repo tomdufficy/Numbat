@@ -4,7 +4,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$csprojPath = "src/Lichen/Lichen/Lichen.csproj"
+$csprojPath = "src/Numbat/Numbat/Numbat.csproj"
 
 $branch = git branch --show-current
 if ($branch -ne "main") {
