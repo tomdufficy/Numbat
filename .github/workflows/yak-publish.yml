@@ -20,14 +20,14 @@ jobs:
           dotnet-version: '7.0.x'
 
       - name: Build
-        run: dotnet build src/Lichen/Lichen/Lichen.csproj -c Release
+        run: dotnet build src/Numbat/Numbat/Numbat.csproj -c Release
 
       - name: Copy files to Release folders
         run: |
-          cp assets/brand/lichen-icon-512.png src/Lichen/Lichen/bin/Release/net7.0/lichen-icon-512.png
-          cp assets/brand/lichen-icon-512.png src/Lichen/Lichen/bin/Release/net48/lichen-icon-512.png
-          cp src/Lichen/Lichen/manifest.yml src/Lichen/Lichen/bin/Release/net7.0/manifest.yml
-          cp src/Lichen/Lichen/manifest.yml src/Lichen/Lichen/bin/Release/net48/manifest.yml
+          cp assets/brand/numbat-icon-512.png src/Numbat/Numbat/bin/Release/net7.0/numbat-icon-512.png
+	  cp assets/brand/numbat-icon-512.png src/Numbat/Numbat/bin/Release/net48/numbat-icon-512.png
+          cp src/Numbat/Numbat/manifest.yml src/Numbat/Numbat/bin/Release/net7.0/manifest.yml
+	  cp src/Numbat/Numbat/manifest.yml src/Numbat/Numbat/bin/Release/net48/manifest.yml
 
       - name: Set version in manifest
         run: |
