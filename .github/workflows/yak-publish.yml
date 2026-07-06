@@ -25,26 +25,27 @@ jobs:
       - name: Copy files to Release folders
         run: |
           cp assets/brand/numbat-icon-512.png src/Numbat/Numbat/bin/Release/net7.0/numbat-icon-512.png
-	  cp assets/brand/numbat-icon-512.png src/Numbat/Numbat/bin/Release/net48/numbat-icon-512.png
+          cp assets/brand/numbat-icon-512.png src/Numbat/Numbat/bin/Release/net48/numbat-icon-512.png
           cp src/Numbat/Numbat/manifest.yml src/Numbat/Numbat/bin/Release/net7.0/manifest.yml
-	  cp src/Numbat/Numbat/manifest.yml src/Numbat/Numbat/bin/Release/net48/manifest.yml
+          cp src/Numbat/Numbat/manifest.yml src/Numbat/Numbat/bin/Release/net48/manifest.yml
 
       - name: Set version in manifest
+        shell: pwsh
         run: |
           $version = "${{ github.ref_name }}".TrimStart('v')
           (Get-Content src/Numbat/Numbat/bin/Release/net7.0/manifest.yml) -replace '\$version', $version | Set-Content src/Numbat/Numbat/bin/Release/net7.0/manifest.yml
-        shell: pwsh
 
       - name: Download Yak
-        run: Invoke-WebRequest -Uri "https://files.mcneel.com/yak/tools/latest/yak.exe" -OutFile "${{ github.workspace }}/yak.exe"
         shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://files.mcneel.com/yak/tools/latest/yak.exe" -OutFile "${{ github.workspace }}/yak.exe"
 
       - name: Yak Build and Push
+        shell: pwsh
+        working-directory: src/Numbat/Numbat/bin/Release/net7.0
+        env:
+          YAK_TOKEN: ${{ secrets.YAK_TOKEN }}
         run: |
           & "${{ github.workspace }}/yak.exe" build
           $yakFile = (Get-Item *.yak).Name
           & "${{ github.workspace }}/yak.exe" push $yakFile
-        working-directory: src/Numbat/Numbat/bin/Release/net7.0
-        env:
-          YAK_TOKEN: ${{ secrets.YAK_TOKEN }}
-        shell: pwsh
