@@ -32,7 +32,7 @@ jobs:
       - name: Set version in manifest
         run: |
           $version = "${{ github.ref_name }}".TrimStart('v')
-          (Get-Content src/Lichen/Lichen/bin/Release/net7.0/manifest.yml) -replace '\$version', $version | Set-Content src/Lichen/Lichen/bin/Release/net7.0/manifest.yml
+          (Get-Content src/Numbat/Numbat/bin/Release/net7.0/manifest.yml) -replace '\$version', $version | Set-Content src/Numbat/Numbat/bin/Release/net7.0/manifest.yml
         shell: pwsh
 
       - name: Download Yak
@@ -44,7 +44,7 @@ jobs:
           & "${{ github.workspace }}/yak.exe" build
           $yakFile = (Get-Item *.yak).Name
           & "${{ github.workspace }}/yak.exe" push $yakFile
-        working-directory: src/Lichen/Lichen/bin/Release/net7.0
+        working-directory: src/Numbat/Numbat/bin/Release/net7.0
         env:
           YAK_TOKEN: ${{ secrets.YAK_TOKEN }}
         shell: pwsh
