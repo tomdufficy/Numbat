@@ -1,19 +1,99 @@
-# Build output
-bin/
-obj/
-Package/
+# ============================================================
+# Rhino Plugin (.NET) - Standard .gitignore
+# Shared across all plugin repositories
+# ============================================================
 
-# IDE
+# ------------------------------------------------------------
+# Build output
+# ------------------------------------------------------------
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+Package/
+publish/
+
+# Plugin binaries
+*.rhp
+
+# ------------------------------------------------------------
+# Visual Studio / Rider / VS Code
+# ------------------------------------------------------------
 .vs/
 .idea/
-*.user
-*.suo
 
-# Rhino
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# ------------------------------------------------------------
+# Logs
+# ------------------------------------------------------------
+*.log
+*.binlog
+
+# ------------------------------------------------------------
+# Python
+# ------------------------------------------------------------
+__pycache__/
+*.pyc
+
+# ------------------------------------------------------------
+# Rhino temporary / backup files
+# ------------------------------------------------------------
 *.3dmbak
 *.3dm.rhl
 *.rhl
+*.bak
+*.tmp
 
-# OS
+# ------------------------------------------------------------
+# Operating system
+# ------------------------------------------------------------
 .DS_Store
 Thumbs.db
+
+# ------------------------------------------------------------
+# Adobe temporary files
+# ------------------------------------------------------------
+*.ai~
+
+# ------------------------------------------------------------
+# Keep source assets
+# ------------------------------------------------------------
+
+# Rhino source models
+!*.3dm
+
+# Toolbar files
+!*.rui
+
+# Illustrator source artwork
+!*.ai
+
+# SVG source artwork
+!*.svg
+
+# PNG assets
+!*.png
+
+# GIF demonstrations
+!*.gif
+
+# Markdown documentation
+!*.md
+
+# PowerShell automation
+!*.ps1
+
+# YAML workflows/manifests
+!*.yml
+!*.yaml
