@@ -8,6 +8,8 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
         public List<Brep> TopRails { get; } = new List<Brep>();
         public List<Brep> BottomRails { get; } = new List<Brep>();
         public List<Brep> Infill { get; } = new List<Brep>();
+        public List<Brep> PanelFrames { get; } = new List<Brep>();
+        public List<Brep> PanelSheets { get; } = new List<Brep>();
         public List<Brep> EndPosts { get; } = new List<Brep>();
         public List<Brep> IntermediatePosts { get; } = new List<Brep>();
         public List<Brep> SupportFeet { get; } = new List<Brep>();
@@ -20,6 +22,8 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             all.AddRange(TopRails);
             all.AddRange(BottomRails);
             all.AddRange(Infill);
+            all.AddRange(PanelFrames);
+            all.AddRange(PanelSheets);
             all.AddRange(EndPosts);
             all.AddRange(IntermediatePosts);
             all.AddRange(SupportFeet);

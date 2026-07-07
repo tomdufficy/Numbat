@@ -48,8 +48,8 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
             var height = new OptionDouble(1100.0, true, 100.0);
 
-            var topRailStyleIndex = 0;
-            string[] topRailStyleOptions = { "Rectangular", "Round" };
+            var topRailStyleIndex = 1;
+            string[] topRailStyleOptions = { "None", "Rectangular", "Round" };
             var boxRailDepth = new OptionDouble(40.0, true, 1.0);
             var boxRailHeight = new OptionDouble(20.0, true, 1.0);
             var topRailDiameter = new OptionDouble(50.0, true, 1.0);
@@ -71,13 +71,18 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             var tabLength = new OptionDouble(100.0, true, 1.0);
 
             var infillStyleIndex = 0;
-            string[] infillStyleOptions = { "Vertical", "ZigZag" };
+            string[] infillStyleOptions = { "Vertical", "ZigZag", "Panel" };
             var infillWidth = new OptionDouble(10.0, true, 1.0);
             var infillDepth = new OptionDouble(20.0, true, 1.0);
             var maxInfillSpacing = new OptionDouble(100.0, true, 10.0);
 
             var zigZagDiameter = new OptionDouble(10.0, true, 1.0);
             var zigZagBayLength = new OptionDouble(100.0, true, 10.0);
+
+            var panelGap = new OptionDouble(50.0, true, 0.0);
+            var panelFrameSize = new OptionDouble(25.0, true, 1.0);
+            var panelSheetThickness = new OptionDouble(5.0, true, 1.0);
+            var panelVerticalMargin = new OptionDouble(25.0, true, 0.0);
 
             var settings = new HandrailSettings();
             var conduit = new HandrailPreviewConduit();
@@ -110,7 +115,11 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                         infillDepth,
                         maxInfillSpacing,
                         zigZagDiameter,
-                        zigZagBayLength
+                        zigZagBayLength,
+                        panelGap,
+                        panelFrameSize,
+                        panelSheetThickness,
+                        panelVerticalMargin
                     );
 
                     var previewGeometry = HandrailGenerator.CreateHandrailGeometry(originalCurve, settings, doc.ModelAbsoluteTolerance);
@@ -124,12 +133,12 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                     getOptions.AddOptionDouble("Height", ref height);
                     getOptions.AddOptionList("TopRailStyle", topRailStyleOptions, topRailStyleIndex);
 
-                    if (topRailStyleIndex == 0)
+                    if (topRailStyleIndex == 1)
                     {
                         getOptions.AddOptionDouble("BoxRailDepth", ref boxRailDepth);
                         getOptions.AddOptionDouble("BoxRailHeight", ref boxRailHeight);
                     }
-                    else
+                    else if (topRailStyleIndex == 2)
                     {
                         getOptions.AddOptionDouble("TopRailDiameter", ref topRailDiameter);
                         getOptions.AddOptionDouble("BoxRailDepth", ref boxRailDepth);
@@ -174,10 +183,17 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                         getOptions.AddOptionDouble("InfillDepth", ref infillDepth);
                         getOptions.AddOptionDouble("MaxInfillSpacing", ref maxInfillSpacing);
                     }
-                    else
+                    else if (infillStyleIndex == 1)
                     {
                         getOptions.AddOptionDouble("ZigZagDiameter", ref zigZagDiameter);
                         getOptions.AddOptionDouble("ZigZagBayLength", ref zigZagBayLength);
+                    }
+                    else if (infillStyleIndex == 2)
+                    {
+                        getOptions.AddOptionDouble("PanelGap", ref panelGap);
+                        getOptions.AddOptionDouble("PanelFrameSize", ref panelFrameSize);
+                        getOptions.AddOptionDouble("PanelSheetThickness", ref panelSheetThickness);
+                        getOptions.AddOptionDouble("PanelVerticalMargin", ref panelVerticalMargin);
                     }
 
                     var result = getOptions.Get();
@@ -241,7 +257,11 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 infillDepth,
                 maxInfillSpacing,
                 zigZagDiameter,
-                zigZagBayLength
+                zigZagBayLength,
+                panelGap,
+                panelFrameSize,
+                panelSheetThickness,
+                panelVerticalMargin
             );
 
             var finalGeometry = HandrailGenerator.CreateHandrailGeometry(originalCurve, settings, doc.ModelAbsoluteTolerance);
@@ -283,7 +303,11 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             OptionDouble infillDepth,
             OptionDouble maxInfillSpacing,
             OptionDouble zigZagDiameter,
-            OptionDouble zigZagBayLength
+            OptionDouble zigZagBayLength,
+            OptionDouble panelGap,
+            OptionDouble panelFrameSize,
+            OptionDouble panelSheetThickness,
+            OptionDouble panelVerticalMargin
         )
         {
             settings.Height = height.CurrentValue;
@@ -312,6 +336,11 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
             settings.ZigZagDiameter = zigZagDiameter.CurrentValue;
             settings.ZigZagBayLength = zigZagBayLength.CurrentValue;
+
+            settings.PanelGap = panelGap.CurrentValue;
+            settings.PanelFrameSize = panelFrameSize.CurrentValue;
+            settings.PanelSheetThickness = panelSheetThickness.CurrentValue;
+            settings.PanelVerticalMargin = panelVerticalMargin.CurrentValue;
 
             settings.GroundZ = groundZ;
         }

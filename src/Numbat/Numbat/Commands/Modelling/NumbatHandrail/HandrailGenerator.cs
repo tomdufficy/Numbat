@@ -9,8 +9,9 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 {
     internal static class HandrailGenerator
     {
-        private const int TopRailRectangular = 0;
-        private const int TopRailRound = 1;
+        private const int TopRailNone = 0;
+        private const int TopRailRectangular = 1;
+        private const int TopRailRound = 2;
 
         private const int BottomRailNone = 0;
         private const int BottomRailRaised = 2;
@@ -21,6 +22,8 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
         private const int PostDistributionExact = 1;
 
         private const int InfillVertical = 0;
+        private const int InfillZigZag = 1;
+        private const int InfillPanel = 2;
 
         public static HandrailGeometry CreateHandrailGeometry(Curve originalCurve, HandrailSettings settings, double tolerance)
         {
@@ -140,7 +143,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                         settings.MaxInfillSpacing
                     ));
                 }
-                else
+                else if (settings.InfillStyleIndex == InfillZigZag)
                 {
                     geometry.Infill.AddRange(CreateHardZigZagInfill(
                         bay,
@@ -150,6 +153,20 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                         settings.ZigZagBayLength,
                         tolerance
                     ));
+                }
+                else if (settings.InfillStyleIndex == InfillPanel)
+                {
+                    CreatePanelInfill(
+                        geometry,
+                        bay,
+                        infillBottomZ,
+                        infillTopZ,
+                        settings.PanelGap,
+                        settings.PanelFrameSize,
+                        settings.PanelSheetThickness,
+                        settings.PanelVerticalMargin,
+                        tolerance
+                    );
                 }
             }
 
@@ -197,6 +214,8 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             AddBrepsToChildLayerIfAny(doc, geometry.TopRails, "Top Rails", parentLayerIndex);
             AddBrepsToChildLayerIfAny(doc, geometry.BottomRails, "Bottom Rails", parentLayerIndex);
             AddBrepsToChildLayerIfAny(doc, geometry.Infill, "Infill", parentLayerIndex);
+            AddBrepsToChildLayerIfAny(doc, geometry.PanelFrames, "Panel Frames", parentLayerIndex);
+            AddBrepsToChildLayerIfAny(doc, geometry.PanelSheets, "Panel Sheets", parentLayerIndex);
             AddBrepsToChildLayerIfAny(doc, geometry.EndPosts, "End Posts", parentLayerIndex);
             AddBrepsToChildLayerIfAny(doc, geometry.IntermediatePosts, "Intermediate Posts", parentLayerIndex);
             AddBrepsToChildLayerIfAny(doc, geometry.SupportFeet, "Support Feet", parentLayerIndex);
@@ -221,6 +240,9 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
         private static double GetInfillTopZ(HandrailSettings settings)
         {
+            if (settings.TopRailStyleIndex == TopRailNone)
+                return settings.GroundZ + settings.Height;
+
             if (settings.TopRailStyleIndex == TopRailRound)
                 return settings.GroundZ + settings.Height - settings.TopRailDiameter;
 
@@ -229,6 +251,9 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
         private static void CreateTopRail(HandrailGeometry geometry, Curve workingCurve, HandrailSettings settings, double tolerance)
         {
+            if (settings.TopRailStyleIndex == TopRailNone)
+                return;
+
             if (settings.TopRailStyleIndex == TopRailRound)
             {
                 var centerZ = settings.GroundZ + settings.Height - settings.TopRailDiameter * 0.5;
@@ -452,6 +477,60 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             }
 
             return breps;
+        }
+
+
+        private static void CreatePanelInfill(HandrailGeometry geometry, Curve bayCurve, double infillBottomZ, double infillTopZ, double panelGap, double frameSize, double sheetThickness, double verticalMargin, double tolerance)
+        {
+            var length = bayCurve.GetLength();
+
+            if (length <= RhinoMath.ZeroTolerance || frameSize <= RhinoMath.ZeroTolerance || sheetThickness <= RhinoMath.ZeroTolerance)
+                return;
+
+            var panelStartDistance = Math.Max(0.0, panelGap);
+            var panelEndDistance = length - Math.Max(0.0, panelGap);
+            var panelBottomZ = infillBottomZ + Math.Max(0.0, verticalMargin);
+            var panelTopZ = infillTopZ - Math.Max(0.0, verticalMargin);
+
+            if (panelEndDistance - panelStartDistance <= frameSize * 2.0)
+                return;
+
+            if (panelTopZ - panelBottomZ <= frameSize * 2.0)
+                return;
+
+            var leftFrame = CreateVerticalElementAtDistance(bayCurve, panelStartDistance, frameSize, frameSize, panelBottomZ, panelTopZ);
+            var rightFrame = CreateVerticalElementAtDistance(bayCurve, panelEndDistance, frameSize, frameSize, panelBottomZ, panelTopZ);
+
+            if (leftFrame != null)
+                geometry.PanelFrames.Add(leftFrame);
+
+            if (rightFrame != null)
+                geometry.PanelFrames.Add(rightFrame);
+
+            var topFrameCurve = CreateBayCurve(bayCurve, panelStartDistance, panelEndDistance);
+            var bottomFrameCurve = CreateBayCurve(bayCurve, panelStartDistance, panelEndDistance);
+
+            if (topFrameCurve != null)
+                geometry.PanelFrames.AddRange(CreateSweptRectangularRail(MoveCurveToZ(topFrameCurve, panelTopZ - frameSize * 0.5), frameSize, frameSize, tolerance));
+
+            if (bottomFrameCurve != null)
+                geometry.PanelFrames.AddRange(CreateSweptRectangularRail(MoveCurveToZ(bottomFrameCurve, panelBottomZ + frameSize * 0.5), frameSize, frameSize, tolerance));
+
+            var sheetStartDistance = panelStartDistance + frameSize * 0.5;
+            var sheetEndDistance = panelEndDistance - frameSize * 0.5;
+            var sheetBottomZ = panelBottomZ + frameSize * 0.5;
+            var sheetTopZ = panelTopZ - frameSize * 0.5;
+
+            if (sheetEndDistance <= sheetStartDistance || sheetTopZ <= sheetBottomZ)
+                return;
+
+            var sheetCurve = CreateBayCurve(bayCurve, sheetStartDistance, sheetEndDistance);
+
+            if (sheetCurve == null)
+                return;
+
+            var sheetCenterZ = (sheetBottomZ + sheetTopZ) * 0.5;
+            geometry.PanelSheets.AddRange(CreateSweptRectangularRail(MoveCurveToZ(sheetCurve, sheetCenterZ), sheetThickness, sheetTopZ - sheetBottomZ, tolerance));
         }
 
         private static List<Brep> CreateSupportFeet(Curve path, double widthAlongCurve, double depthPerpendicular, double bottomZ, double topZ, double maxSpacing)

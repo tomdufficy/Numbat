@@ -29,6 +29,11 @@
         public double ZigZagDiameter { get; set; }
         public double ZigZagBayLength { get; set; }
 
+        public double PanelGap { get; set; }
+        public double PanelFrameSize { get; set; }
+        public double PanelSheetThickness { get; set; }
+        public double PanelVerticalMargin { get; set; }
+
         public double GroundZ { get; set; }
     }
 }
