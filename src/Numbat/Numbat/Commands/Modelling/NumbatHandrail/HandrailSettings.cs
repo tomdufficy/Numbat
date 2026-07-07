@@ -30,9 +30,14 @@
         public double ZigZagBayLength { get; set; }
 
         public double PanelGap { get; set; }
-        public double PanelFrameSize { get; set; }
+        public double PanelFrameWidth { get; set; }
+        public double PanelFrameDepth { get; set; }
         public double PanelSheetThickness { get; set; }
-        public double PanelVerticalMargin { get; set; }
+        public double PanelTopGap { get; set; }
+        public double PanelBottomGap { get; set; }
+        public int PanelFrameConstructionIndex { get; set; }
+
+        public bool PreviewDims { get; set; }
 
         public double GroundZ { get; set; }
     }

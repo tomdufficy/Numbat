@@ -25,6 +25,9 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
         private const int InfillZigZag = 1;
         private const int InfillPanel = 2;
 
+        private const int PanelFrameSolid = 0;
+        private const int PanelFrameMitred = 1;
+
         public static HandrailGeometry CreateHandrailGeometry(Curve originalCurve, HandrailSettings settings, double tolerance)
         {
             var geometry = new HandrailGeometry();
@@ -125,6 +128,9 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 ));
             }
 
+            if (settings.PreviewDims)
+                AddPreviewLabels(geometry, workingCurve, postDistances, settings);
+
             for (var i = 0; i < postDistances.Count - 1; i++)
             {
                 var bay = CreateBayCurve(workingCurve, postDistances[i], postDistances[i + 1]);
@@ -159,12 +165,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                     CreatePanelInfill(
                         geometry,
                         bay,
-                        infillBottomZ,
-                        infillTopZ,
-                        settings.PanelGap,
-                        settings.PanelFrameSize,
-                        settings.PanelSheetThickness,
-                        settings.PanelVerticalMargin,
+                        settings,
                         tolerance
                     );
                 }
@@ -480,57 +481,241 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
         }
 
 
-        private static void CreatePanelInfill(HandrailGeometry geometry, Curve bayCurve, double infillBottomZ, double infillTopZ, double panelGap, double frameSize, double sheetThickness, double verticalMargin, double tolerance)
+        private static void CreatePanelInfill(HandrailGeometry geometry, Curve bayCurve, HandrailSettings settings, double tolerance)
         {
             var length = bayCurve.GetLength();
+            var postWidthAlongCurve = settings.BoxRailHeight;
+            var requestedGap = Math.Max(0.0, settings.PanelGap);
+            var frameWidth = Math.Max(0.0, settings.PanelFrameWidth);
+            var frameDepth = Math.Max(0.0, settings.PanelFrameDepth);
+            var sheetThickness = Math.Max(0.0, settings.PanelSheetThickness);
+            var panelBottomZ = settings.GroundZ + Math.Max(0.0, settings.PanelBottomGap);
+            var panelTopZ = settings.GroundZ + settings.Height - Math.Max(0.0, settings.PanelTopGap);
 
-            if (length <= RhinoMath.ZeroTolerance || frameSize <= RhinoMath.ZeroTolerance || sheetThickness <= RhinoMath.ZeroTolerance)
+            if (length <= RhinoMath.ZeroTolerance || frameWidth <= RhinoMath.ZeroTolerance || frameDepth <= RhinoMath.ZeroTolerance || sheetThickness <= RhinoMath.ZeroTolerance)
                 return;
 
-            var panelStartDistance = Math.Max(0.0, panelGap);
-            var panelEndDistance = length - Math.Max(0.0, panelGap);
-            var panelBottomZ = infillBottomZ + Math.Max(0.0, verticalMargin);
-            var panelTopZ = infillTopZ - Math.Max(0.0, verticalMargin);
-
-            if (panelEndDistance - panelStartDistance <= frameSize * 2.0)
+            if (panelTopZ - panelBottomZ <= frameWidth * 2.0)
+            {
+                geometry.PanelBaysOmitted++;
                 return;
+            }
 
-            if (panelTopZ - panelBottomZ <= frameSize * 2.0)
+            var minimumPanelWidth = frameWidth * 2.0 + Math.Max(sheetThickness, 1.0);
+            var availableBetweenPostFaces = length - postWidthAlongCurve;
+            var effectiveGap = requestedGap;
+            var panelOuterWidth = availableBetweenPostFaces - effectiveGap * 2.0;
+
+            if (panelOuterWidth < minimumPanelWidth)
+            {
+                effectiveGap = Math.Max(0.0, (availableBetweenPostFaces - minimumPanelWidth) * 0.5);
+                panelOuterWidth = availableBetweenPostFaces - effectiveGap * 2.0;
+                geometry.PanelBaysReduced++;
+            }
+
+            if (panelOuterWidth < minimumPanelWidth || panelOuterWidth <= RhinoMath.ZeroTolerance)
+            {
+                geometry.PanelBaysOmitted++;
                 return;
+            }
 
-            var leftFrame = CreateVerticalElementAtDistance(bayCurve, panelStartDistance, frameSize, frameSize, panelBottomZ, panelTopZ);
-            var rightFrame = CreateVerticalElementAtDistance(bayCurve, panelEndDistance, frameSize, frameSize, panelBottomZ, panelTopZ);
+            var panelStartDistance = postWidthAlongCurve * 0.5 + effectiveGap;
+            var panelEndDistance = panelStartDistance + panelOuterWidth;
 
-            if (leftFrame != null)
-                geometry.PanelFrames.Add(leftFrame);
-
-            if (rightFrame != null)
-                geometry.PanelFrames.Add(rightFrame);
-
-            var topFrameCurve = CreateBayCurve(bayCurve, panelStartDistance, panelEndDistance);
-            var bottomFrameCurve = CreateBayCurve(bayCurve, panelStartDistance, panelEndDistance);
-
-            if (topFrameCurve != null)
-                geometry.PanelFrames.AddRange(CreateSweptRectangularRail(MoveCurveToZ(topFrameCurve, panelTopZ - frameSize * 0.5), frameSize, frameSize, tolerance));
-
-            if (bottomFrameCurve != null)
-                geometry.PanelFrames.AddRange(CreateSweptRectangularRail(MoveCurveToZ(bottomFrameCurve, panelBottomZ + frameSize * 0.5), frameSize, frameSize, tolerance));
-
-            var sheetStartDistance = panelStartDistance + frameSize * 0.5;
-            var sheetEndDistance = panelEndDistance - frameSize * 0.5;
-            var sheetBottomZ = panelBottomZ + frameSize * 0.5;
-            var sheetTopZ = panelTopZ - frameSize * 0.5;
-
-            if (sheetEndDistance <= sheetStartDistance || sheetTopZ <= sheetBottomZ)
+            if (!TryCreatePanelPlane(bayCurve, panelStartDistance, panelEndDistance, panelBottomZ, out var panelPlane, out var panelWidth))
+            {
+                geometry.PanelBaysOmitted++;
                 return;
+            }
 
-            var sheetCurve = CreateBayCurve(bayCurve, sheetStartDistance, sheetEndDistance);
+            if (settings.PanelFrameConstructionIndex == PanelFrameMitred)
+                geometry.PanelFrames.AddRange(CreateMitredPanelFrame(panelPlane, panelWidth, panelTopZ - panelBottomZ, frameWidth, frameDepth, tolerance));
+            else
+                AddIfNotNull(geometry.PanelFrames, CreateSolidPanelFrame(panelPlane, panelWidth, panelTopZ - panelBottomZ, frameWidth, frameDepth, tolerance));
 
-            if (sheetCurve == null)
-                return;
+            AddIfNotNull(geometry.PanelSheets, CreatePanelSheet(panelPlane, panelWidth, panelTopZ - panelBottomZ, frameWidth, sheetThickness));
+        }
 
-            var sheetCenterZ = (sheetBottomZ + sheetTopZ) * 0.5;
-            geometry.PanelSheets.AddRange(CreateSweptRectangularRail(MoveCurveToZ(sheetCurve, sheetCenterZ), sheetThickness, sheetTopZ - sheetBottomZ, tolerance));
+        private static bool TryCreatePanelPlane(Curve bayCurve, double startDistance, double endDistance, double bottomZ, out Plane panelPlane, out double panelWidth)
+        {
+            panelPlane = Plane.Unset;
+            panelWidth = 0.0;
+
+            var start = PointAtDistanceAndZ(bayCurve, startDistance, bottomZ);
+            var end = PointAtDistanceAndZ(bayCurve, endDistance, bottomZ);
+            var xAxis = end - start;
+
+            if (!xAxis.Unitize())
+                return false;
+
+            var yAxis = Vector3d.CrossProduct(Vector3d.ZAxis, xAxis);
+
+            if (!yAxis.Unitize())
+                return false;
+
+            panelWidth = start.DistanceTo(end);
+            panelPlane = new Plane(start, xAxis, yAxis);
+            return panelWidth > RhinoMath.ZeroTolerance;
+        }
+
+        private static Brep CreatePanelSheet(Plane panelPlane, double outerWidth, double outerHeight, double frameWidth, double sheetThickness)
+        {
+            var sheetWidth = outerWidth - frameWidth * 2.0;
+            var sheetHeight = outerHeight - frameWidth * 2.0;
+
+            if (sheetWidth <= RhinoMath.ZeroTolerance || sheetHeight <= RhinoMath.ZeroTolerance)
+                return null;
+
+            var box = new Box(
+                panelPlane,
+                new Interval(frameWidth, frameWidth + sheetWidth),
+                new Interval(-sheetThickness * 0.5, sheetThickness * 0.5),
+                new Interval(frameWidth, frameWidth + sheetHeight)
+            );
+
+            return box.ToBrep();
+        }
+
+        private static Brep CreateSolidPanelFrame(Plane panelPlane, double outerWidth, double outerHeight, double frameWidth, double frameDepth, double tolerance)
+        {
+            if (outerWidth <= frameWidth * 2.0 || outerHeight <= frameWidth * 2.0)
+                return null;
+
+            var outer = CreateRectangleCurve(panelPlane, 0.0, outerWidth, 0.0, outerHeight);
+            var inner = CreateRectangleCurve(panelPlane, frameWidth, outerWidth - frameWidth, frameWidth, outerHeight - frameWidth);
+            var planar = Brep.CreatePlanarBreps(new Curve[] { outer, inner }, tolerance);
+
+            if (planar == null || planar.Length == 0 || planar[0] == null || planar[0].Faces.Count == 0)
+                return null;
+
+            var path = new LineCurve(
+                panelPlane.Origin - panelPlane.YAxis * (frameDepth * 0.5),
+                panelPlane.Origin + panelPlane.YAxis * (frameDepth * 0.5)
+            );
+
+            var extrusion = planar[0].Faces[0].CreateExtrusion(path, true);
+            return extrusion;
+        }
+
+        private static List<Brep> CreateMitredPanelFrame(Plane panelPlane, double outerWidth, double outerHeight, double frameWidth, double frameDepth, double tolerance)
+        {
+            var breps = new List<Brep>();
+
+            if (outerWidth <= frameWidth * 2.0 || outerHeight <= frameWidth * 2.0)
+                return breps;
+
+            AddIfNotNull(breps, CreateExtrudedPanelMember(panelPlane, new[]
+            {
+                new Point2d(0.0, 0.0),
+                new Point2d(outerWidth, 0.0),
+                new Point2d(outerWidth - frameWidth, frameWidth),
+                new Point2d(frameWidth, frameWidth)
+            }, frameDepth, tolerance));
+
+            AddIfNotNull(breps, CreateExtrudedPanelMember(panelPlane, new[]
+            {
+                new Point2d(outerWidth, 0.0),
+                new Point2d(outerWidth, outerHeight),
+                new Point2d(outerWidth - frameWidth, outerHeight - frameWidth),
+                new Point2d(outerWidth - frameWidth, frameWidth)
+            }, frameDepth, tolerance));
+
+            AddIfNotNull(breps, CreateExtrudedPanelMember(panelPlane, new[]
+            {
+                new Point2d(outerWidth, outerHeight),
+                new Point2d(0.0, outerHeight),
+                new Point2d(frameWidth, outerHeight - frameWidth),
+                new Point2d(outerWidth - frameWidth, outerHeight - frameWidth)
+            }, frameDepth, tolerance));
+
+            AddIfNotNull(breps, CreateExtrudedPanelMember(panelPlane, new[]
+            {
+                new Point2d(0.0, outerHeight),
+                new Point2d(0.0, 0.0),
+                new Point2d(frameWidth, frameWidth),
+                new Point2d(frameWidth, outerHeight - frameWidth)
+            }, frameDepth, tolerance));
+
+            return breps;
+        }
+
+        private static Brep CreateExtrudedPanelMember(Plane panelPlane, Point2d[] points, double depth, double tolerance)
+        {
+            var polyline = new Polyline();
+
+            foreach (var point in points)
+                polyline.Add(panelPlane.PointAt(point.X, 0.0, point.Y));
+
+            polyline.Add(panelPlane.PointAt(points[0].X, 0.0, points[0].Y));
+
+            var curve = polyline.ToNurbsCurve();
+            var planar = Brep.CreatePlanarBreps(curve, tolerance);
+
+            if (planar == null || planar.Length == 0 || planar[0] == null || planar[0].Faces.Count == 0)
+                return null;
+
+            var path = new LineCurve(
+                panelPlane.Origin - panelPlane.YAxis * (depth * 0.5),
+                panelPlane.Origin + panelPlane.YAxis * (depth * 0.5)
+            );
+
+            return planar[0].Faces[0].CreateExtrusion(path, true);
+        }
+
+        private static Curve CreateRectangleCurve(Plane plane, double minX, double maxX, double minZ, double maxZ)
+        {
+            var polyline = new Polyline
+            {
+                plane.PointAt(minX, 0.0, minZ),
+                plane.PointAt(maxX, 0.0, minZ),
+                plane.PointAt(maxX, 0.0, maxZ),
+                plane.PointAt(minX, 0.0, maxZ),
+                plane.PointAt(minX, 0.0, minZ)
+            };
+
+            return polyline.ToNurbsCurve();
+        }
+
+        private static void AddIfNotNull(List<Brep> breps, Brep brep)
+        {
+            if (brep != null)
+                breps.Add(brep);
+        }
+
+        private static void AddPreviewLabels(HandrailGeometry geometry, Curve path, List<double> postDistances, HandrailSettings settings)
+        {
+            var railLength = path.GetLength();
+            var labelZ = settings.GroundZ + settings.Height + 100.0;
+
+            for (var i = 0; i < postDistances.Count - 1; i++)
+            {
+                var start = postDistances[i];
+                var end = postDistances[i + 1];
+                var mid = (start + end) * 0.5;
+                var point = PointAtDistanceAndZ(path, mid, labelZ);
+                geometry.PreviewLabels.Add(new HandrailPreviewLabel(point, FormatMillimetres(end - start)));
+            }
+
+            geometry.PreviewLabels.Add(new HandrailPreviewLabel(PointAtDistanceAndZ(path, railLength * 0.5, labelZ + 120.0), "Total length: " + FormatMillimetres(railLength)));
+
+            var heightPoint = PointAtDistanceAndZ(path, 0.0, settings.GroundZ + settings.Height * 0.5);
+            var tangent = path.TangentAtStart;
+            tangent.Z = 0.0;
+
+            if (tangent.Unitize())
+            {
+                var outward = Vector3d.CrossProduct(Vector3d.ZAxis, tangent);
+
+                if (outward.Unitize())
+                    heightPoint += outward * 250.0;
+            }
+
+            geometry.PreviewLabels.Add(new HandrailPreviewLabel(heightPoint, "Height: " + FormatMillimetres(settings.Height)));
+        }
+
+        private static string FormatMillimetres(double value)
+        {
+            return Math.Round(value).ToString("0") + " mm";
         }
 
         private static List<Brep> CreateSupportFeet(Curve path, double widthAlongCurve, double depthPerpendicular, double bottomZ, double topZ, double maxSpacing)

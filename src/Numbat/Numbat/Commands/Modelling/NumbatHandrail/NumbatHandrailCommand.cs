@@ -82,7 +82,12 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             var panelGap = new OptionDouble(50.0, true, 0.0);
             var panelFrameSize = new OptionDouble(25.0, true, 1.0);
             var panelSheetThickness = new OptionDouble(5.0, true, 1.0);
-            var panelVerticalMargin = new OptionDouble(25.0, true, 0.0);
+            var panelTopGap = new OptionDouble(50.0, true, 0.0);
+            var panelBottomGap = new OptionDouble(100.0, true, 0.0);
+            var panelFrameConstructionIndex = 0;
+            string[] panelFrameConstructionOptions = { "Solid", "Mitred" };
+
+            var previewDims = new OptionToggle(true, "No", "Yes");
 
             var settings = new HandrailSettings();
             var conduit = new HandrailPreviewConduit();
@@ -119,11 +124,15 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                         panelGap,
                         panelFrameSize,
                         panelSheetThickness,
-                        panelVerticalMargin
+                        panelTopGap,
+                        panelBottomGap,
+                        panelFrameConstructionIndex,
+                        previewDims
                     );
 
                     var previewGeometry = HandrailGenerator.CreateHandrailGeometry(originalCurve, settings, doc.ModelAbsoluteTolerance);
                     conduit.PreviewBreps = previewGeometry.AllBreps();
+                    conduit.PreviewLabels = previewGeometry.PreviewLabels;
                     doc.Views.Redraw();
 
                     var getOptions = new GetOption();
@@ -193,8 +202,12 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                         getOptions.AddOptionDouble("PanelGap", ref panelGap);
                         getOptions.AddOptionDouble("PanelFrameSize", ref panelFrameSize);
                         getOptions.AddOptionDouble("PanelSheetThickness", ref panelSheetThickness);
-                        getOptions.AddOptionDouble("PanelVerticalMargin", ref panelVerticalMargin);
+                        getOptions.AddOptionDouble("PanelTopGap", ref panelTopGap);
+                        getOptions.AddOptionDouble("PanelBottomGap", ref panelBottomGap);
+                        getOptions.AddOptionList("PanelFrameConstruction", panelFrameConstructionOptions, panelFrameConstructionIndex);
                     }
+
+                    getOptions.AddOptionToggle("PreviewDims", ref previewDims);
 
                     var result = getOptions.Get();
 
@@ -224,6 +237,9 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
                             if (option.EnglishName == "InfillStyle")
                                 infillStyleIndex = option.CurrentListOptionIndex;
+
+                            if (option.EnglishName == "PanelFrameConstruction")
+                                panelFrameConstructionIndex = option.CurrentListOptionIndex;
                         }
                     }
                 }
@@ -261,7 +277,10 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 panelGap,
                 panelFrameSize,
                 panelSheetThickness,
-                panelVerticalMargin
+                panelTopGap,
+                panelBottomGap,
+                panelFrameConstructionIndex,
+                previewDims
             );
 
             var finalGeometry = HandrailGenerator.CreateHandrailGeometry(originalCurve, settings, doc.ModelAbsoluteTolerance);
@@ -276,6 +295,12 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             RhinoApp.WriteLine($"Post placement: {postPlacementOptions[settings.PostPlacementIndex]}");
             RhinoApp.WriteLine($"Infill style: {infillStyleOptions[settings.InfillStyleIndex]}");
             RhinoApp.WriteLine($"Wall tabs: {(settings.WallTabs ? "Yes" : "No")}");
+
+            if (finalGeometry.PanelBaysReduced > 0)
+                RhinoApp.WriteLine($"Warning: {finalGeometry.PanelBaysReduced} panel bay(s) were reduced because there was insufficient space to maintain the requested panel gap.");
+
+            if (finalGeometry.PanelBaysOmitted > 0)
+                RhinoApp.WriteLine($"Warning: {finalGeometry.PanelBaysOmitted} panel bay(s) were omitted because there was insufficient space.");
 
             return Result.Success;
         }
@@ -307,7 +332,10 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             OptionDouble panelGap,
             OptionDouble panelFrameSize,
             OptionDouble panelSheetThickness,
-            OptionDouble panelVerticalMargin
+            OptionDouble panelTopGap,
+            OptionDouble panelBottomGap,
+            int panelFrameConstructionIndex,
+            OptionToggle previewDims
         )
         {
             settings.Height = height.CurrentValue;
@@ -338,9 +366,13 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             settings.ZigZagBayLength = zigZagBayLength.CurrentValue;
 
             settings.PanelGap = panelGap.CurrentValue;
-            settings.PanelFrameSize = panelFrameSize.CurrentValue;
+            settings.PanelFrameWidth = panelFrameSize.CurrentValue;
+            settings.PanelFrameDepth = panelFrameSize.CurrentValue;
             settings.PanelSheetThickness = panelSheetThickness.CurrentValue;
-            settings.PanelVerticalMargin = panelVerticalMargin.CurrentValue;
+            settings.PanelTopGap = panelTopGap.CurrentValue;
+            settings.PanelBottomGap = panelBottomGap.CurrentValue;
+            settings.PanelFrameConstructionIndex = panelFrameConstructionIndex;
+            settings.PreviewDims = previewDims.CurrentValue;
 
             settings.GroundZ = groundZ;
         }
