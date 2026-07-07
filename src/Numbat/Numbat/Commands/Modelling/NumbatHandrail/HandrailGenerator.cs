@@ -686,31 +686,103 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
         {
             var railLength = path.GetLength();
             var labelZ = settings.GroundZ + settings.Height + 100.0;
+            var bayLineZ = settings.GroundZ + settings.Height + 60.0;
+            var totalLineZ = settings.GroundZ + settings.Height + 180.0;
+            var tickHalfLength = 45.0;
+            var heightDimOffset = 250.0;
 
             for (var i = 0; i < postDistances.Count - 1; i++)
             {
-                var start = postDistances[i];
-                var end = postDistances[i + 1];
-                var mid = (start + end) * 0.5;
-                var point = PointAtDistanceAndZ(path, mid, labelZ);
-                geometry.PreviewLabels.Add(new HandrailPreviewLabel(point, FormatMillimetres(end - start)));
+                var startDistance = postDistances[i];
+                var endDistance = postDistances[i + 1];
+                var midDistance = (startDistance + endDistance) * 0.5;
+
+                var labelPoint = PointAtDistanceAndZ(path, midDistance, labelZ);
+                geometry.PreviewLabels.Add(new HandrailPreviewLabel(labelPoint, FormatMillimetres(endDistance - startDistance)));
+
+                if (TryGetOutwardAtDistance(path, midDistance, out var bayTickDirection))
+                {
+                    var lineStart = PointAtDistanceAndZ(path, startDistance, bayLineZ);
+                    var lineEnd = PointAtDistanceAndZ(path, endDistance, bayLineZ);
+
+                    AddPreviewLine(geometry, lineStart, lineEnd);
+                    AddCenteredTick(geometry, lineStart, bayTickDirection, tickHalfLength);
+                    AddCenteredTick(geometry, lineEnd, bayTickDirection, tickHalfLength);
+                }
             }
 
             geometry.PreviewLabels.Add(new HandrailPreviewLabel(PointAtDistanceAndZ(path, railLength * 0.5, labelZ + 120.0), "Total length: " + FormatMillimetres(railLength)));
 
-            var heightPoint = PointAtDistanceAndZ(path, 0.0, settings.GroundZ + settings.Height * 0.5);
-            var tangent = path.TangentAtStart;
-            tangent.Z = 0.0;
-
-            if (tangent.Unitize())
+            if (TryGetOutwardAtDistance(path, railLength * 0.5, out var totalTickDirection))
             {
-                var outward = Vector3d.CrossProduct(Vector3d.ZAxis, tangent);
+                var totalLineStart = PointAtDistanceAndZ(path, 0.0, totalLineZ);
+                var totalLineEnd = PointAtDistanceAndZ(path, railLength, totalLineZ);
 
-                if (outward.Unitize())
-                    heightPoint += outward * 250.0;
+                AddPreviewLine(geometry, totalLineStart, totalLineEnd);
+                AddCenteredTick(geometry, totalLineStart, totalTickDirection, tickHalfLength);
+                AddCenteredTick(geometry, totalLineEnd, totalTickDirection, tickHalfLength);
+            }
+
+            var heightPoint = PointAtDistanceAndZ(path, 0.0, settings.GroundZ + settings.Height * 0.5);
+
+            if (TryGetOutwardAtDistance(path, 0.0, out var heightTickDirection))
+            {
+                heightPoint += heightTickDirection * heightDimOffset;
+
+                var heightLineBottom = PointAtDistanceAndZ(path, 0.0, settings.GroundZ) + heightTickDirection * heightDimOffset;
+                var heightLineTop = PointAtDistanceAndZ(path, 0.0, settings.GroundZ + settings.Height) + heightTickDirection * heightDimOffset;
+
+                AddPreviewLine(geometry, heightLineBottom, heightLineTop);
+                AddCenteredTick(geometry, heightLineBottom, heightTickDirection, tickHalfLength);
+                AddCenteredTick(geometry, heightLineTop, heightTickDirection, tickHalfLength);
             }
 
             geometry.PreviewLabels.Add(new HandrailPreviewLabel(heightPoint, "Height: " + FormatMillimetres(settings.Height)));
+        }
+
+        private static bool TryGetOutwardAtDistance(Curve path, double distance, out Vector3d outward)
+        {
+            outward = Vector3d.Unset;
+
+            var length = path.GetLength();
+
+            if (distance < 0.0)
+                distance = 0.0;
+
+            if (distance > length)
+                distance = length;
+
+            if (!path.LengthParameter(distance, out var t))
+                return false;
+
+            var tangent = path.TangentAt(t);
+            tangent.Z = 0.0;
+
+            if (!tangent.Unitize())
+                return false;
+
+            outward = Vector3d.CrossProduct(Vector3d.ZAxis, tangent);
+            return outward.Unitize();
+        }
+
+        private static void AddPreviewLine(HandrailGeometry geometry, Point3d start, Point3d end)
+        {
+            if (start.DistanceTo(end) <= RhinoMath.ZeroTolerance)
+                return;
+
+            geometry.PreviewLines.Add(new HandrailPreviewLine(start, end));
+        }
+
+        private static void AddCenteredTick(HandrailGeometry geometry, Point3d centre, Vector3d direction, double halfLength)
+        {
+            if (!direction.Unitize() || halfLength <= RhinoMath.ZeroTolerance)
+                return;
+
+            AddPreviewLine(
+                geometry,
+                centre - direction * halfLength,
+                centre + direction * halfLength
+            );
         }
 
         private static string FormatMillimetres(double value)

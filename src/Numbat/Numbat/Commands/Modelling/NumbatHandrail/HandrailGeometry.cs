@@ -15,6 +15,18 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
         public string Text { get; }
     }
 
+    internal class HandrailPreviewLine
+    {
+        public HandrailPreviewLine(Point3d start, Point3d end)
+        {
+            Start = start;
+            End = end;
+        }
+
+        public Point3d Start { get; }
+        public Point3d End { get; }
+    }
+
     internal class HandrailGeometry
     {
         public List<Brep> TopRails { get; } = new List<Brep>();
@@ -27,6 +39,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
         public List<Brep> SupportFeet { get; } = new List<Brep>();
         public List<Brep> WallTabs { get; } = new List<Brep>();
         public List<HandrailPreviewLabel> PreviewLabels { get; } = new List<HandrailPreviewLabel>();
+        public List<HandrailPreviewLine> PreviewLines { get; } = new List<HandrailPreviewLine>();
 
         public int PanelBaysReduced { get; set; }
         public int PanelBaysOmitted { get; set; }

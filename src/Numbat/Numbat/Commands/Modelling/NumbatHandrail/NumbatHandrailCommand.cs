@@ -133,6 +133,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                     var previewGeometry = HandrailGenerator.CreateHandrailGeometry(originalCurve, settings, doc.ModelAbsoluteTolerance);
                     conduit.PreviewBreps = previewGeometry.AllBreps();
                     conduit.PreviewLabels = previewGeometry.PreviewLabels;
+                    conduit.PreviewLines = previewGeometry.PreviewLines;
                     doc.Views.Redraw();
 
                     var getOptions = new GetOption();
