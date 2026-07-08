@@ -21,24 +21,36 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
             var getBasePoint = new GetPoint();
-            getBasePoint.SetCommandPrompt("Pick spiral stair base centre point");
-            getBasePoint.Get();
+            getBasePoint.SetCommandPrompt("Pick spiral stair base centre point. Press Enter for 0,0,0");
+            getBasePoint.AcceptNothing(true);
+            var baseResult = getBasePoint.Get();
 
-            if (getBasePoint.CommandResult() != Result.Success)
+            if (baseResult == GetResult.Cancel)
+                return Result.Cancel;
+
+            if (getBasePoint.CommandResult() != Result.Success && baseResult != GetResult.Nothing)
                 return getBasePoint.CommandResult();
 
-            var baseCenter = getBasePoint.Point();
+            var baseCenter = baseResult == GetResult.Nothing ? Point3d.Origin : getBasePoint.Point();
 
             var getDirectionPoint = new GetPoint();
-            getDirectionPoint.SetCommandPrompt("Pick start direction");
+            getDirectionPoint.SetCommandPrompt("Pick start direction. Press Enter for world X");
             getDirectionPoint.SetBasePoint(baseCenter, true);
             getDirectionPoint.DrawLineFromPoint(baseCenter, true);
-            getDirectionPoint.Get();
+            getDirectionPoint.AcceptNothing(true);
+            var directionResult = getDirectionPoint.Get();
 
-            if (getDirectionPoint.CommandResult() != Result.Success)
+            if (directionResult == GetResult.Cancel)
+                return Result.Cancel;
+
+            if (getDirectionPoint.CommandResult() != Result.Success && directionResult != GetResult.Nothing)
                 return getDirectionPoint.CommandResult();
 
-            var directionVector = getDirectionPoint.Point() - baseCenter;
+            var directionPoint = directionResult == GetResult.Nothing
+                ? baseCenter + new Vector3d(1100.0, 0.0, 0.0)
+                : getDirectionPoint.Point();
+
+            var directionVector = directionPoint - baseCenter;
             directionVector.Z = 0.0;
 
             if (!directionVector.Unitize())
@@ -54,7 +66,8 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             var maxRiser = new OptionDouble(180.0, true, 50.0);
             var columnDiameter = new OptionDouble(150.0, true, 20.0);
             var handrailHeight = new OptionDouble(900.0, true, 100.0);
-            var landingDepth = new OptionDouble(1000.0, true, 100.0);
+            var closedSkinThickness = new OptionDouble(0.0, true, -100000.0);
+            var splitClosedSkin = new OptionToggle(false, "No", "Yes");
 
             var stairModeIndex = 0;
             string[] stairModeOptions = { "Open", "Closed" };
@@ -64,9 +77,6 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
 
             var directionIndex = 0;
             string[] directionOptions = { "Clockwise", "CounterClockwise" };
-
-            var topLandingIndex = 0;
-            string[] topLandingOptions = { "None", "Rectangular" };
 
             var parameters = new SpiralStairParameters
             {
@@ -80,7 +90,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             {
                 while (true)
                 {
-                    ApplyOptionValues(parameters, radius, floorHeight, maxRiser, columnDiameter, handrailHeight, landingDepth, stairModeIndex, endDirectionIndex, directionIndex, topLandingIndex);
+                    ApplyOptionValues(parameters, radius, floorHeight, maxRiser, columnDiameter, handrailHeight, closedSkinThickness, splitClosedSkin, stairModeIndex, endDirectionIndex, directionIndex);
 
                     var solution = SpiralStairSolver.Solve(parameters);
                     var previewGeometry = SpiralStairBuilder.Build(solution, doc.ModelAbsoluteTolerance);
@@ -95,16 +105,21 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
                     getOptions.SetCommandPrompt("Spiral stair options. Press Enter to create stair");
                     getOptions.AcceptNothing(true);
 
+                    getOptions.AddOptionList("StairType", stairModeOptions, stairModeIndex);
                     getOptions.AddOptionDouble("Radius", ref radius);
                     getOptions.AddOptionDouble("FloorHeight", ref floorHeight);
                     getOptions.AddOptionDouble("MaxRiser", ref maxRiser);
-                    getOptions.AddOptionDouble("ColumnDiameter", ref columnDiameter);
-                    getOptions.AddOptionDouble("HandrailHeight", ref handrailHeight);
-                    getOptions.AddOptionDouble("LandingDepth", ref landingDepth);
-                    getOptions.AddOptionList("StairType", stairModeOptions, stairModeIndex);
                     getOptions.AddOptionList("EndDirection", endDirectionOptions, endDirectionIndex);
                     getOptions.AddOptionList("Direction", directionOptions, directionIndex);
-                    getOptions.AddOptionList("TopLanding", topLandingOptions, topLandingIndex);
+                    getOptions.AddOptionDouble("ColumnDiameter", ref columnDiameter);
+                    getOptions.AddOptionDouble("HandrailHeight", ref handrailHeight);
+
+                    if ((SpiralStairMode)stairModeIndex == SpiralStairMode.Closed)
+                    {
+                        getOptions.AddOptionDouble("SkinThickness", ref closedSkinThickness);
+                        if (Math.Abs(closedSkinThickness.CurrentValue) > 0.001)
+                            getOptions.AddOptionToggle("SplitSkin", ref splitClosedSkin);
+                    }
 
                     var result = getOptions.Get();
 
@@ -126,8 +141,6 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
                                 endDirectionIndex = option.CurrentListOptionIndex;
                             else if (option.EnglishName == "Direction")
                                 directionIndex = option.CurrentListOptionIndex;
-                            else if (option.EnglishName == "TopLanding")
-                                topLandingIndex = option.CurrentListOptionIndex;
                         }
                     }
                 }
@@ -138,7 +151,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
                 doc.Views.Redraw();
             }
 
-            ApplyOptionValues(parameters, radius, floorHeight, maxRiser, columnDiameter, handrailHeight, landingDepth, stairModeIndex, endDirectionIndex, directionIndex, topLandingIndex);
+            ApplyOptionValues(parameters, radius, floorHeight, maxRiser, columnDiameter, handrailHeight, closedSkinThickness, splitClosedSkin, stairModeIndex, endDirectionIndex, directionIndex);
 
             var finalSolution = SpiralStairSolver.Solve(parameters);
             var finalGeometry = SpiralStairBuilder.Build(finalSolution, doc.ModelAbsoluteTolerance);
@@ -166,22 +179,22 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             OptionDouble maxRiser,
             OptionDouble columnDiameter,
             OptionDouble handrailHeight,
-            OptionDouble landingDepth,
+            OptionDouble closedSkinThickness,
+            OptionToggle splitClosedSkin,
             int stairModeIndex,
             int endDirectionIndex,
-            int directionIndex,
-            int topLandingIndex)
+            int directionIndex)
         {
             parameters.Radius = radius.CurrentValue;
             parameters.FloorHeight = floorHeight.CurrentValue;
             parameters.MaxRiserHeight = maxRiser.CurrentValue;
             parameters.ColumnDiameter = columnDiameter.CurrentValue;
             parameters.HandrailHeight = handrailHeight.CurrentValue;
-            parameters.LandingDepth = landingDepth.CurrentValue;
+            parameters.ClosedSkinThickness = closedSkinThickness.CurrentValue;
+            parameters.SplitClosedSkin = splitClosedSkin.CurrentValue && Math.Abs(closedSkinThickness.CurrentValue) > 0.001;
             parameters.Mode = (SpiralStairMode)stairModeIndex;
             parameters.EndDirection = (SpiralStairEndDirection)endDirectionIndex;
             parameters.Direction = (SpiralStairDirection)directionIndex;
-            parameters.TopLanding = (SpiralStairTopLanding)topLandingIndex;
         }
     }
 }

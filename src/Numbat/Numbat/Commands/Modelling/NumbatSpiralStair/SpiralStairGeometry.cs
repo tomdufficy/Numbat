@@ -38,7 +38,6 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
         public List<GeometryBase> Balusters { get; } = new List<GeometryBase>();
         public List<GeometryBase> Skin { get; } = new List<GeometryBase>();
         public List<GeometryBase> Soffit { get; } = new List<GeometryBase>();
-        public List<GeometryBase> Landings { get; } = new List<GeometryBase>();
         public List<SpiralStairPreviewLabel> PreviewLabels { get; } = new List<SpiralStairPreviewLabel>();
         public List<SpiralStairPreviewLine> PreviewLines { get; } = new List<SpiralStairPreviewLine>();
 
@@ -54,7 +53,6 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             all.AddRange(Balusters);
             all.AddRange(Skin);
             all.AddRange(Soffit);
-            all.AddRange(Landings);
             return all;
         }
     }

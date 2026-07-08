@@ -14,7 +14,6 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             AddGeometry(doc, geometry.FrontLips, "Numbat::Spiral Stair::Front Lips", Color.FromArgb(232, 184, 158));
             AddGeometry(doc, geometry.RearLips, "Numbat::Spiral Stair::Rear Lips", Color.FromArgb(205, 175, 218));
             AddGeometry(doc, geometry.Risers, "Numbat::Spiral Stair::Risers", Color.FromArgb(188, 166, 207));
-            AddGeometry(doc, geometry.Landings, "Numbat::Spiral Stair::Landings", Color.FromArgb(234, 210, 146));
             AddGeometry(doc, geometry.CentreColumn, "Numbat::Spiral Stair::Centre Column", Color.FromArgb(155, 169, 181));
             AddGeometry(doc, geometry.Handrail, "Numbat::Spiral Stair::Handrail", Color.FromArgb(150, 203, 219));
             AddGeometry(doc, geometry.Balusters, "Numbat::Spiral Stair::Balusters", Color.FromArgb(188, 224, 226));
