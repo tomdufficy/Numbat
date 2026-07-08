@@ -127,8 +127,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
                     {
                         getOptions.AddOptionDouble("SkinThickness", ref closedSkinThickness);
                         getOptions.AddOptionDouble("SoffitThickness", ref soffitThickness);
-                        if (Math.Abs(closedSkinThickness.CurrentValue) > 0.001)
-                            getOptions.AddOptionToggle("SplitSkin", ref splitClosedSkin);
+                        getOptions.AddOptionToggle("SplitSkin", ref splitClosedSkin);
                     }
 
                     var result = getOptions.Get();
@@ -206,7 +205,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             parameters.HandrailDiameter = handrailDiameter.CurrentValue;
             parameters.BalusterDiameter = balusterDiameter.CurrentValue;
             parameters.ClosedSkinThickness = closedSkinThickness.CurrentValue;
-            parameters.SplitClosedSkin = splitClosedSkin.CurrentValue && Math.Abs(closedSkinThickness.CurrentValue) > 0.001;
+            parameters.SplitClosedSkin = splitClosedSkin.CurrentValue;
             parameters.SoffitThickness = soffitThickness.CurrentValue;
             parameters.Mode = (SpiralStairMode)stairModeIndex;
             parameters.EndDirection = (SpiralStairEndDirection)endDirectionIndex;

@@ -141,32 +141,34 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             var p = solution.Parameters;
             var skinThickness = p.ClosedSkinThickness;
 
-            if (Math.Abs(skinThickness) <= 0.001)
-            {
-                geometry.Skin.Add(CreateHelicalRibbon(
-                    p.BaseCenter,
-                    p.Radius,
-                    p.StartAngleRadians,
-                    solution.SignedTotalRotationRadians,
-                    p.BaseCenter.Z,
-                    p.BaseCenter.Z + p.FloorHeight,
-                    p.SolidGuardHeight,
-                    Math.Max(80, solution.TreadCount * 10)));
-                return;
-            }
-
             if (!p.SplitClosedSkin)
             {
-                geometry.Skin.Add(CreateHelicalWall(
-                    p.BaseCenter,
-                    GetClosedSkinOuterRadius(p),
-                    GetClosedSkinInnerRadius(p),
-                    p.StartAngleRadians,
-                    solution.SignedTotalRotationRadians,
-                    p.BaseCenter.Z,
-                    p.BaseCenter.Z + p.FloorHeight,
-                    p.SolidGuardHeight,
-                    Math.Max(80, solution.TreadCount * 10)));
+                if (Math.Abs(skinThickness) <= 0.001)
+                {
+                    geometry.Skin.Add(CreateHelicalRibbon(
+                        p.BaseCenter,
+                        p.Radius,
+                        p.StartAngleRadians,
+                        solution.SignedTotalRotationRadians,
+                        p.BaseCenter.Z,
+                        p.BaseCenter.Z + p.FloorHeight,
+                        p.SolidGuardHeight,
+                        Math.Max(80, solution.TreadCount * 10)));
+                }
+                else
+                {
+                    geometry.Skin.Add(CreateHelicalWall(
+                        p.BaseCenter,
+                        GetClosedSkinOuterRadius(p),
+                        GetClosedSkinInnerRadius(p),
+                        p.StartAngleRadians,
+                        solution.SignedTotalRotationRadians,
+                        p.BaseCenter.Z,
+                        p.BaseCenter.Z + p.FloorHeight,
+                        p.SolidGuardHeight,
+                        Math.Max(80, solution.TreadCount * 10)));
+                }
+
                 return;
             }
 
@@ -196,17 +198,33 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
                 var t1 = endTread / (double)solution.TreadCount;
                 var z0 = p.BaseCenter.Z + p.FloorHeight * t0;
                 var z1 = p.BaseCenter.Z + p.FloorHeight * t1;
+                var segmentCount = Math.Max(12, (endTread - startTread) * 10);
 
-                geometry.Skin.Add(CreateHelicalWall(
-                    p.BaseCenter,
-                    outerRadius,
-                    innerRadius,
-                    a0,
-                    a1 - a0,
-                    z0,
-                    z1,
-                    p.SolidGuardHeight,
-                    Math.Max(12, (endTread - startTread) * 10)));
+                if (Math.Abs(skinThickness) <= 0.001)
+                {
+                    geometry.Skin.Add(CreateHelicalRibbon(
+                        p.BaseCenter,
+                        p.Radius,
+                        a0,
+                        a1 - a0,
+                        z0,
+                        z1,
+                        p.SolidGuardHeight,
+                        segmentCount));
+                }
+                else
+                {
+                    geometry.Skin.Add(CreateHelicalWall(
+                        p.BaseCenter,
+                        outerRadius,
+                        innerRadius,
+                        a0,
+                        a1 - a0,
+                        z0,
+                        z1,
+                        p.SolidGuardHeight,
+                        segmentCount));
+                }
             }
         }
 
