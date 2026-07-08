@@ -12,11 +12,8 @@
         public double BottomRailHeight { get; set; }
         public bool SupportFeet { get; set; }
 
-        public int PostPlacementIndex { get; set; }
-        public bool IntermediatePosts { get; set; }
-        public double IntermediatePostSpacing { get; set; }
-        public double PostSpacing { get; set; }
-        public int PostDistributionIndex { get; set; }
+        public int BayLayoutIndex { get; set; }
+        public double MaxBayLength { get; set; }
 
         public bool Tabs { get; set; }
         public double TabLength { get; set; }

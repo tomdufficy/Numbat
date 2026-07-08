@@ -16,10 +16,8 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
         private const int BottomRailNone = 0;
         private const int BottomRailRaised = 2;
 
-        private const int PostPlacementFixedSpacing = 1;
-
-        private const int PostDistributionEqualize = 0;
-        private const int PostDistributionExact = 1;
+        private const int BayLayoutNone = 0;
+        private const int BayLayoutAutomatic = 1;
 
         private const int InfillVertical = 0;
         private const int InfillZigZag = 1;
@@ -62,7 +60,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             var bottomRailBottomZ = GetBottomRailBottomZ(settings);
             var infillBottomZ = GetInfillBottomZ(settings, bottomRailBottomZ);
             var infillTopZ = GetInfillTopZ(settings);
-            var postBottomZ = settings.GroundZ;
+            var postBottomZ = GetPostBottomZ(settings, bottomRailBottomZ);
             var postTopZ = settings.GroundZ + settings.Height;
 
             CreateTopRail(geometry, workingCurve, settings, tolerance);
@@ -118,13 +116,13 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
             if (settings.BottomRailModeIndex == BottomRailRaised && settings.SupportFeet)
             {
-                geometry.SupportFeet.AddRange(CreateSupportFeet(
+                geometry.SupportFeet.AddRange(CreateSupportFeetAtPostDistances(
                     workingCurve,
+                    postDistances,
                     settings.BoxRailHeight,
                     settings.BoxRailDepth,
                     settings.GroundZ,
-                    bottomRailBottomZ,
-                    1000.0
+                    bottomRailBottomZ
                 ));
             }
 
@@ -239,6 +237,14 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             return bottomRailBottomZ + settings.BoxRailHeight;
         }
 
+        private static double GetPostBottomZ(HandrailSettings settings, double bottomRailBottomZ)
+        {
+            if (settings.BottomRailModeIndex == BottomRailRaised)
+                return bottomRailBottomZ;
+
+            return settings.GroundZ;
+        }
+
         private static double GetInfillTopZ(HandrailSettings settings)
         {
             if (settings.TopRailStyleIndex == TopRailNone)
@@ -286,44 +292,24 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
             distances.Add(0.0);
 
-            if (settings.PostPlacementIndex == PostPlacementFixedSpacing)
+            if (settings.BayLayoutIndex == BayLayoutAutomatic)
             {
-                AddFixedPostDistances(distances, length, settings.PostSpacing, settings.PostDistributionIndex);
-            }
-            else if (settings.IntermediatePosts)
-            {
-                AddFixedPostDistances(distances, length, settings.IntermediatePostSpacing, PostDistributionEqualize);
+                var maxBayLength = settings.MaxBayLength;
+
+                if (length > RhinoMath.ZeroTolerance && maxBayLength > RhinoMath.ZeroTolerance)
+                {
+                    var bayCount = Math.Max(1, (int)Math.Ceiling(length / maxBayLength));
+                    var actualBayLength = length / bayCount;
+
+                    for (var i = 1; i < bayCount; i++)
+                        distances.Add(i * actualBayLength);
+                }
             }
 
             if (distances[distances.Count - 1] < length)
                 distances.Add(length);
 
             return distances;
-        }
-
-        private static void AddFixedPostDistances(List<double> distances, double length, double targetSpacing, int distributionIndex)
-        {
-            if (length <= RhinoMath.ZeroTolerance || targetSpacing <= RhinoMath.ZeroTolerance)
-                return;
-
-            if (distributionIndex == PostDistributionExact)
-            {
-                var distance = targetSpacing;
-
-                while (distance < length - RhinoMath.ZeroTolerance)
-                {
-                    distances.Add(distance);
-                    distance += targetSpacing;
-                }
-            }
-            else
-            {
-                var segmentCount = Math.Max(1, (int)Math.Ceiling(length / targetSpacing));
-                var spacing = length / segmentCount;
-
-                for (var i = 1; i < segmentCount; i++)
-                    distances.Add(i * spacing);
-            }
         }
 
         private static Curve CreateBayCurve(Curve curve, double startDistance, double endDistance)
@@ -869,24 +855,15 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             return Math.Round(value).ToString("0") + " mm";
         }
 
-        private static List<Brep> CreateSupportFeet(Curve path, double widthAlongCurve, double depthPerpendicular, double bottomZ, double topZ, double maxSpacing)
+        private static List<Brep> CreateSupportFeetAtPostDistances(Curve path, List<double> postDistances, double widthAlongCurve, double depthPerpendicular, double bottomZ, double topZ)
         {
             var breps = new List<Brep>();
-            var length = path.GetLength();
 
-            if (length <= RhinoMath.ZeroTolerance)
+            if (topZ <= bottomZ)
                 return breps;
 
-            var divisionCount = Math.Max(1, (int)Math.Ceiling(length / maxSpacing));
-            var spacing = length / divisionCount;
-
-            for (var i = 0; i <= divisionCount; i++)
+            foreach (var distance in postDistances)
             {
-                var distance = i * spacing;
-
-                if (distance > length)
-                    distance = length;
-
                 var brep = CreateVerticalElementAtDistance(path, distance, widthAlongCurve, depthPerpendicular, bottomZ, topZ);
 
                 if (brep != null)

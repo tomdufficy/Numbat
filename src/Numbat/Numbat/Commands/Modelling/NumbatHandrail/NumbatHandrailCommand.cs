@@ -59,13 +59,9 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             var bottomRailHeight = new OptionDouble(100.0, true, 0.0);
             var supportFeet = new OptionToggle(true, "No", "Yes");
 
-            var postPlacementIndex = 0;
-            string[] postPlacementOptions = { "Auto", "FixedSpacing" };
-            var intermediatePosts = new OptionToggle(false, "No", "Yes");
-            var intermediatePostSpacing = new OptionDouble(1000.0, true, 100.0);
-            var postSpacing = new OptionDouble(1200.0, true, 100.0);
-            var postDistributionIndex = 0;
-            string[] postDistributionOptions = { "Equalize", "Exact" };
+            var bayLayoutIndex = 1;
+            string[] bayLayoutOptions = { "None", "Automatic" };
+            var maxBayLength = new OptionDouble(1200.0, true, 100.0);
 
             var tabs = new OptionToggle(false, "No", "Yes");
             var tabLength = new OptionDouble(100.0, true, 1.0);
@@ -108,11 +104,8 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                         bottomRailModeIndex,
                         bottomRailHeight,
                         supportFeet,
-                        postPlacementIndex,
-                        intermediatePosts,
-                        intermediatePostSpacing,
-                        postSpacing,
-                        postDistributionIndex,
+                        bayLayoutIndex,
+                        maxBayLength,
                         tabs,
                         tabLength,
                         infillStyleIndex,
@@ -165,20 +158,10 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                             getOptions.AddOptionToggle("SupportFeet", ref supportFeet);
                     }
 
-                    getOptions.AddOptionList("PostPlacement", postPlacementOptions, postPlacementIndex);
+                    getOptions.AddOptionList("BayLayout", bayLayoutOptions, bayLayoutIndex);
 
-                    if (postPlacementIndex == 0)
-                    {
-                        getOptions.AddOptionToggle("IntermediatePosts", ref intermediatePosts);
-
-                        if (intermediatePosts.CurrentValue)
-                            getOptions.AddOptionDouble("IntermediatePostSpacing", ref intermediatePostSpacing);
-                    }
-                    else
-                    {
-                        getOptions.AddOptionDouble("PostSpacing", ref postSpacing);
-                        getOptions.AddOptionList("PostDistribution", postDistributionOptions, postDistributionIndex);
-                    }
+                    if (bayLayoutIndex == 1)
+                        getOptions.AddOptionDouble("MaxBayLength", ref maxBayLength);
 
                     getOptions.AddOptionToggle("Tabs", ref tabs);
 
@@ -230,11 +213,8 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                             if (option.EnglishName == "BottomRail")
                                 bottomRailModeIndex = option.CurrentListOptionIndex;
 
-                            if (option.EnglishName == "PostPlacement")
-                                postPlacementIndex = option.CurrentListOptionIndex;
-
-                            if (option.EnglishName == "PostDistribution")
-                                postDistributionIndex = option.CurrentListOptionIndex;
+                            if (option.EnglishName == "BayLayout")
+                                bayLayoutIndex = option.CurrentListOptionIndex;
 
                             if (option.EnglishName == "InfillStyle")
                                 infillStyleIndex = option.CurrentListOptionIndex;
@@ -262,11 +242,8 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 bottomRailModeIndex,
                 bottomRailHeight,
                 supportFeet,
-                postPlacementIndex,
-                intermediatePosts,
-                intermediatePostSpacing,
-                postSpacing,
-                postDistributionIndex,
+                bayLayoutIndex,
+                maxBayLength,
                 tabs,
                 tabLength,
                 infillStyleIndex,
@@ -293,7 +270,10 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             RhinoApp.WriteLine($"Height: {settings.Height}");
             RhinoApp.WriteLine($"Top rail style: {topRailStyleOptions[settings.TopRailStyleIndex]}");
             RhinoApp.WriteLine($"Bottom rail: {bottomRailOptions[settings.BottomRailModeIndex]}");
-            RhinoApp.WriteLine($"Post placement: {postPlacementOptions[settings.PostPlacementIndex]}");
+            RhinoApp.WriteLine($"Bay layout: {bayLayoutOptions[settings.BayLayoutIndex]}");
+
+            if (settings.BayLayoutIndex == 1)
+                RhinoApp.WriteLine($"Maximum bay length: {settings.MaxBayLength}");
             RhinoApp.WriteLine($"Infill style: {infillStyleOptions[settings.InfillStyleIndex]}");
             RhinoApp.WriteLine($"Tabs: {(settings.Tabs ? "Yes" : "No")}");
 
@@ -317,11 +297,8 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             int bottomRailModeIndex,
             OptionDouble bottomRailHeight,
             OptionToggle supportFeet,
-            int postPlacementIndex,
-            OptionToggle intermediatePosts,
-            OptionDouble intermediatePostSpacing,
-            OptionDouble postSpacing,
-            int postDistributionIndex,
+            int bayLayoutIndex,
+            OptionDouble maxBayLength,
             OptionToggle tabs,
             OptionDouble tabLength,
             int infillStyleIndex,
@@ -349,11 +326,8 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             settings.BottomRailHeight = bottomRailHeight.CurrentValue;
             settings.SupportFeet = bottomRailModeIndex == 2 && bottomRailHeight.CurrentValue > RhinoMath.ZeroTolerance && supportFeet.CurrentValue;
 
-            settings.PostPlacementIndex = postPlacementIndex;
-            settings.IntermediatePosts = postPlacementIndex == 0 && intermediatePosts.CurrentValue;
-            settings.IntermediatePostSpacing = intermediatePostSpacing.CurrentValue;
-            settings.PostSpacing = postSpacing.CurrentValue;
-            settings.PostDistributionIndex = postDistributionIndex;
+            settings.BayLayoutIndex = bayLayoutIndex;
+            settings.MaxBayLength = maxBayLength.CurrentValue;
 
             settings.Tabs = tabs.CurrentValue;
             settings.TabLength = tabLength.CurrentValue;
