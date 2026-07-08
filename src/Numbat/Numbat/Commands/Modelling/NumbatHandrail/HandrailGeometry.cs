@@ -43,6 +43,8 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
         public int PanelBaysReduced { get; set; }
         public int PanelBaysOmitted { get; set; }
+        public int SheetBaysReduced { get; set; }
+        public int SheetBaysOmitted { get; set; }
 
         public List<Brep> AllBreps()
         {

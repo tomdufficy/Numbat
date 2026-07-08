@@ -67,7 +67,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             var tabLength = new OptionDouble(75.0, true, 1.0);
 
             var infillStyleIndex = 0;
-            string[] infillStyleOptions = { "Vertical", "ZigZag", "Panel" };
+            string[] infillStyleOptions = { "Vertical", "ZigZag", "Panel", "Sheet", "Empty" };
             var infillWidth = new OptionDouble(10.0, true, 1.0);
             var infillDepth = new OptionDouble(20.0, true, 1.0);
             var maxInfillSpacing = new OptionDouble(100.0, true, 10.0);
@@ -82,6 +82,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             var panelBottomGap = new OptionDouble(100.0, true, 0.0);
             var panelFrameConstructionIndex = 0;
             string[] panelFrameConstructionOptions = { "Solid", "Mitred" };
+
 
             var previewDims = new OptionToggle(true, "No", "Yes");
 
@@ -283,6 +284,12 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             if (finalGeometry.PanelBaysOmitted > 0)
                 RhinoApp.WriteLine($"Warning: {finalGeometry.PanelBaysOmitted} panel bay(s) were omitted because there was insufficient space.");
 
+            if (finalGeometry.SheetBaysReduced > 0)
+                RhinoApp.WriteLine($"Warning: {finalGeometry.SheetBaysReduced} sheet bay(s) were reduced because there was insufficient space.");
+
+            if (finalGeometry.SheetBaysOmitted > 0)
+                RhinoApp.WriteLine($"Warning: {finalGeometry.SheetBaysOmitted} sheet bay(s) were omitted because there was insufficient space.");
+
             return Result.Success;
         }
 
@@ -347,6 +354,8 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             settings.PanelTopGap = panelTopGap.CurrentValue;
             settings.PanelBottomGap = panelBottomGap.CurrentValue;
             settings.PanelFrameConstructionIndex = panelFrameConstructionIndex;
+
+
             settings.PreviewDims = previewDims.CurrentValue;
 
             settings.GroundZ = groundZ;

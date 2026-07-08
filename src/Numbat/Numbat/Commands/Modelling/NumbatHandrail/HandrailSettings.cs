@@ -34,6 +34,7 @@
         public double PanelBottomGap { get; set; }
         public int PanelFrameConstructionIndex { get; set; }
 
+
         public bool PreviewDims { get; set; }
 
         public double GroundZ { get; set; }

@@ -22,6 +22,8 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
         private const int InfillVertical = 0;
         private const int InfillZigZag = 1;
         private const int InfillPanel = 2;
+        private const int InfillSheet = 3;
+        private const int InfillEmpty = 4;
 
         private const int PanelFrameSolid = 0;
         private const int PanelFrameMitred = 1;
@@ -166,6 +168,21 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                         settings,
                         tolerance
                     );
+                }
+                else if (settings.InfillStyleIndex == InfillSheet)
+                {
+                    CreateSheetInfill(
+                        geometry,
+                        bay,
+                        settings,
+                        infillBottomZ,
+                        infillTopZ,
+                        tolerance
+                    );
+                }
+                else if (settings.InfillStyleIndex == InfillEmpty)
+                {
+                    // Intentionally leave the bay open.
                 }
             }
 
@@ -535,6 +552,31 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             );
         }
 
+        private static void CreateSheetInfill(HandrailGeometry geometry, Curve bayCurve, HandrailSettings settings, double sheetBottomZ, double sheetTopZ, double tolerance)
+        {
+            var length = bayCurve.GetLength();
+            var postWidthAlongCurve = settings.BoxRailHeight;
+            var sheetHeight = sheetTopZ - sheetBottomZ;
+            var sheetWidth = length - postWidthAlongCurve;
+
+            if (length <= RhinoMath.ZeroTolerance || sheetWidth <= RhinoMath.ZeroTolerance || sheetHeight <= RhinoMath.ZeroTolerance)
+            {
+                geometry.SheetBaysOmitted++;
+                return;
+            }
+
+            var sheetStartDistance = postWidthAlongCurve * 0.5;
+            var sheetEndDistance = length - postWidthAlongCurve * 0.5;
+
+            if (!TryCreatePanelPlane(bayCurve, sheetStartDistance, sheetEndDistance, sheetBottomZ, out var sheetPlane, out var actualSheetWidth))
+            {
+                geometry.SheetBaysOmitted++;
+                return;
+            }
+
+            AddIfNotNull(geometry.PanelSheets, CreatePlanarSheet(sheetPlane, actualSheetWidth, sheetHeight, tolerance));
+        }
+
         private static void CreatePanelTabs(
             HandrailGeometry geometry,
             Curve bayCurve,
@@ -621,6 +663,20 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             panelWidth = start.DistanceTo(end);
             panelPlane = new Plane(start, xAxis, yAxis);
             return panelWidth > RhinoMath.ZeroTolerance;
+        }
+
+        private static Brep CreatePlanarSheet(Plane sheetPlane, double width, double height, double tolerance)
+        {
+            if (width <= RhinoMath.ZeroTolerance || height <= RhinoMath.ZeroTolerance)
+                return null;
+
+            var outline = CreateRectangleCurve(sheetPlane, 0.0, width, 0.0, height);
+            var planar = Brep.CreatePlanarBreps(outline, tolerance);
+
+            if (planar == null || planar.Length == 0)
+                return null;
+
+            return planar[0];
         }
 
         private static Brep CreatePanelSheet(Plane panelPlane, double outerWidth, double outerHeight, double frameWidth, double sheetThickness)
