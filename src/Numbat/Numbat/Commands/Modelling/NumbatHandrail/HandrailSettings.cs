@@ -18,7 +18,7 @@
         public double PostSpacing { get; set; }
         public int PostDistributionIndex { get; set; }
 
-        public bool WallTabs { get; set; }
+        public bool Tabs { get; set; }
         public double TabLength { get; set; }
 
         public int InfillStyleIndex { get; set; }

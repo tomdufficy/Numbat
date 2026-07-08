@@ -37,7 +37,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
         public List<Brep> EndPosts { get; } = new List<Brep>();
         public List<Brep> IntermediatePosts { get; } = new List<Brep>();
         public List<Brep> SupportFeet { get; } = new List<Brep>();
-        public List<Brep> WallTabs { get; } = new List<Brep>();
+        public List<Brep> Tabs { get; } = new List<Brep>();
         public List<HandrailPreviewLabel> PreviewLabels { get; } = new List<HandrailPreviewLabel>();
         public List<HandrailPreviewLine> PreviewLines { get; } = new List<HandrailPreviewLine>();
 
@@ -56,7 +56,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             all.AddRange(EndPosts);
             all.AddRange(IntermediatePosts);
             all.AddRange(SupportFeet);
-            all.AddRange(WallTabs);
+            all.AddRange(Tabs);
 
             return all;
         }

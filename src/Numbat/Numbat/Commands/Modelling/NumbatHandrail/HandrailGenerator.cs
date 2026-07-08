@@ -35,7 +35,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             Curve originalStartCurve = null;
             Curve originalEndCurve = null;
 
-            if (settings.WallTabs)
+            if (settings.Tabs && settings.InfillStyleIndex != InfillPanel)
             {
                 if (workingCurve.GetLength() <= settings.TabLength * 2.0)
                     return geometry;
@@ -171,7 +171,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 }
             }
 
-            if (settings.WallTabs)
+            if (settings.Tabs && settings.InfillStyleIndex != InfillPanel)
             {
                 var upperTabZ = settings.GroundZ + settings.Height - 75.0;
                 var lowerTabZ = bottomRailBottomZ + 75.0;
@@ -181,14 +181,14 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
                 if (originalStartCurve != null)
                 {
-                    geometry.WallTabs.AddRange(CreateSweptRectangularRail(MoveCurveToZ(originalStartCurve, upperTabZ), settings.BoxRailDepth, settings.BoxRailHeight, tolerance));
-                    geometry.WallTabs.AddRange(CreateSweptRectangularRail(MoveCurveToZ(originalStartCurve, lowerTabZ), settings.BoxRailDepth, settings.BoxRailHeight, tolerance));
+                    geometry.Tabs.AddRange(CreateSweptRectangularRail(MoveCurveToZ(originalStartCurve, upperTabZ), settings.BoxRailDepth, settings.BoxRailHeight, tolerance));
+                    geometry.Tabs.AddRange(CreateSweptRectangularRail(MoveCurveToZ(originalStartCurve, lowerTabZ), settings.BoxRailDepth, settings.BoxRailHeight, tolerance));
                 }
 
                 if (originalEndCurve != null)
                 {
-                    geometry.WallTabs.AddRange(CreateSweptRectangularRail(MoveCurveToZ(originalEndCurve, upperTabZ), settings.BoxRailDepth, settings.BoxRailHeight, tolerance));
-                    geometry.WallTabs.AddRange(CreateSweptRectangularRail(MoveCurveToZ(originalEndCurve, lowerTabZ), settings.BoxRailDepth, settings.BoxRailHeight, tolerance));
+                    geometry.Tabs.AddRange(CreateSweptRectangularRail(MoveCurveToZ(originalEndCurve, upperTabZ), settings.BoxRailDepth, settings.BoxRailHeight, tolerance));
+                    geometry.Tabs.AddRange(CreateSweptRectangularRail(MoveCurveToZ(originalEndCurve, lowerTabZ), settings.BoxRailDepth, settings.BoxRailHeight, tolerance));
                 }
             }
 
@@ -220,7 +220,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             AddBrepsToChildLayerIfAny(doc, geometry.EndPosts, "End Posts", parentLayerIndex);
             AddBrepsToChildLayerIfAny(doc, geometry.IntermediatePosts, "Intermediate Posts", parentLayerIndex);
             AddBrepsToChildLayerIfAny(doc, geometry.SupportFeet, "Support Feet", parentLayerIndex);
-            AddBrepsToChildLayerIfAny(doc, geometry.WallTabs, "Wall Tabs", parentLayerIndex);
+            AddBrepsToChildLayerIfAny(doc, geometry.Tabs, "Tabs", parentLayerIndex);
         }
 
         private static double GetBottomRailBottomZ(HandrailSettings settings)
@@ -534,6 +534,85 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 AddIfNotNull(geometry.PanelFrames, CreateSolidPanelFrame(panelPlane, panelWidth, panelTopZ - panelBottomZ, frameWidth, frameDepth, tolerance));
 
             AddIfNotNull(geometry.PanelSheets, CreatePanelSheet(panelPlane, panelWidth, panelTopZ - panelBottomZ, frameWidth, sheetThickness));
+
+            if (settings.Tabs)
+            {
+                CreatePanelTabs(
+                    geometry,
+                    bayCurve,
+                    settings,
+                    postWidthAlongCurve,
+                    panelStartDistance,
+                    panelEndDistance,
+                    panelBottomZ,
+                    panelTopZ,
+                    tolerance
+                );
+            }
+        }
+
+        private static void CreatePanelTabs(
+            HandrailGeometry geometry,
+            Curve bayCurve,
+            HandrailSettings settings,
+            double postWidthAlongCurve,
+            double panelStartDistance,
+            double panelEndDistance,
+            double panelBottomZ,
+            double panelTopZ,
+            double tolerance
+        )
+        {
+            var length = bayCurve.GetLength();
+            var leftStartDistance = postWidthAlongCurve * 0.5;
+            var leftEndDistance = panelStartDistance;
+            var rightStartDistance = panelEndDistance;
+            var rightEndDistance = length - postWidthAlongCurve * 0.5;
+
+            var panelHeight = panelTopZ - panelBottomZ;
+
+            if (panelHeight <= RhinoMath.ZeroTolerance)
+                return;
+
+            var lowerTabZ = panelBottomZ + 75.0;
+            var upperTabZ = panelTopZ - 75.0;
+
+            if (upperTabZ <= lowerTabZ)
+            {
+                lowerTabZ = panelBottomZ + panelHeight * 0.25;
+                upperTabZ = panelBottomZ + panelHeight * 0.75;
+            }
+
+            AddPanelTabIfPossible(geometry, bayCurve, leftStartDistance, leftEndDistance, lowerTabZ, settings, tolerance);
+            AddPanelTabIfPossible(geometry, bayCurve, leftStartDistance, leftEndDistance, upperTabZ, settings, tolerance);
+            AddPanelTabIfPossible(geometry, bayCurve, rightStartDistance, rightEndDistance, lowerTabZ, settings, tolerance);
+            AddPanelTabIfPossible(geometry, bayCurve, rightStartDistance, rightEndDistance, upperTabZ, settings, tolerance);
+        }
+
+        private static void AddPanelTabIfPossible(
+            HandrailGeometry geometry,
+            Curve bayCurve,
+            double startDistance,
+            double endDistance,
+            double z,
+            HandrailSettings settings,
+            double tolerance
+        )
+        {
+            if (endDistance - startDistance <= tolerance)
+                return;
+
+            var tabCurve = CreateBayCurve(bayCurve, startDistance, endDistance);
+
+            if (tabCurve == null || tabCurve.GetLength() <= tolerance)
+                return;
+
+            geometry.Tabs.AddRange(CreateSweptRectangularRail(
+                MoveCurveToZ(tabCurve, z),
+                settings.BoxRailDepth,
+                settings.BoxRailHeight,
+                tolerance
+            ));
         }
 
         private static bool TryCreatePanelPlane(Curve bayCurve, double startDistance, double endDistance, double bottomZ, out Plane panelPlane, out double panelWidth)

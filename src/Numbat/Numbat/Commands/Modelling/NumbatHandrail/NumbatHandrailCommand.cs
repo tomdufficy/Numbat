@@ -67,7 +67,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             var postDistributionIndex = 0;
             string[] postDistributionOptions = { "Equalize", "Exact" };
 
-            var wallTabs = new OptionToggle(false, "No", "Yes");
+            var tabs = new OptionToggle(false, "No", "Yes");
             var tabLength = new OptionDouble(100.0, true, 1.0);
 
             var infillStyleIndex = 0;
@@ -113,7 +113,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                         intermediatePostSpacing,
                         postSpacing,
                         postDistributionIndex,
-                        wallTabs,
+                        tabs,
                         tabLength,
                         infillStyleIndex,
                         infillWidth,
@@ -180,9 +180,9 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                         getOptions.AddOptionList("PostDistribution", postDistributionOptions, postDistributionIndex);
                     }
 
-                    getOptions.AddOptionToggle("WallTabs", ref wallTabs);
+                    getOptions.AddOptionToggle("Tabs", ref tabs);
 
-                    if (wallTabs.CurrentValue)
+                    if (tabs.CurrentValue && infillStyleIndex != 2)
                         getOptions.AddOptionDouble("TabLength", ref tabLength);
 
                     getOptions.AddOptionList("InfillStyle", infillStyleOptions, infillStyleIndex);
@@ -267,7 +267,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 intermediatePostSpacing,
                 postSpacing,
                 postDistributionIndex,
-                wallTabs,
+                tabs,
                 tabLength,
                 infillStyleIndex,
                 infillWidth,
@@ -295,7 +295,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             RhinoApp.WriteLine($"Bottom rail: {bottomRailOptions[settings.BottomRailModeIndex]}");
             RhinoApp.WriteLine($"Post placement: {postPlacementOptions[settings.PostPlacementIndex]}");
             RhinoApp.WriteLine($"Infill style: {infillStyleOptions[settings.InfillStyleIndex]}");
-            RhinoApp.WriteLine($"Wall tabs: {(settings.WallTabs ? "Yes" : "No")}");
+            RhinoApp.WriteLine($"Tabs: {(settings.Tabs ? "Yes" : "No")}");
 
             if (finalGeometry.PanelBaysReduced > 0)
                 RhinoApp.WriteLine($"Warning: {finalGeometry.PanelBaysReduced} panel bay(s) were reduced because there was insufficient space to maintain the requested panel gap.");
@@ -322,7 +322,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             OptionDouble intermediatePostSpacing,
             OptionDouble postSpacing,
             int postDistributionIndex,
-            OptionToggle wallTabs,
+            OptionToggle tabs,
             OptionDouble tabLength,
             int infillStyleIndex,
             OptionDouble infillWidth,
@@ -355,7 +355,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             settings.PostSpacing = postSpacing.CurrentValue;
             settings.PostDistributionIndex = postDistributionIndex;
 
-            settings.WallTabs = wallTabs.CurrentValue;
+            settings.Tabs = tabs.CurrentValue;
             settings.TabLength = tabLength.CurrentValue;
 
             settings.InfillStyleIndex = infillStyleIndex;
