@@ -132,6 +132,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
                 solution.SignedTotalRotationRadians,
                 p.BaseCenter.Z,
                 p.BaseCenter.Z + p.FloorHeight,
+                p.SoffitThickness,
                 Math.Max(80, solution.TreadCount * 10)));
         }
 
@@ -169,7 +170,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
                 return;
             }
 
-            const int treadsPerModule = 4;
+            const int treadsPerModule = 3;
             const double gapAlongArc = 10.0;
             double sign = Math.Sign(solution.SignedTotalRotationRadians);
             if (Math.Abs(sign) < 0.5)
@@ -347,9 +348,33 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             return mesh;
         }
 
-        private static Mesh CreateHelicalSoffit(Point3d center, double inner, double outer, double startAngle, double signedRotation, double z0, double z1, int segments)
+        private static Mesh CreateHelicalSoffit(Point3d center, double inner, double outer, double startAngle, double signedRotation, double z0, double z1, double thickness, int segments)
         {
             var mesh = new Mesh();
+            var soffitThickness = Math.Max(0.0, thickness);
+
+            if (soffitThickness <= 0.001)
+            {
+                for (var i = 0; i <= segments; i++)
+                {
+                    var t = i / (double)segments;
+                    var a = startAngle + signedRotation * t;
+                    var z = z0 + (z1 - z0) * t;
+                    mesh.Vertices.Add(PointAt(center, inner, a, z));
+                    mesh.Vertices.Add(PointAt(center, outer, a, z));
+                }
+
+                for (var i = 0; i < segments; i++)
+                {
+                    var b = i * 2;
+                    mesh.Faces.AddFace(b, b + 1, b + 3, b + 2);
+                }
+
+                mesh.Normals.ComputeNormals();
+                mesh.Compact();
+                return mesh;
+            }
+
             for (var i = 0; i <= segments; i++)
             {
                 var t = i / (double)segments;
@@ -357,12 +382,23 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
                 var z = z0 + (z1 - z0) * t;
                 mesh.Vertices.Add(PointAt(center, inner, a, z));
                 mesh.Vertices.Add(PointAt(center, outer, a, z));
+                mesh.Vertices.Add(PointAt(center, inner, a, z - soffitThickness));
+                mesh.Vertices.Add(PointAt(center, outer, a, z - soffitThickness));
             }
+
             for (var i = 0; i < segments; i++)
             {
-                var b = i * 2;
-                mesh.Faces.AddFace(b, b + 1, b + 3, b + 2);
+                var b = i * 4;
+                var n = b + 4;
+                mesh.Faces.AddFace(b, b + 1, n + 1, n);           // top face
+                mesh.Faces.AddFace(b + 2, n + 2, n + 3, b + 3);   // lower face
+                mesh.Faces.AddFace(b, n, n + 2, b + 2);           // inner edge
+                mesh.Faces.AddFace(b + 1, b + 3, n + 3, n + 1);   // outer edge
             }
+
+            var last = segments * 4;
+            mesh.Faces.AddFace(0, 2, 3, 1);
+            mesh.Faces.AddFace(last, last + 1, last + 3, last + 2);
             mesh.Normals.ComputeNormals();
             mesh.Compact();
             return mesh;

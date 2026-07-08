@@ -30,10 +30,13 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
         public double Radius { get; set; } = 1200.0;
         public double FloorHeight { get; set; } = 3000.0;
         public double MaxRiserHeight { get; set; } = 180.0;
-        public double ColumnDiameter { get; set; } = 150.0;
+        public double ColumnDiameter { get; set; } = 120.0;
         public double HandrailHeight { get; set; } = 900.0;
         public double ClosedSkinThickness { get; set; } = 0.0;
         public bool SplitClosedSkin { get; set; }
+        public double HandrailDiameter { get; set; } = 35.0;
+        public double BalusterDiameter { get; set; } = 16.0;
+        public double SoffitThickness { get; set; } = 5.0;
         public SpiralStairEndDirection EndDirection { get; set; } = SpiralStairEndDirection.Same;
         public SpiralStairDirection Direction { get; set; } = SpiralStairDirection.Clockwise;
         public SpiralStairMode Mode { get; set; } = SpiralStairMode.Open;
@@ -42,8 +45,8 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
         public double InnerRadius => System.Math.Max(20.0, ColumnRadius - 5.0);
         public double TreadThickness => 5.0;
         public double FoldDepth => 25.0;
-        public double HandrailRadius => 17.5;
-        public double BalusterRadius => 8.0;
+        public double HandrailRadius => System.Math.Max(1.0, HandrailDiameter * 0.5);
+        public double BalusterRadius => System.Math.Max(1.0, BalusterDiameter * 0.5);
         public double SolidGuardHeight => 1100.0;
         public double BalusterInsetFromOuterEdge => 35.0;
     }

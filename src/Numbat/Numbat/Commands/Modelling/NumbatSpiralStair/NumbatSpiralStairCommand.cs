@@ -64,10 +64,13 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             var radius = new OptionDouble(1200.0, true, 500.0);
             var floorHeight = new OptionDouble(3000.0, true, 100.0);
             var maxRiser = new OptionDouble(180.0, true, 50.0);
-            var columnDiameter = new OptionDouble(150.0, true, 20.0);
+            var columnDiameter = new OptionDouble(120.0, true, 20.0);
             var handrailHeight = new OptionDouble(900.0, true, 100.0);
+            var handrailDiameter = new OptionDouble(35.0, true, 5.0);
+            var balusterDiameter = new OptionDouble(16.0, true, 5.0);
             var closedSkinThickness = new OptionDouble(0.0, true, -100000.0);
             var splitClosedSkin = new OptionToggle(false, "No", "Yes");
+            var soffitThickness = new OptionDouble(5.0, true, 0.0);
 
             var stairModeIndex = 0;
             string[] stairModeOptions = { "Open", "Closed" };
@@ -90,7 +93,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             {
                 while (true)
                 {
-                    ApplyOptionValues(parameters, radius, floorHeight, maxRiser, columnDiameter, handrailHeight, closedSkinThickness, splitClosedSkin, stairModeIndex, endDirectionIndex, directionIndex);
+                    ApplyOptionValues(parameters, radius, floorHeight, maxRiser, columnDiameter, handrailHeight, handrailDiameter, balusterDiameter, closedSkinThickness, splitClosedSkin, soffitThickness, stairModeIndex, endDirectionIndex, directionIndex);
 
                     var solution = SpiralStairSolver.Solve(parameters);
                     var previewGeometry = SpiralStairBuilder.Build(solution, doc.ModelAbsoluteTolerance);
@@ -114,9 +117,16 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
                     getOptions.AddOptionDouble("ColumnDiameter", ref columnDiameter);
                     getOptions.AddOptionDouble("HandrailHeight", ref handrailHeight);
 
+                    if ((SpiralStairMode)stairModeIndex == SpiralStairMode.Open)
+                    {
+                        getOptions.AddOptionDouble("HandrailDiameter", ref handrailDiameter);
+                        getOptions.AddOptionDouble("BalusterDiameter", ref balusterDiameter);
+                    }
+
                     if ((SpiralStairMode)stairModeIndex == SpiralStairMode.Closed)
                     {
                         getOptions.AddOptionDouble("SkinThickness", ref closedSkinThickness);
+                        getOptions.AddOptionDouble("SoffitThickness", ref soffitThickness);
                         if (Math.Abs(closedSkinThickness.CurrentValue) > 0.001)
                             getOptions.AddOptionToggle("SplitSkin", ref splitClosedSkin);
                     }
@@ -151,7 +161,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
                 doc.Views.Redraw();
             }
 
-            ApplyOptionValues(parameters, radius, floorHeight, maxRiser, columnDiameter, handrailHeight, closedSkinThickness, splitClosedSkin, stairModeIndex, endDirectionIndex, directionIndex);
+            ApplyOptionValues(parameters, radius, floorHeight, maxRiser, columnDiameter, handrailHeight, handrailDiameter, balusterDiameter, closedSkinThickness, splitClosedSkin, soffitThickness, stairModeIndex, endDirectionIndex, directionIndex);
 
             var finalSolution = SpiralStairSolver.Solve(parameters);
             var finalGeometry = SpiralStairBuilder.Build(finalSolution, doc.ModelAbsoluteTolerance);
@@ -179,8 +189,11 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             OptionDouble maxRiser,
             OptionDouble columnDiameter,
             OptionDouble handrailHeight,
+            OptionDouble handrailDiameter,
+            OptionDouble balusterDiameter,
             OptionDouble closedSkinThickness,
             OptionToggle splitClosedSkin,
+            OptionDouble soffitThickness,
             int stairModeIndex,
             int endDirectionIndex,
             int directionIndex)
@@ -190,8 +203,11 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             parameters.MaxRiserHeight = maxRiser.CurrentValue;
             parameters.ColumnDiameter = columnDiameter.CurrentValue;
             parameters.HandrailHeight = handrailHeight.CurrentValue;
+            parameters.HandrailDiameter = handrailDiameter.CurrentValue;
+            parameters.BalusterDiameter = balusterDiameter.CurrentValue;
             parameters.ClosedSkinThickness = closedSkinThickness.CurrentValue;
             parameters.SplitClosedSkin = splitClosedSkin.CurrentValue && Math.Abs(closedSkinThickness.CurrentValue) > 0.001;
+            parameters.SoffitThickness = soffitThickness.CurrentValue;
             parameters.Mode = (SpiralStairMode)stairModeIndex;
             parameters.EndDirection = (SpiralStairEndDirection)endDirectionIndex;
             parameters.Direction = (SpiralStairDirection)directionIndex;
