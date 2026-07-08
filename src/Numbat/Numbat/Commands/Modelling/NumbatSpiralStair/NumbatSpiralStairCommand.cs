@@ -52,6 +52,9 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             var radius = new OptionDouble(1200.0, true, 500.0);
             var floorHeight = new OptionDouble(3000.0, true, 100.0);
             var maxRiser = new OptionDouble(180.0, true, 50.0);
+            var columnDiameter = new OptionDouble(150.0, true, 20.0);
+            var handrailHeight = new OptionDouble(900.0, true, 100.0);
+            var landingDepth = new OptionDouble(1000.0, true, 100.0);
 
             var stairModeIndex = 0;
             string[] stairModeOptions = { "Open", "Closed" };
@@ -63,7 +66,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             string[] directionOptions = { "Clockwise", "CounterClockwise" };
 
             var topLandingIndex = 0;
-            string[] topLandingOptions = { "None", "Pie", "Rectangular" };
+            string[] topLandingOptions = { "None", "Rectangular" };
 
             var parameters = new SpiralStairParameters
             {
@@ -77,7 +80,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             {
                 while (true)
                 {
-                    ApplyOptionValues(parameters, radius, floorHeight, maxRiser, stairModeIndex, endDirectionIndex, directionIndex, topLandingIndex);
+                    ApplyOptionValues(parameters, radius, floorHeight, maxRiser, columnDiameter, handrailHeight, landingDepth, stairModeIndex, endDirectionIndex, directionIndex, topLandingIndex);
 
                     var solution = SpiralStairSolver.Solve(parameters);
                     var previewGeometry = SpiralStairBuilder.Build(solution, doc.ModelAbsoluteTolerance);
@@ -95,6 +98,9 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
                     getOptions.AddOptionDouble("Radius", ref radius);
                     getOptions.AddOptionDouble("FloorHeight", ref floorHeight);
                     getOptions.AddOptionDouble("MaxRiser", ref maxRiser);
+                    getOptions.AddOptionDouble("ColumnDiameter", ref columnDiameter);
+                    getOptions.AddOptionDouble("HandrailHeight", ref handrailHeight);
+                    getOptions.AddOptionDouble("LandingDepth", ref landingDepth);
                     getOptions.AddOptionList("StairType", stairModeOptions, stairModeIndex);
                     getOptions.AddOptionList("EndDirection", endDirectionOptions, endDirectionIndex);
                     getOptions.AddOptionList("Direction", directionOptions, directionIndex);
@@ -132,7 +138,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
                 doc.Views.Redraw();
             }
 
-            ApplyOptionValues(parameters, radius, floorHeight, maxRiser, stairModeIndex, endDirectionIndex, directionIndex, topLandingIndex);
+            ApplyOptionValues(parameters, radius, floorHeight, maxRiser, columnDiameter, handrailHeight, landingDepth, stairModeIndex, endDirectionIndex, directionIndex, topLandingIndex);
 
             var finalSolution = SpiralStairSolver.Solve(parameters);
             var finalGeometry = SpiralStairBuilder.Build(finalSolution, doc.ModelAbsoluteTolerance);
@@ -158,6 +164,9 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             OptionDouble radius,
             OptionDouble floorHeight,
             OptionDouble maxRiser,
+            OptionDouble columnDiameter,
+            OptionDouble handrailHeight,
+            OptionDouble landingDepth,
             int stairModeIndex,
             int endDirectionIndex,
             int directionIndex,
@@ -166,6 +175,9 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             parameters.Radius = radius.CurrentValue;
             parameters.FloorHeight = floorHeight.CurrentValue;
             parameters.MaxRiserHeight = maxRiser.CurrentValue;
+            parameters.ColumnDiameter = columnDiameter.CurrentValue;
+            parameters.HandrailHeight = handrailHeight.CurrentValue;
+            parameters.LandingDepth = landingDepth.CurrentValue;
             parameters.Mode = (SpiralStairMode)stairModeIndex;
             parameters.EndDirection = (SpiralStairEndDirection)endDirectionIndex;
             parameters.Direction = (SpiralStairDirection)directionIndex;

@@ -9,11 +9,9 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             var riserCount = Math.Max(2, (int)Math.Ceiling(parameters.FloorHeight / Math.Max(1.0, parameters.MaxRiserHeight)));
             var treadCount = riserCount;
             var actualRiser = parameters.FloorHeight / riserCount;
-
             var target = GetTargetEndAngle(parameters.EndDirection, parameters.Direction);
             var totalRotation = ChooseTotalRotation(parameters.Radius, treadCount, target);
             var directionSign = parameters.Direction == SpiralStairDirection.Clockwise ? -1.0 : 1.0;
-            var signedRotation = totalRotation * directionSign;
             var stepAngle = totalRotation / treadCount;
 
             var solution = new SpiralStairSolution
@@ -23,7 +21,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
                 TreadCount = treadCount,
                 ActualRiserHeight = actualRiser,
                 TotalRotationRadians = totalRotation,
-                SignedTotalRotationRadians = signedRotation,
+                SignedTotalRotationRadians = totalRotation * directionSign,
                 StepAngleRadians = stepAngle,
                 SignedStepAngleRadians = stepAngle * directionSign,
                 OuterTreadDepth = parameters.Radius * stepAngle
@@ -32,9 +30,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             if (parameters.Radius < 800.0)
                 solution.Warning = "Small radius. Stair may look tight.";
             else if (solution.OuterTreadDepth < 220.0)
-                solution.Warning = "Outer tread depth is small.";
-            else if (solution.OuterTreadDepth > 450.0)
-                solution.Warning = "Outer tread depth is large.";
+                solution.Warning = "Treads may look tight at this radius.";
 
             return solution;
         }
@@ -57,28 +53,21 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
 
         private static double ChooseTotalRotation(double radius, int treadCount, double targetEndAngle)
         {
-            const double idealDepth = 300.0;
-            const double minDepth = 230.0;
-            const double maxDepth = 420.0;
-
+            const double idealOuterDepth = 300.0;
+            const double minOuterDepth = 230.0;
             var bestRotation = Math.PI * 2.0;
             var bestScore = double.MaxValue;
 
             for (var turns = 0; turns <= 8; turns++)
             {
                 var candidate = targetEndAngle + turns * Math.PI * 2.0;
-
                 if (candidate < Math.PI * 1.5)
                     continue;
 
                 var depth = radius * candidate / treadCount;
-                var score = Math.Abs(depth - idealDepth);
-
-                if (depth < minDepth)
-                    score += (minDepth - depth) * 8.0;
-
-                if (depth > maxDepth)
-                    score += (depth - maxDepth) * 8.0;
+                var score = Math.Abs(depth - idealOuterDepth);
+                if (depth < minOuterDepth)
+                    score += (minOuterDepth - depth) * 8.0;
 
                 if (score < bestScore)
                 {
