@@ -84,7 +84,7 @@ namespace Numbat.Commands.Modelling.NumbatTemplate
                 TextEntity text = new TextEntity
                 {
                     Plane = new Plane(new Point3d(x + cubeSize + textGap, y - cubeSize / 2.0, z), Vector3d.XAxis, Vector3d.YAxis),
-                    Text = fullLayerPath,
+                    PlainText = fullLayerPath,
                     TextHeight = textHeight,
                     Justification = TextJustification.MiddleLeft
                 };
