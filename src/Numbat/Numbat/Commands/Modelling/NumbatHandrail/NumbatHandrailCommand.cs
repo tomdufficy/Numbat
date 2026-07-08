@@ -64,7 +64,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             var maxBayLength = new OptionDouble(1200.0, true, 100.0);
 
             var tabs = new OptionToggle(false, "No", "Yes");
-            var tabLength = new OptionDouble(100.0, true, 1.0);
+            var tabLength = new OptionDouble(75.0, true, 1.0);
 
             var infillStyleIndex = 0;
             string[] infillStyleOptions = { "Vertical", "ZigZag", "Panel" };
@@ -165,7 +165,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
                     getOptions.AddOptionToggle("Tabs", ref tabs);
 
-                    if (tabs.CurrentValue && infillStyleIndex != 2)
+                    if (tabs.CurrentValue)
                         getOptions.AddOptionDouble("TabLength", ref tabLength);
 
                     getOptions.AddOptionList("InfillStyle", infillStyleOptions, infillStyleIndex);

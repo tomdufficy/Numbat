@@ -33,7 +33,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             Curve originalStartCurve = null;
             Curve originalEndCurve = null;
 
-            if (settings.Tabs && settings.InfillStyleIndex != InfillPanel)
+            if (settings.Tabs)
             {
                 if (workingCurve.GetLength() <= settings.TabLength * 2.0)
                     return geometry;
@@ -169,7 +169,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 }
             }
 
-            if (settings.Tabs && settings.InfillStyleIndex != InfillPanel)
+            if (settings.Tabs)
             {
                 var upperTabZ = settings.GroundZ + settings.Height - 75.0;
                 var lowerTabZ = bottomRailBottomZ + 75.0;
@@ -208,17 +208,17 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             if (allBreps.Count == 0)
                 return;
 
-            var parentLayerIndex = EnsureLayer(doc, "nbHandrail", -1);
+            var parentLayerIndex = EnsureLayer(doc, "nbHandrail", -1, System.Drawing.Color.FromArgb(214, 218, 216));
 
-            AddBrepsToChildLayerIfAny(doc, geometry.TopRails, "Top Rails", parentLayerIndex);
-            AddBrepsToChildLayerIfAny(doc, geometry.BottomRails, "Bottom Rails", parentLayerIndex);
-            AddBrepsToChildLayerIfAny(doc, geometry.Infill, "Infill", parentLayerIndex);
-            AddBrepsToChildLayerIfAny(doc, geometry.PanelFrames, "Panel Frames", parentLayerIndex);
-            AddBrepsToChildLayerIfAny(doc, geometry.PanelSheets, "Panel Sheets", parentLayerIndex);
-            AddBrepsToChildLayerIfAny(doc, geometry.EndPosts, "End Posts", parentLayerIndex);
-            AddBrepsToChildLayerIfAny(doc, geometry.IntermediatePosts, "Intermediate Posts", parentLayerIndex);
-            AddBrepsToChildLayerIfAny(doc, geometry.SupportFeet, "Support Feet", parentLayerIndex);
-            AddBrepsToChildLayerIfAny(doc, geometry.Tabs, "Tabs", parentLayerIndex);
+            AddBrepsToChildLayerIfAny(doc, geometry.TopRails, "Top Rails", parentLayerIndex, System.Drawing.Color.FromArgb(191, 214, 180));
+            AddBrepsToChildLayerIfAny(doc, geometry.BottomRails, "Bottom Rails", parentLayerIndex, System.Drawing.Color.FromArgb(178, 204, 218));
+            AddBrepsToChildLayerIfAny(doc, geometry.Infill, "Infill", parentLayerIndex, System.Drawing.Color.FromArgb(224, 204, 170));
+            AddBrepsToChildLayerIfAny(doc, geometry.PanelFrames, "Panel Frames", parentLayerIndex, System.Drawing.Color.FromArgb(205, 190, 220));
+            AddBrepsToChildLayerIfAny(doc, geometry.PanelSheets, "Panel Sheets", parentLayerIndex, System.Drawing.Color.FromArgb(184, 215, 211));
+            AddBrepsToChildLayerIfAny(doc, geometry.EndPosts, "End Posts", parentLayerIndex, System.Drawing.Color.FromArgb(218, 186, 176));
+            AddBrepsToChildLayerIfAny(doc, geometry.IntermediatePosts, "Intermediate Posts", parentLayerIndex, System.Drawing.Color.FromArgb(218, 204, 158));
+            AddBrepsToChildLayerIfAny(doc, geometry.SupportFeet, "Support Feet", parentLayerIndex, System.Drawing.Color.FromArgb(190, 197, 218));
+            AddBrepsToChildLayerIfAny(doc, geometry.Tabs, "Tabs", parentLayerIndex, System.Drawing.Color.FromArgb(224, 188, 206));
         }
 
         private static double GetBottomRailBottomZ(HandrailSettings settings)
@@ -521,31 +521,30 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
             AddIfNotNull(geometry.PanelSheets, CreatePanelSheet(panelPlane, panelWidth, panelTopZ - panelBottomZ, frameWidth, sheetThickness));
 
-            if (settings.Tabs)
-            {
-                CreatePanelTabs(
-                    geometry,
-                    bayCurve,
-                    settings,
-                    postWidthAlongCurve,
-                    panelStartDistance,
-                    panelEndDistance,
-                    panelBottomZ,
-                    panelTopZ,
-                    tolerance
-                );
-            }
+            CreatePanelTabs(
+                geometry,
+                bayCurve,
+                postWidthAlongCurve,
+                panelStartDistance,
+                panelEndDistance,
+                panelBottomZ,
+                panelTopZ,
+                frameWidth,
+                frameDepth,
+                tolerance
+            );
         }
 
         private static void CreatePanelTabs(
             HandrailGeometry geometry,
             Curve bayCurve,
-            HandrailSettings settings,
             double postWidthAlongCurve,
             double panelStartDistance,
             double panelEndDistance,
             double panelBottomZ,
             double panelTopZ,
+            double tabWidth,
+            double tabDepth,
             double tolerance
         )
         {
@@ -569,10 +568,10 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 upperTabZ = panelBottomZ + panelHeight * 0.75;
             }
 
-            AddPanelTabIfPossible(geometry, bayCurve, leftStartDistance, leftEndDistance, lowerTabZ, settings, tolerance);
-            AddPanelTabIfPossible(geometry, bayCurve, leftStartDistance, leftEndDistance, upperTabZ, settings, tolerance);
-            AddPanelTabIfPossible(geometry, bayCurve, rightStartDistance, rightEndDistance, lowerTabZ, settings, tolerance);
-            AddPanelTabIfPossible(geometry, bayCurve, rightStartDistance, rightEndDistance, upperTabZ, settings, tolerance);
+            AddPanelTabIfPossible(geometry, bayCurve, leftStartDistance, leftEndDistance, lowerTabZ, tabWidth, tabDepth, tolerance);
+            AddPanelTabIfPossible(geometry, bayCurve, leftStartDistance, leftEndDistance, upperTabZ, tabWidth, tabDepth, tolerance);
+            AddPanelTabIfPossible(geometry, bayCurve, rightStartDistance, rightEndDistance, lowerTabZ, tabWidth, tabDepth, tolerance);
+            AddPanelTabIfPossible(geometry, bayCurve, rightStartDistance, rightEndDistance, upperTabZ, tabWidth, tabDepth, tolerance);
         }
 
         private static void AddPanelTabIfPossible(
@@ -581,7 +580,8 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             double startDistance,
             double endDistance,
             double z,
-            HandrailSettings settings,
+            double tabWidth,
+            double tabDepth,
             double tolerance
         )
         {
@@ -595,8 +595,8 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
             geometry.Tabs.AddRange(CreateSweptRectangularRail(
                 MoveCurveToZ(tabCurve, z),
-                settings.BoxRailDepth,
-                settings.BoxRailHeight,
+                tabDepth,
+                tabWidth,
                 tolerance
             ));
         }
@@ -944,16 +944,16 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             return box.ToBrep();
         }
 
-        private static void AddBrepsToChildLayerIfAny(RhinoDoc doc, List<Brep> breps, string layerName, int parentLayerIndex)
+        private static void AddBrepsToChildLayerIfAny(RhinoDoc doc, List<Brep> breps, string layerName, int parentLayerIndex, System.Drawing.Color layerColor)
         {
             if (breps.Count == 0)
                 return;
 
-            var layerIndex = EnsureLayer(doc, layerName, parentLayerIndex);
+            var layerIndex = EnsureLayer(doc, layerName, parentLayerIndex, layerColor);
             AddBrepsToLayer(doc, breps, layerIndex);
         }
 
-        private static int EnsureLayer(RhinoDoc doc, string name, int parentLayerIndex)
+        private static int EnsureLayer(RhinoDoc doc, string name, int parentLayerIndex, System.Drawing.Color? layerColor = null)
         {
             var parentId = Guid.Empty;
 
@@ -963,7 +963,15 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             foreach (var layer in doc.Layers)
             {
                 if (layer.Name == name && layer.ParentLayerId == parentId)
+                {
+                    if (layerColor.HasValue && layer.Color != layerColor.Value)
+                    {
+                        layer.Color = layerColor.Value;
+                        doc.Layers.Modify(layer, layer.Index, true);
+                    }
+
                     return layer.Index;
+                }
             }
 
             var newLayer = new Layer
@@ -971,6 +979,9 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 Name = name,
                 ParentLayerId = parentId
             };
+
+            if (layerColor.HasValue)
+                newLayer.Color = layerColor.Value;
 
             return doc.Layers.Add(newLayer);
         }
@@ -985,11 +996,11 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 };
 
                 var id = doc.Objects.AddBrep(brep, attributes);
-                ApplyOneMeterBoxMapping(doc, id);
+                ApplyTwoMeterBoxMapping(doc, id);
             }
         }
 
-        private static void ApplyOneMeterBoxMapping(RhinoDoc doc, Guid objectId)
+        private static void ApplyTwoMeterBoxMapping(RhinoDoc doc, Guid objectId)
         {
             var obj = doc.Objects.FindId(objectId);
 
@@ -998,9 +1009,9 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
             var mapping = TextureMapping.CreateBoxMapping(
                 Plane.WorldXY,
-                new Interval(0.0, 1000.0),
-                new Interval(0.0, 1000.0),
-                new Interval(0.0, 1000.0),
+                new Interval(0.0, 2000.0),
+                new Interval(0.0, 2000.0),
+                new Interval(0.0, 2000.0),
                 true
             );
 
