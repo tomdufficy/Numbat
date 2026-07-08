@@ -21,18 +21,29 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
             var gc = new GetObject();
-            gc.SetCommandPrompt("Select open flat curve representing handrail path on ground");
+            gc.SetCommandPrompt("Select open flat curve representing handrail path on ground. Press Enter for default 5000 mm railing");
             gc.GeometryFilter = ObjectType.Curve;
             gc.EnablePreSelect(true, true);
-            gc.Get();
+            gc.AcceptNothing(true);
 
-            if (gc.CommandResult() != Result.Success)
-                return gc.CommandResult();
+            var getResult = gc.Get();
 
-            var originalCurve = gc.Object(0).Curve()?.DuplicateCurve();
+            Curve originalCurve;
 
-            if (originalCurve == null)
-                return Result.Failure;
+            if (getResult == GetResult.Nothing)
+            {
+                originalCurve = new LineCurve(new Point3d(0.0, 0.0, 0.0), new Point3d(5000.0, 0.0, 0.0));
+            }
+            else
+            {
+                if (gc.CommandResult() != Result.Success)
+                    return gc.CommandResult();
+
+                originalCurve = gc.Object(0).Curve()?.DuplicateCurve();
+
+                if (originalCurve == null)
+                    return Result.Failure;
+            }
 
             if (originalCurve.IsClosed)
             {
