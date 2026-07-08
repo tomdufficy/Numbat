@@ -30,11 +30,14 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
     internal class SpiralStairGeometry
     {
         public List<GeometryBase> Treads { get; } = new List<GeometryBase>();
+        public List<GeometryBase> FrontLips { get; } = new List<GeometryBase>();
+        public List<GeometryBase> RearLips { get; } = new List<GeometryBase>();
         public List<GeometryBase> Risers { get; } = new List<GeometryBase>();
         public List<GeometryBase> CentreColumn { get; } = new List<GeometryBase>();
         public List<GeometryBase> Handrail { get; } = new List<GeometryBase>();
         public List<GeometryBase> Balusters { get; } = new List<GeometryBase>();
         public List<GeometryBase> Skin { get; } = new List<GeometryBase>();
+        public List<GeometryBase> Soffit { get; } = new List<GeometryBase>();
         public List<GeometryBase> Landings { get; } = new List<GeometryBase>();
         public List<SpiralStairPreviewLabel> PreviewLabels { get; } = new List<SpiralStairPreviewLabel>();
         public List<SpiralStairPreviewLine> PreviewLines { get; } = new List<SpiralStairPreviewLine>();
@@ -43,11 +46,14 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
         {
             var all = new List<GeometryBase>();
             all.AddRange(Treads);
+            all.AddRange(FrontLips);
+            all.AddRange(RearLips);
             all.AddRange(Risers);
             all.AddRange(CentreColumn);
             all.AddRange(Handrail);
             all.AddRange(Balusters);
             all.AddRange(Skin);
+            all.AddRange(Soffit);
             all.AddRange(Landings);
             return all;
         }

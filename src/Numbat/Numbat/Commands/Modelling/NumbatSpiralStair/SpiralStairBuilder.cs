@@ -15,7 +15,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             if (solution.Parameters.Mode == SpiralStairMode.Open)
                 AddOpenBalustrade(geometry, solution, tolerance);
             else
-                AddClosedSkin(geometry, solution);
+                AddClosedSkinAndSoffit(geometry, solution);
 
             AddPreviewInfo(geometry, solution);
             return geometry;
@@ -26,6 +26,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             var p = solution.Parameters;
             var lastIndex = solution.TreadCount - 1;
             var wedgeCount = p.TopLanding == SpiralStairTopLanding.Rectangular ? lastIndex : solution.TreadCount;
+            var inner = GetTreadInnerRadius(p);
 
             for (var i = 0; i < wedgeCount; i++)
             {
@@ -36,13 +37,19 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
                 var bottomZ = topZ - p.TreadThickness;
                 var previousTopZ = i == 0 ? p.BaseCenter.Z : p.BaseCenter.Z + i * solution.ActualRiserHeight;
 
-                geometry.Treads.Add(CreateAnnularSectorBox(p.BaseCenter, p.InnerRadius, p.Radius, a0, a1, bottomZ, topZ, 5));
-                geometry.Treads.Add(CreateRadialPlate(p.BaseCenter, p.InnerRadius, p.Radius, a0, topZ - p.FoldDepth, topZ, p.TreadThickness));
+                geometry.Treads.Add(CreateAnnularSectorBox(p.BaseCenter, inner, p.Radius, a0, a1, bottomZ, topZ, 5));
 
-                if (!isFinalPiece)
-                    geometry.Treads.Add(CreateRadialPlate(p.BaseCenter, p.InnerRadius, p.Radius, a1, topZ, topZ + p.FoldDepth, p.TreadThickness));
+                if (p.Mode == SpiralStairMode.Open)
+                {
+                    geometry.FrontLips.Add(CreateRadialPlate(p.BaseCenter, inner, p.Radius, a0, topZ - p.FoldDepth, topZ, p.TreadThickness));
 
-                geometry.Risers.Add(CreateRadialPlate(p.BaseCenter, p.InnerRadius, p.Radius, a0, previousTopZ, bottomZ, p.TreadThickness));
+                    if (!isFinalPiece)
+                        geometry.RearLips.Add(CreateRadialPlate(p.BaseCenter, inner, p.Radius, a1, topZ, topZ + p.FoldDepth, p.TreadThickness));
+                }
+                else
+                {
+                    geometry.Risers.Add(CreateRadialPlate(p.BaseCenter, inner, p.Radius, a0, previousTopZ, bottomZ, p.TreadThickness));
+                }
             }
 
             if (p.TopLanding == SpiralStairTopLanding.Rectangular)
@@ -58,14 +65,25 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             if (p.Direction == SpiralStairDirection.Clockwise)
                 tangent.Reverse();
 
-            var width = p.Radius - p.InnerRadius;
+            var inner = GetTreadInnerRadius(p);
+            var width = p.Radius - inner;
             var depth = Math.Max(100.0, p.LandingDepth);
             var topZ = p.BaseCenter.Z + p.FloorHeight;
             var bottomZ = topZ - p.TreadThickness;
-            var centre = p.BaseCenter + radial * (p.InnerRadius + width * 0.5) + tangent * (depth * 0.5);
+            var centre = p.BaseCenter + radial * (inner + width * 0.5) + tangent * (depth * 0.5);
 
             geometry.Landings.Add(CreateBoxFromBasis(centre, radial, tangent, width, depth, p.TreadThickness, bottomZ));
-            geometry.Landings.Add(CreateBoxFromBasis(centre - tangent * (depth * 0.5), radial, tangent, width, p.TreadThickness, p.FoldDepth, topZ - p.FoldDepth));
+
+            if (p.Mode == SpiralStairMode.Open)
+            {
+                geometry.FrontLips.Add(CreateBoxFromBasis(centre - tangent * (depth * 0.5), radial, tangent, width, p.TreadThickness, p.FoldDepth, topZ - p.FoldDepth));
+            }
+            else
+            {
+                var previousTopZ = p.BaseCenter.Z + (solution.TreadCount - 1) * solution.ActualRiserHeight;
+                var riserHeight = Math.Max(p.TreadThickness, bottomZ - previousTopZ);
+                geometry.Risers.Add(CreateBoxFromBasis(centre - tangent * (depth * 0.5), radial, tangent, width, p.TreadThickness, riserHeight, previousTopZ));
+            }
         }
 
         private static void AddCentreColumn(SpiralStairGeometry geometry, SpiralStairSolution solution)
@@ -80,7 +98,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
         private static void AddOpenBalustrade(SpiralStairGeometry geometry, SpiralStairSolution solution, double tolerance)
         {
             var p = solution.Parameters;
-            var balusterRadiusFromCenter = Math.Max(p.InnerRadius + 50.0, p.Radius - p.BalusterInsetFromOuterEdge);
+            var balusterRadiusFromCenter = Math.Max(GetTreadInnerRadius(p) + 50.0, p.Radius - p.BalusterInsetFromOuterEdge);
             var firstAngle = p.StartAngleRadians + solution.SignedStepAngleRadians / 3.0;
             var lastAngle = p.StartAngleRadians + solution.SignedTotalRotationRadians;
             var firstRailZ = HandrailZAtAngle(solution, firstAngle);
@@ -117,10 +135,12 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             return p.BaseCenter.Z + p.FloorHeight * t + p.HandrailHeight;
         }
 
-        private static void AddClosedSkin(SpiralStairGeometry geometry, SpiralStairSolution solution)
+        private static void AddClosedSkinAndSoffit(SpiralStairGeometry geometry, SpiralStairSolution solution)
         {
             var p = solution.Parameters;
-            var skin = CreateHelicalRibbon(
+            var inner = GetTreadInnerRadius(p);
+
+            geometry.Skin.Add(CreateHelicalRibbon(
                 p.BaseCenter,
                 p.Radius,
                 p.StartAngleRadians,
@@ -128,8 +148,17 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
                 p.BaseCenter.Z,
                 p.BaseCenter.Z + p.FloorHeight,
                 p.SolidGuardHeight,
-                Math.Max(80, solution.TreadCount * 10));
-            geometry.Skin.Add(skin);
+                Math.Max(80, solution.TreadCount * 10)));
+
+            geometry.Soffit.Add(CreateHelicalSoffit(
+                p.BaseCenter,
+                inner,
+                p.Radius,
+                p.StartAngleRadians,
+                solution.SignedTotalRotationRadians,
+                p.BaseCenter.Z,
+                p.BaseCenter.Z + p.FloorHeight - p.TreadThickness,
+                Math.Max(80, solution.TreadCount * 10)));
         }
 
         private static void AddPreviewInfo(SpiralStairGeometry geometry, SpiralStairSolution solution)
@@ -142,6 +171,11 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
                 geometry.PreviewLabels.Add(new SpiralStairPreviewLabel(labelPoint + Vector3d.ZAxis * 500.0, solution.Warning));
             geometry.PreviewLines.Add(new SpiralStairPreviewLine(p.BaseCenter, p.BaseCenter + Vector3d.ZAxis * p.FloorHeight));
             geometry.PreviewLines.Add(new SpiralStairPreviewLine(p.BaseCenter, p.BaseCenter + UnitVector(p.StartAngleRadians) * p.Radius));
+        }
+
+        private static double GetTreadInnerRadius(SpiralStairParameters p)
+        {
+            return Math.Max(20.0, p.ColumnRadius - 5.0);
         }
 
         private static Mesh CreateAnnularSectorBox(Point3d center, double inner, double outer, double a0, double a1, double z0, double z1, int segments)
@@ -176,6 +210,13 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
 
         private static Mesh CreateRadialPlate(Point3d center, double inner, double outer, double angle, double z0, double z1, double thicknessAlongArc)
         {
+            if (z1 < z0)
+            {
+                var temp = z0;
+                z0 = z1;
+                z1 = temp;
+            }
+
             var delta = thicknessAlongArc / Math.Max(outer, 1.0);
             return CreateAnnularSectorBox(center, inner, outer, angle - delta * 0.5, angle + delta * 0.5, z0, z1, 1);
         }
@@ -190,6 +231,27 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
                 var z = bottomZ0 + (bottomZ1 - bottomZ0) * t;
                 mesh.Vertices.Add(PointAt(center, radius, a, z));
                 mesh.Vertices.Add(PointAt(center, radius, a, z + height));
+            }
+            for (var i = 0; i < segments; i++)
+            {
+                var b = i * 2;
+                mesh.Faces.AddFace(b, b + 1, b + 3, b + 2);
+            }
+            mesh.Normals.ComputeNormals();
+            mesh.Compact();
+            return mesh;
+        }
+
+        private static Mesh CreateHelicalSoffit(Point3d center, double inner, double outer, double startAngle, double signedRotation, double z0, double z1, int segments)
+        {
+            var mesh = new Mesh();
+            for (var i = 0; i <= segments; i++)
+            {
+                var t = i / (double)segments;
+                var a = startAngle + signedRotation * t;
+                var z = z0 + (z1 - z0) * t;
+                mesh.Vertices.Add(PointAt(center, inner, a, z));
+                mesh.Vertices.Add(PointAt(center, outer, a, z));
             }
             for (var i = 0; i < segments; i++)
             {
