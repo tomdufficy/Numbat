@@ -21,6 +21,7 @@ namespace Numbat.Commands.Modelling.NumbatStair.Straight
         Left = 1
     }
 
+
     internal class StairStraightParameters
     {
         public Point3d StartPoint { get; set; } = Point3d.Origin;
@@ -38,7 +39,6 @@ namespace Numbat.Commands.Modelling.NumbatStair.Straight
         public double TreadThickness { get; set; } = 30.0;
         public double Nosing { get; set; } = 15.0;
         public double LandingDepth { get; set; } = 1100.0;
-        public double StairThickness { get; set; } = 300.0;
 
         public double StringerWidth { get; set; } = 50.0;
         public double StringerDepth { get; set; } = 250.0;

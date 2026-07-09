@@ -104,35 +104,50 @@ namespace Numbat.Commands.Modelling.NumbatStair.Straight
             var p = solution.Parameters;
             var treadDepth = Math.Max(1.0, p.TreadDepth);
             var treadThickness = Math.Max(1.0, p.TreadThickness);
-            var stairThickness = Math.Max(1.0, p.StairThickness);
-            var riserHeight = solution.ActualRiserHeight;
+            var solidDepth = Math.Max(80.0, p.StringerDepth);
+            var runLength = Math.Max(1.0, flight.StepCount * treadDepth);
+
+            var topProfile = new System.Collections.Generic.List<Point2d>();
+            topProfile.Add(new Point2d(0.0, Math.Max(1.0, (flight.StartRiserIndex + 1) * solution.ActualRiserHeight - treadThickness)));
 
             for (var i = 0; i < flight.StepCount; i++)
             {
                 var riserIndex = flight.StartRiserIndex + i + 1;
-                var undersideZ = riserIndex * riserHeight - treadThickness;
-                var x0 = i * treadDepth;
-                var x1 = (i + 1) * treadDepth;
+                var undersideZ = Math.Max(1.0, riserIndex * solution.ActualRiserHeight - treadThickness);
+                var stepStartX = i * treadDepth;
+                var stepEndX = (i + 1) * treadDepth;
 
-                // At the back of each tread the solid depth is exactly StairThickness.
-                // At the front it is StairThickness + one riser, so every wedge is identical
-                // and the sloping underside lines up cleanly from tread to tread.
-                var frontBottomZ = undersideZ - stairThickness - riserHeight;
-                var backBottomZ = undersideZ - stairThickness;
+                AddProfilePoint(topProfile, stepStartX, undersideZ);
+                AddProfilePoint(topProfile, stepEndX, undersideZ);
 
-                geometry.MonolithicBase.Add(MakeWedgePrism(flightStart, dir, widthDir, x0, x1, -halfWidth, halfWidth, undersideZ, frontBottomZ, backBottomZ));
+                if (i < flight.StepCount - 1)
+                {
+                    var nextUndersideZ = Math.Max(1.0, (riserIndex + 1) * solution.ActualRiserHeight - treadThickness);
+                    AddProfilePoint(topProfile, stepEndX, nextUndersideZ);
+                }
             }
+
+            var bottomStartZ = Math.Max(0.0, topProfile[0].Y - solidDepth);
+            var bottomEndZ = Math.Max(0.0, topProfile[topProfile.Count - 1].Y - solidDepth);
+
+            geometry.MonolithicBase.Add(MakeProfilePrism(flightStart, dir, widthDir, -halfWidth, halfWidth, topProfile, bottomStartZ, bottomEndZ));
         }
 
         private static void AddSolidBodyForLanding(StairStraightGeometry geometry, StairStraightSolution solution, Point3d landingStart, Vector3d dir, Vector3d widthDir, double landingHalfWidth, double landingTopZ, double landingDepth)
         {
             var p = solution.Parameters;
             var treadThickness = Math.Max(1.0, p.TreadThickness);
-            var stairThickness = Math.Max(1.0, p.StairThickness);
-            var undersideZ = landingTopZ - treadThickness;
-            var bottomZ = undersideZ - stairThickness;
+            var solidDepth = Math.Max(80.0, p.StringerDepth);
+            var topZ = Math.Max(1.0, landingTopZ - treadThickness);
+            var bottomZ = Math.Max(0.0, topZ - solidDepth);
 
-            geometry.MonolithicBase.Add(MakeBox(landingStart + new Vector3d(0.0, 0.0, bottomZ), dir, widthDir, landingDepth, landingHalfWidth, stairThickness));
+            var topProfile = new System.Collections.Generic.List<Point2d>
+            {
+                new Point2d(0.0, topZ),
+                new Point2d(Math.Max(1.0, landingDepth), topZ)
+            };
+
+            geometry.MonolithicBase.Add(MakeProfilePrism(landingStart, dir, widthDir, -landingHalfWidth, landingHalfWidth, topProfile, bottomZ, bottomZ));
         }
 
         private static void AddStringersForFlight(StairStraightGeometry geometry, StairStraightSolution solution, Point3d flightStart, Vector3d dir, Vector3d widthDir, double halfWidth, StairStraightFlight flight)
@@ -144,8 +159,8 @@ namespace Numbat.Commands.Modelling.NumbatStair.Straight
             var stringerDepth = Math.Max(1.0, p.StringerDepth);
             var runLength = Math.Max(1.0, flight.StepCount * treadDepth);
 
-            // Keep the top of the stringer as a clean continuous rake line.
-            // It passes through the front top corner of each tread, then extends to the vertical end cut.
+            // Clean continuous rake line, with vertical start/end cuts.
+            // The top line is aligned with the front upper corner rhythm of the treads.
             var topStartZ = (flight.StartRiserIndex + 1) * solution.ActualRiserHeight;
             var topSlope = solution.ActualRiserHeight / treadDepth;
             var topEndZ = topStartZ + (topSlope * runLength);
@@ -161,7 +176,7 @@ namespace Numbat.Commands.Modelling.NumbatStair.Straight
             var p = solution.Parameters;
             var stringerWidth = Math.Max(1.0, p.StringerWidth);
             var stringerDepth = Math.Max(1.0, p.StringerDepth);
-            var topZ = landingTopZ;
+            var topZ = landingTopZ + solution.ActualRiserHeight;
 
             geometry.Stringers.Add(MakeLevelSidePlate(landingStart, dir, widthDir, landingDepth, landingHalfWidth, stringerWidth, stringerDepth, topZ, 1.0, p.StringersOutward));
             geometry.Stringers.Add(MakeLevelSidePlate(landingStart, dir, widthDir, landingDepth, landingHalfWidth, stringerWidth, stringerDepth, topZ, -1.0, p.StringersOutward));
@@ -187,28 +202,6 @@ namespace Numbat.Commands.Modelling.NumbatStair.Straight
             points.Add(new Point2d(x, z));
         }
 
-        private static Brep MakeWedgePrism(Point3d basePoint, Vector3d dir, Vector3d widthDir, double x0, double x1, double yA, double yB, double topZ, double frontBottomZ, double backBottomZ)
-        {
-            Point3d Local(double x, double y, double z)
-            {
-                return basePoint + dir * x + widthDir * y + new Vector3d(0.0, 0.0, z);
-            }
-
-            var corners = new[]
-            {
-                Local(x0, yA, frontBottomZ),
-                Local(x1, yA, backBottomZ),
-                Local(x1, yB, backBottomZ),
-                Local(x0, yB, frontBottomZ),
-                Local(x0, yA, topZ),
-                Local(x1, yA, topZ),
-                Local(x1, yB, topZ),
-                Local(x0, yB, topZ)
-            };
-
-            return Brep.CreateFromBox(corners);
-        }
-
         private static Mesh MakeProfilePrism(Point3d basePoint, Vector3d dir, Vector3d widthDir, double yA, double yB, System.Collections.Generic.List<Point2d> topProfile, double bottomStartZ, double bottomEndZ)
         {
             var mesh = new Mesh();
@@ -228,85 +221,49 @@ namespace Numbat.Commands.Modelling.NumbatStair.Straight
                 return basePoint + dir * x + widthDir * y + new Vector3d(0.0, 0.0, z);
             }
 
-            var n = topProfile.Count;
-            var topA = new int[n];
-            var topB = new int[n];
-            var bottomA = new int[n];
-            var bottomB = new int[n];
+            var section = new System.Collections.Generic.List<Point2d>();
+            foreach (var point in topProfile)
+                section.Add(point);
+
+            for (var i = topProfile.Count - 1; i >= 0; i--)
+            {
+                var point = topProfile[i];
+                AddProfilePoint(section, point.X, BottomZ(point.X));
+            }
+
+            var n = section.Count;
+            for (var i = 0; i < n; i++)
+                mesh.Vertices.Add(Local(section[i].X, yA, section[i].Y));
+
+            for (var i = 0; i < n; i++)
+                mesh.Vertices.Add(Local(section[i].X, yB, section[i].Y));
 
             for (var i = 0; i < n; i++)
             {
-                var x = topProfile[i].X;
-                var topZ = topProfile[i].Y;
-                var bottomZ = BottomZ(x);
-
-                topA[i] = mesh.Vertices.Add(Local(x, yA, topZ));
-                topB[i] = mesh.Vertices.Add(Local(x, yB, topZ));
-                bottomA[i] = mesh.Vertices.Add(Local(x, yA, bottomZ));
-                bottomB[i] = mesh.Vertices.Add(Local(x, yB, bottomZ));
+                var j = (i + 1) % n;
+                mesh.Faces.AddFace(i, j, j + n, i + n);
             }
 
-            for (var i = 0; i < n - 1; i++)
-            {
-                AddFaceSmart(mesh, topA[i], topA[i + 1], topB[i + 1], topB[i]);
-                AddFaceSmart(mesh, bottomA[i], bottomB[i], bottomB[i + 1], bottomA[i + 1]);
-                AddFaceSmart(mesh, topA[i], bottomA[i], bottomA[i + 1], topA[i + 1]);
-                AddFaceSmart(mesh, topB[i], topB[i + 1], bottomB[i + 1], bottomB[i]);
-            }
-
-            AddFaceSmart(mesh, topA[0], topB[0], bottomB[0], bottomA[0]);
-            AddFaceSmart(mesh, topA[n - 1], bottomA[n - 1], bottomB[n - 1], topB[n - 1]);
+            AddCapFace(mesh, 0, n, false);
+            AddCapFace(mesh, n, n, true);
 
             mesh.Normals.ComputeNormals();
             mesh.Compact();
             return mesh;
         }
 
-        private static void AddFaceSmart(Mesh mesh, int a, int b, int c, int d)
+        private static void AddCapFace(Mesh mesh, int offset, int count, bool reverse)
         {
-            var pa = mesh.Vertices[a];
-            var pb = mesh.Vertices[b];
-            var pc = mesh.Vertices[c];
-            var pd = mesh.Vertices[d];
-
-            var ab = pa.DistanceTo(pb);
-            var bc = pb.DistanceTo(pc);
-            var cd = pc.DistanceTo(pd);
-            var da = pd.DistanceTo(pa);
-
-            const double epsilon = 0.001;
-            if (ab < epsilon && bc < epsilon && cd < epsilon && da < epsilon)
+            if (count < 3)
                 return;
 
-            if (ab < epsilon)
+            for (var i = 1; i < count - 1; i++)
             {
-                if (pc.DistanceTo(pd) >= epsilon && pd.DistanceTo(pb) >= epsilon)
-                    mesh.Faces.AddFace(b, c, d);
-                return;
+                if (reverse)
+                    mesh.Faces.AddFace(offset, offset + i + 1, offset + i);
+                else
+                    mesh.Faces.AddFace(offset, offset + i, offset + i + 1);
             }
-
-            if (bc < epsilon)
-            {
-                if (pa.DistanceTo(pc) >= epsilon && pc.DistanceTo(pd) >= epsilon)
-                    mesh.Faces.AddFace(a, c, d);
-                return;
-            }
-
-            if (cd < epsilon)
-            {
-                if (pa.DistanceTo(pb) >= epsilon && pb.DistanceTo(pd) >= epsilon)
-                    mesh.Faces.AddFace(a, b, d);
-                return;
-            }
-
-            if (da < epsilon)
-            {
-                if (pa.DistanceTo(pb) >= epsilon && pb.DistanceTo(pc) >= epsilon)
-                    mesh.Faces.AddFace(a, b, c);
-                return;
-            }
-
-            mesh.Faces.AddFace(a, b, c, d);
         }
 
         private static Brep MakeBox(Point3d lowerBackCentre, Vector3d dir, Vector3d widthDir, double length, double halfWidth, double height)
@@ -332,16 +289,12 @@ namespace Numbat.Commands.Modelling.NumbatStair.Straight
 
         private static void GetStringerSideOffsets(double halfWidth, double plateWidth, double side, bool outward, out double yA, out double yB)
         {
-            if (outward)
-            {
-                yA = side * halfWidth;
-                yB = side * (halfWidth + plateWidth);
-            }
-            else
-            {
-                yA = side * halfWidth;
-                yB = side * Math.Max(0.0, halfWidth - plateWidth);
-            }
+            // Centre the stringer on the tread edge line so changing stringer width
+            // widens equally to both sides of that edge.
+            var centre = side * halfWidth;
+            var halfPlateWidth = Math.Max(1.0, plateWidth) * 0.5;
+            yA = centre - halfPlateWidth;
+            yB = centre + halfPlateWidth;
         }
 
         private static Brep MakeSidePlate(Point3d basePoint, Vector3d dir, Vector3d widthDir, double length, double yA, double yB, double topStartZ, double topEndZ, double depth)
