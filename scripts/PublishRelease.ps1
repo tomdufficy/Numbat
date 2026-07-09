@@ -50,7 +50,7 @@ if ($confirm -ne "YES") {
     throw "Cancelled."
 }
 
-git tag $tag
+git tag -a $tag -m "Release $tag"
 git push origin $tag
 
 Write-Host "Published tag $tag. GitHub Actions should now build and publish to Yak."
