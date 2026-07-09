@@ -190,6 +190,8 @@ namespace Numbat.Commands.Modelling.NumbatPV
                 yAxis = -swap;
             }
 
+            OrientTiltTowardSouth(roof.Plane, ref xAxis, ref yAxis);
+
             var polygon = ProjectPolygonToAxes(roof, xAxis, yAxis);
             var xValues = GetProjectedRange(polygon, true);
             var yValues = GetProjectedRange(polygon, false);
@@ -229,6 +231,29 @@ namespace Numbat.Commands.Modelling.NumbatPV
             }
 
             return transforms;
+        }
+
+        private static void OrientTiltTowardSouth(Plane roofPlane, ref Vector3d xAxis, ref Vector3d yAxis)
+        {
+            var south = new Vector3d(0.0, -1.0, 0.0);
+            var normal = roofPlane.ZAxis;
+            normal.Unitize();
+
+            south = south - normal * (south * normal);
+            if (!south.Unitize())
+                south = new Vector3d(0.0, -1.0, 0.0);
+
+            var currentDownDirection = -yAxis;
+            currentDownDirection.Unitize();
+
+            var flippedDownDirection = yAxis;
+            flippedDownDirection.Unitize();
+
+            if ((flippedDownDirection * south) > (currentDownDirection * south))
+            {
+                xAxis = -xAxis;
+                yAxis = -yAxis;
+            }
         }
 
         private static GridCandidate ChooseBestGridCandidate(RoofFace roof, PVParameters parameters, double tolerance)
