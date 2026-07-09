@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using Rhino;
 using Rhino.Geometry;
 
@@ -36,14 +37,12 @@ namespace Numbat.Commands.Modelling.NumbatStair.Spiral
                 var bottomZ = topZ - p.TreadThickness;
                 var previousTopZ = i == 0 ? p.BaseCenter.Z : p.BaseCenter.Z + i * solution.ActualRiserHeight;
 
-                geometry.Treads.Add(CreateAnnularSectorBox(p.BaseCenter, inner, p.Radius, a0, a1, bottomZ, topZ, 5));
+                geometry.Treads.Add(CreateBlockableTread(p.BaseCenter, inner, p.Radius, solution.SignedStepAngleRadians, a0, bottomZ, p.TreadThickness, p.FoldDepth, p.Mode == StairSpiralMode.Open, 5));
 
                 if (p.Mode == StairSpiralMode.Open)
                 {
-                    geometry.FrontLips.Add(CreateRadialPlate(p.BaseCenter, inner, p.Radius, a0, topZ - p.FoldDepth, topZ, p.TreadThickness));
-
                     if (!isFinalPiece)
-                        geometry.RearLips.Add(CreateRadialPlate(p.BaseCenter, inner, p.Radius, a1, topZ, topZ + p.FoldDepth, p.TreadThickness));
+                        geometry.RearLips.Add(CreateBlockableRearLip(p.BaseCenter, inner, p.Radius, a1, topZ, p.FoldDepth, p.TreadThickness));
                 }
                 else
                 {
@@ -259,6 +258,54 @@ namespace Numbat.Commands.Modelling.NumbatStair.Spiral
                 return p.Radius;
 
             return Math.Max(GetTreadInnerRadius(p), p.Radius + p.ClosedSkinThickness);
+        }
+
+        private static Mesh CreateBlockableTread(Point3d center, double inner, double outer, double signedStepAngle, double startAngle, double bottomZ, double thickness, double frontLipDepth, bool includeFrontLip, int segments)
+        {
+            var local = CreateAnnularSectorBox(Point3d.Origin, inner, outer, 0.0, signedStepAngle, 0.0, thickness, segments);
+
+            if (includeFrontLip && frontLipDepth > 0.001)
+            {
+                var frontLip = CreateRadialPlate(Point3d.Origin, inner, outer, 0.0, thickness - frontLipDepth, thickness, thickness);
+                local.Append(frontLip);
+                local.Normals.ComputeNormals();
+                local.Compact();
+            }
+
+            var rotation = Transform.Rotation(startAngle, Vector3d.ZAxis, Point3d.Origin);
+            var translation = Transform.Translation(new Vector3d(center.X, center.Y, bottomZ));
+            var instanceTransform = translation * rotation;
+            local.Transform(instanceTransform);
+            SetBlockTransform(local, "Numbat_Spiral_Tread_WithFrontLip", instanceTransform);
+            return local;
+        }
+
+        private static Mesh CreateBlockableRearLip(Point3d center, double inner, double outer, double angle, double bottomZ, double depth, double thicknessAlongArc)
+        {
+            var local = CreateRadialPlate(Point3d.Origin, inner, outer, 0.0, 0.0, depth, thicknessAlongArc);
+            var rotation = Transform.Rotation(angle, Vector3d.ZAxis, Point3d.Origin);
+            var translation = Transform.Translation(new Vector3d(center.X, center.Y, bottomZ));
+            var instanceTransform = translation * rotation;
+            local.Transform(instanceTransform);
+            SetBlockTransform(local, "Numbat_Spiral_RearLip", instanceTransform);
+            return local;
+        }
+
+        private static void SetBlockTransform(GeometryBase geometry, string blockKey, Transform transform)
+        {
+            geometry.SetUserString("NumbatBlockKey", blockKey);
+            geometry.SetUserString("NumbatBlockTransform", TransformToString(transform));
+        }
+
+        private static string TransformToString(Transform transform)
+        {
+            return string.Join(",", new[]
+            {
+                transform.M00.ToString(CultureInfo.InvariantCulture), transform.M01.ToString(CultureInfo.InvariantCulture), transform.M02.ToString(CultureInfo.InvariantCulture), transform.M03.ToString(CultureInfo.InvariantCulture),
+                transform.M10.ToString(CultureInfo.InvariantCulture), transform.M11.ToString(CultureInfo.InvariantCulture), transform.M12.ToString(CultureInfo.InvariantCulture), transform.M13.ToString(CultureInfo.InvariantCulture),
+                transform.M20.ToString(CultureInfo.InvariantCulture), transform.M21.ToString(CultureInfo.InvariantCulture), transform.M22.ToString(CultureInfo.InvariantCulture), transform.M23.ToString(CultureInfo.InvariantCulture),
+                transform.M30.ToString(CultureInfo.InvariantCulture), transform.M31.ToString(CultureInfo.InvariantCulture), transform.M32.ToString(CultureInfo.InvariantCulture), transform.M33.ToString(CultureInfo.InvariantCulture)
+            });
         }
 
         private static Mesh CreateAnnularSectorBox(Point3d center, double inner, double outer, double a0, double a1, double z0, double z1, int segments)
