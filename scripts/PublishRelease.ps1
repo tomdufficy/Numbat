@@ -24,7 +24,8 @@ if ([int]$behind -gt 0) {
 }
 
 [xml]$csproj = Get-Content $csprojPath
-$version = ($csproj.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version.Trim()
+$versionNode = $csproj.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1
+$version = $versionNode.Version.Trim()
 
 if (-not $version) {
     throw "Could not find <Version> in $csprojPath"
