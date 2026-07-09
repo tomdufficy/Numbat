@@ -14,7 +14,7 @@ namespace Numbat.Commands.Modelling.NumbatStair.Straight
         {
             AddGeometryAsBlocks(doc, geometry.Treads, "Numbat::Straight Stair::Treads", Color.FromArgb(218, 196, 166), "Numbat_Straight_Tread");
             AddGeometryAsBlocks(doc, geometry.Landings, "Numbat::Straight Stair::Landings", Color.FromArgb(232, 184, 158), "Numbat_Straight_Landing");
-            AddGeometry(doc, geometry.MonolithicBase, "Numbat::Straight Stair::Monolithic Base", Color.FromArgb(188, 166, 207));
+            AddGeometry(doc, geometry.MonolithicBase, "Numbat::Straight Stair::Solid and Monolithic Base", Color.FromArgb(188, 166, 207));
             AddGeometryAsBlocks(doc, geometry.Stringers, "Numbat::Straight Stair::Steel Stringers", Color.FromArgb(155, 169, 181), "Numbat_Straight_Stringer");
         }
 

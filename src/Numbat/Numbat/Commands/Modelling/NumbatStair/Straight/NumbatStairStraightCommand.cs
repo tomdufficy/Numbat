@@ -81,12 +81,16 @@ namespace Numbat.Commands.Modelling.NumbatStair.Straight
             var treadDepth = new OptionDouble(280.0, true, 100.0);
             var treadThickness = new OptionDouble(30.0, true, 1.0);
             var nosing = new OptionDouble(15.0, true, 0.0);
+            var stringerWidth = new OptionDouble(50.0, true, 1.0);
+            var stairThickness = new OptionDouble(300.0, true, 1.0);
             var landingDepth = new OptionDouble(Math.Max(1100.0, pickedWidth), true, 0.0);
             var modeIndex = 0;
             var landingModeIndex = 0;
             var switchback = false;
             var switchbackSideIndex = 0;
-            string[] modeOptions = { "Monolithic", "SteelStringers" };
+            var stringersEnabled = true;
+            var stringersOutward = true;
+            string[] modeOptions = { "OpenStair", "SolidStair", "Monolithic" };
             string[] landingModeOptions = { "Middle", "MaxRisers" };
 
             var parameters = new StairStraightParameters
@@ -101,7 +105,7 @@ namespace Numbat.Commands.Modelling.NumbatStair.Straight
             {
                 while (true)
                 {
-                    ApplyOptionValues(parameters, width, floorHeight, maxRiser, maxStepsBeforeLanding, treadDepth, treadThickness, nosing, landingDepth, modeIndex, landingModeIndex, switchback, switchbackSideIndex);
+                    ApplyOptionValues(parameters, width, floorHeight, maxRiser, maxStepsBeforeLanding, treadDepth, treadThickness, nosing, stringerWidth, stairThickness, landingDepth, modeIndex, landingModeIndex, switchback, switchbackSideIndex, stringersEnabled, stringersOutward);
 
                     var solution = StairStraightSolver.Solve(parameters);
                     var previewGeometry = StairStraightBuilder.Build(solution, doc.ModelAbsoluteTolerance);
@@ -129,6 +133,17 @@ namespace Numbat.Commands.Modelling.NumbatStair.Straight
                     getOptions.AddOptionDouble("TreadDepth", ref treadDepth);
                     getOptions.AddOptionDouble("TreadThickness", ref treadThickness);
                     getOptions.AddOptionDouble("Nosing", ref nosing);
+                    if (modeIndex == (int)StairStraightMode.OpenStair)
+                    {
+                        getOptions.AddOption("Stringers", stringersEnabled ? "On" : "Off");
+                        if (stringersEnabled)
+                        {
+                            getOptions.AddOptionDouble("StringerWidth", ref stringerWidth);
+                            getOptions.AddOption("FlipStringers", stringersOutward ? "Outward" : "Inward");
+                        }
+                    }
+                    if (modeIndex == (int)StairStraightMode.SolidStair)
+                        getOptions.AddOptionDouble("StairThickness", ref stairThickness);
                     getOptions.AddOptionDouble("LandingDepth", ref landingDepth);
 
                     var result = getOptions.Get();
@@ -150,6 +165,10 @@ namespace Numbat.Commands.Modelling.NumbatStair.Straight
                             switchback = !switchback;
                         else if (option != null && option.EnglishName == "FlipSwitchback")
                             switchbackSideIndex = switchbackSideIndex == 0 ? 1 : 0;
+                        else if (option != null && option.EnglishName == "Stringers")
+                            stringersEnabled = !stringersEnabled;
+                        else if (option != null && option.EnglishName == "FlipStringers")
+                            stringersOutward = !stringersOutward;
                     }
                 }
             }
@@ -159,7 +178,7 @@ namespace Numbat.Commands.Modelling.NumbatStair.Straight
                 doc.Views.Redraw();
             }
 
-            ApplyOptionValues(parameters, width, floorHeight, maxRiser, maxStepsBeforeLanding, treadDepth, treadThickness, nosing, landingDepth, modeIndex, landingModeIndex, switchback, switchbackSideIndex);
+            ApplyOptionValues(parameters, width, floorHeight, maxRiser, maxStepsBeforeLanding, treadDepth, treadThickness, nosing, stringerWidth, stairThickness, landingDepth, modeIndex, landingModeIndex, switchback, switchbackSideIndex, stringersEnabled, stringersOutward);
 
             var finalSolution = StairStraightSolver.Solve(parameters);
             var finalGeometry = StairStraightBuilder.Build(finalSolution, doc.ModelAbsoluteTolerance);
@@ -226,11 +245,15 @@ namespace Numbat.Commands.Modelling.NumbatStair.Straight
             OptionDouble treadDepth,
             OptionDouble treadThickness,
             OptionDouble nosing,
+            OptionDouble stringerWidth,
+            OptionDouble stairThickness,
             OptionDouble landingDepth,
             int modeIndex,
             int landingModeIndex,
             bool switchback,
-            int switchbackSideIndex)
+            int switchbackSideIndex,
+            bool stringersEnabled,
+            bool stringersOutward)
         {
             parameters.Width = width.CurrentValue;
             parameters.FloorHeight = floorHeight.CurrentValue;
@@ -239,11 +262,15 @@ namespace Numbat.Commands.Modelling.NumbatStair.Straight
             parameters.TreadDepth = treadDepth.CurrentValue;
             parameters.TreadThickness = treadThickness.CurrentValue;
             parameters.Nosing = nosing.CurrentValue;
+            parameters.StringerWidth = stringerWidth.CurrentValue;
+            parameters.StairThickness = stairThickness.CurrentValue;
             parameters.LandingDepth = landingDepth.CurrentValue;
             parameters.Mode = (StairStraightMode)modeIndex;
             parameters.LandingMode = (StairStraightLandingMode)landingModeIndex;
             parameters.Switchback = switchback;
             parameters.SwitchbackSide = (StairStraightSwitchbackSide)switchbackSideIndex;
+            parameters.StringersEnabled = stringersEnabled;
+            parameters.StringersOutward = stringersOutward;
         }
     }
 }
