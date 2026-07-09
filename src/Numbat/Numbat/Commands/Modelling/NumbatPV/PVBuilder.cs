@@ -47,21 +47,31 @@ namespace Numbat.Commands.Modelling.NumbatPV
             AddBox(geometry.Frame, -halfWidth, -halfWidth + frameWidth, -halfLength, halfLength, parameters.StandHeight, parameters.StandHeight + parameters.FrameDepth, tilt);
             AddBox(geometry.Frame, halfWidth - frameWidth, halfWidth, -halfLength, halfLength, parameters.StandHeight, parameters.StandHeight + parameters.FrameDepth, tilt);
 
-            var standPlateWidth = Math.Max(20.0, parameters.FrameWidth);
-            var sideOffset = parameters.PanelWidth * 0.32;
-            geometry.Stand.Add(CreateTriangularStand(-sideOffset - standPlateWidth * 0.5, -sideOffset + standPlateWidth * 0.5, parameters));
-            geometry.Stand.Add(CreateTriangularStand(sideOffset - standPlateWidth * 0.5, sideOffset + standPlateWidth * 0.5, parameters));
+            var standRailDepth = Math.Max(10.0, parameters.FrameDepth);
+            var standRailWidth = Math.Max(10.0, parameters.FrameWidth * 2.0);
+            var railInset = Math.Max(parameters.FrameWidth * 2.0, Math.Min(parameters.PanelLength * 0.12, 160.0));
+            var lowerRailCenterY = -halfLength + railInset;
+            var upperRailCenterY = halfLength - railInset;
+            var lowerRailY0 = lowerRailCenterY - standRailWidth * 0.5;
+            var lowerRailY1 = lowerRailCenterY + standRailWidth * 0.5;
+            var upperRailY0 = upperRailCenterY - standRailWidth * 0.5;
+            var upperRailY1 = upperRailCenterY + standRailWidth * 0.5;
+            var railX0 = -halfWidth + parameters.FrameWidth;
+            var railX1 = halfWidth - parameters.FrameWidth;
+            var railBottomZ = parameters.StandHeight - standRailDepth;
+            var railTopZ = parameters.StandHeight;
 
-            var standRail = CreateBox(
-                -sideOffset,
-                sideOffset,
-                -parameters.PanelLength * 0.32,
-                -parameters.PanelLength * 0.32 + Math.Max(20.0, parameters.FrameWidth),
-                parameters.StandHeight * 0.45,
-                parameters.StandHeight * 0.45 + Math.Max(20.0, parameters.FrameWidth),
-                Transform.Identity);
-            if (standRail != null)
-                geometry.Stand.Add(standRail);
+            AddBox(geometry.Stand, railX0, railX1, lowerRailY0, lowerRailY1, railBottomZ, railTopZ, tilt);
+            AddBox(geometry.Stand, railX0, railX1, upperRailY0, upperRailY1, railBottomZ, railTopZ, tilt);
+
+            var standPlateWidth = Math.Max(10.0, parameters.FrameWidth);
+            var sideOffset = parameters.PanelWidth * 0.32;
+            var supportBaseLength = Math.Max(120.0, standRailWidth * 2.0);
+
+            geometry.Stand.Add(CreateTriangularStandUnderRail(-sideOffset - standPlateWidth * 0.5, -sideOffset + standPlateWidth * 0.5, lowerRailCenterY, railBottomZ, supportBaseLength, tilt));
+            geometry.Stand.Add(CreateTriangularStandUnderRail(sideOffset - standPlateWidth * 0.5, sideOffset + standPlateWidth * 0.5, lowerRailCenterY, railBottomZ, supportBaseLength, tilt));
+            geometry.Stand.Add(CreateTriangularStandUnderRail(-sideOffset - standPlateWidth * 0.5, -sideOffset + standPlateWidth * 0.5, upperRailCenterY, railBottomZ, supportBaseLength, tilt));
+            geometry.Stand.Add(CreateTriangularStandUnderRail(sideOffset - standPlateWidth * 0.5, sideOffset + standPlateWidth * 0.5, upperRailCenterY, railBottomZ, supportBaseLength, tilt));
 
             return geometry;
         }
@@ -93,6 +103,13 @@ namespace Numbat.Commands.Modelling.NumbatPV
                 target.Add(brep);
         }
 
+        private static void AddBox(ICollection<GeometryBase> target, double x0, double x1, double y0, double y1, double z0, double z1, Transform transform)
+        {
+            var brep = CreateBox(x0, x1, y0, y1, z0, z1, transform);
+            if (brep != null)
+                target.Add(brep);
+        }
+
         private static Brep CreateBox(double x0, double x1, double y0, double y1, double z0, double z1, Transform transform)
         {
             var box = new Box(Plane.WorldXY, new Interval(x0, x1), new Interval(y0, y1), new Interval(z0, z1));
@@ -103,20 +120,24 @@ namespace Numbat.Commands.Modelling.NumbatPV
             return brep;
         }
 
-        private static Mesh CreateTriangularStand(double x0, double x1, PVParameters parameters)
+        private static Mesh CreateTriangularStandUnderRail(double x0, double x1, double railCenterY, double railBottomZ, double baseLength, Transform tilt)
         {
-            var y0 = -parameters.PanelLength * 0.38;
-            var y1 = parameters.PanelLength * 0.12;
+            var top = new Point3d(0.0, railCenterY, railBottomZ);
+            top.Transform(tilt);
+
+            var halfBase = baseLength * 0.5;
+            var y0 = top.Y - halfBase;
+            var y1 = top.Y + halfBase;
             var z0 = 0.0;
-            var z1 = parameters.StandHeight;
+            var z1 = Math.Max(10.0, top.Z);
 
             var mesh = new Mesh();
             mesh.Vertices.Add(x0, y0, z0);
             mesh.Vertices.Add(x0, y1, z0);
-            mesh.Vertices.Add(x0, y1, z1);
+            mesh.Vertices.Add(x0, top.Y, z1);
             mesh.Vertices.Add(x1, y0, z0);
             mesh.Vertices.Add(x1, y1, z0);
-            mesh.Vertices.Add(x1, y1, z1);
+            mesh.Vertices.Add(x1, top.Y, z1);
 
             mesh.Faces.AddFace(0, 1, 2);
             mesh.Faces.AddFace(3, 5, 4);
