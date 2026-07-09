@@ -2,13 +2,13 @@ using System.Collections.Generic;
 using Rhino.Display;
 using Rhino.Geometry;
 
-namespace Numbat.Commands.Modelling.NumbatSpiralStair
+namespace Numbat.Commands.Modelling.NumbatStair.Straight
 {
-    internal class SpiralStairPreviewConduit : DisplayConduit
+    internal class StairStraightPreviewConduit : DisplayConduit
     {
         public List<GeometryBase> PreviewGeometry { get; set; } = new List<GeometryBase>();
-        public List<SpiralStairPreviewLabel> PreviewLabels { get; set; } = new List<SpiralStairPreviewLabel>();
-        public List<SpiralStairPreviewLine> PreviewLines { get; set; } = new List<SpiralStairPreviewLine>();
+        public List<StairStraightPreviewLabel> PreviewLabels { get; set; } = new List<StairStraightPreviewLabel>();
+        public List<StairStraightPreviewLine> PreviewLines { get; set; } = new List<StairStraightPreviewLine>();
 
         protected override void CalculateBoundingBox(CalculateBoundingBoxEventArgs e)
         {

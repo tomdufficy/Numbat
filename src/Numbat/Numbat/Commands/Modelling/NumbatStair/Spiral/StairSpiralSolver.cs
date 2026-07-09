@@ -1,20 +1,20 @@
 using System;
 
-namespace Numbat.Commands.Modelling.NumbatSpiralStair
+namespace Numbat.Commands.Modelling.NumbatStair.Spiral
 {
-    internal static class SpiralStairSolver
+    internal static class StairSpiralSolver
     {
-        public static SpiralStairSolution Solve(SpiralStairParameters parameters)
+        public static StairSpiralSolution Solve(StairSpiralParameters parameters)
         {
             var riserCount = Math.Max(2, (int)Math.Ceiling(parameters.FloorHeight / Math.Max(1.0, parameters.MaxRiserHeight)));
             var treadCount = riserCount;
             var actualRiser = parameters.FloorHeight / riserCount;
             var target = GetTargetEndAngle(parameters.EndDirection, parameters.Direction);
             var totalRotation = ChooseTotalRotation(parameters.Radius, treadCount, target);
-            var directionSign = parameters.Direction == SpiralStairDirection.Clockwise ? -1.0 : 1.0;
+            var directionSign = parameters.Direction == StairSpiralDirection.Clockwise ? -1.0 : 1.0;
             var stepAngle = totalRotation / treadCount;
 
-            var solution = new SpiralStairSolution
+            var solution = new StairSpiralSolution
             {
                 Parameters = parameters,
                 RiserCount = riserCount,
@@ -35,17 +35,17 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             return solution;
         }
 
-        private static double GetTargetEndAngle(SpiralStairEndDirection endDirection, SpiralStairDirection direction)
+        private static double GetTargetEndAngle(StairSpiralEndDirection endDirection, StairSpiralDirection direction)
         {
             switch (endDirection)
             {
-                case SpiralStairEndDirection.Right90:
-                    return direction == SpiralStairDirection.Clockwise ? Math.PI * 0.5 : Math.PI * 1.5;
-                case SpiralStairEndDirection.Left90:
-                    return direction == SpiralStairDirection.Clockwise ? Math.PI * 1.5 : Math.PI * 0.5;
-                case SpiralStairEndDirection.Opposite:
+                case StairSpiralEndDirection.Right90:
+                    return direction == StairSpiralDirection.Clockwise ? Math.PI * 0.5 : Math.PI * 1.5;
+                case StairSpiralEndDirection.Left90:
+                    return direction == StairSpiralDirection.Clockwise ? Math.PI * 1.5 : Math.PI * 0.5;
+                case StairSpiralEndDirection.Opposite:
                     return Math.PI;
-                case SpiralStairEndDirection.Same:
+                case StairSpiralEndDirection.Same:
                 default:
                     return 0.0;
             }

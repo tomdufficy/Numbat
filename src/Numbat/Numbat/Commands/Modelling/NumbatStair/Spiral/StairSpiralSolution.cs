@@ -1,10 +1,10 @@
 using System;
 
-namespace Numbat.Commands.Modelling.NumbatSpiralStair
+namespace Numbat.Commands.Modelling.NumbatStair.Spiral
 {
-    internal class SpiralStairSolution
+    internal class StairSpiralSolution
     {
-        public SpiralStairParameters Parameters { get; set; }
+        public StairSpiralParameters Parameters { get; set; }
         public int RiserCount { get; set; }
         public int TreadCount { get; set; }
         public double ActualRiserHeight { get; set; }

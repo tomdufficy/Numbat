@@ -1,14 +1,14 @@
 using Rhino.Geometry;
 
-namespace Numbat.Commands.Modelling.NumbatSpiralStair
+namespace Numbat.Commands.Modelling.NumbatStair.Spiral
 {
-    internal enum SpiralStairMode
+    internal enum StairSpiralMode
     {
         Open = 0,
         Closed = 1
     }
 
-    internal enum SpiralStairEndDirection
+    internal enum StairSpiralEndDirection
     {
         Same = 0,
         Right90 = 1,
@@ -17,13 +17,13 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
     }
 
 
-    internal enum SpiralStairDirection
+    internal enum StairSpiralDirection
     {
         Clockwise = 0,
         CounterClockwise = 1
     }
 
-    internal class SpiralStairParameters
+    internal class StairSpiralParameters
     {
         public Point3d BaseCenter { get; set; } = Point3d.Origin;
         public double StartAngleRadians { get; set; }
@@ -37,9 +37,9 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
         public double HandrailDiameter { get; set; } = 35.0;
         public double BalusterDiameter { get; set; } = 16.0;
         public double SoffitThickness { get; set; } = 5.0;
-        public SpiralStairEndDirection EndDirection { get; set; } = SpiralStairEndDirection.Same;
-        public SpiralStairDirection Direction { get; set; } = SpiralStairDirection.Clockwise;
-        public SpiralStairMode Mode { get; set; } = SpiralStairMode.Open;
+        public StairSpiralEndDirection EndDirection { get; set; } = StairSpiralEndDirection.Same;
+        public StairSpiralDirection Direction { get; set; } = StairSpiralDirection.Clockwise;
+        public StairSpiralMode Mode { get; set; } = StairSpiralMode.Open;
 
         public double ColumnRadius => System.Math.Max(20.0, ColumnDiameter * 0.5);
         public double InnerRadius => System.Math.Max(20.0, ColumnRadius - 5.0);

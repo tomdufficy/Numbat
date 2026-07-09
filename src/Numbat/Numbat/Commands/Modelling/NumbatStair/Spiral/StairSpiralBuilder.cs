@@ -2,17 +2,17 @@ using System;
 using Rhino;
 using Rhino.Geometry;
 
-namespace Numbat.Commands.Modelling.NumbatSpiralStair
+namespace Numbat.Commands.Modelling.NumbatStair.Spiral
 {
-    internal static class SpiralStairBuilder
+    internal static class StairSpiralBuilder
     {
-        public static SpiralStairGeometry Build(SpiralStairSolution solution, double tolerance)
+        public static StairSpiralGeometry Build(StairSpiralSolution solution, double tolerance)
         {
-            var geometry = new SpiralStairGeometry();
+            var geometry = new StairSpiralGeometry();
             AddTreadsRisersAndLanding(geometry, solution);
             AddCentreColumn(geometry, solution);
 
-            if (solution.Parameters.Mode == SpiralStairMode.Open)
+            if (solution.Parameters.Mode == StairSpiralMode.Open)
                 AddOpenBalustrade(geometry, solution, tolerance);
             else
                 AddClosedSkinAndSoffit(geometry, solution);
@@ -21,7 +21,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             return geometry;
         }
 
-        private static void AddTreadsRisersAndLanding(SpiralStairGeometry geometry, SpiralStairSolution solution)
+        private static void AddTreadsRisersAndLanding(StairSpiralGeometry geometry, StairSpiralSolution solution)
         {
             var p = solution.Parameters;
             var lastIndex = solution.TreadCount - 1;
@@ -38,7 +38,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
 
                 geometry.Treads.Add(CreateAnnularSectorBox(p.BaseCenter, inner, p.Radius, a0, a1, bottomZ, topZ, 5));
 
-                if (p.Mode == SpiralStairMode.Open)
+                if (p.Mode == StairSpiralMode.Open)
                 {
                     geometry.FrontLips.Add(CreateRadialPlate(p.BaseCenter, inner, p.Radius, a0, topZ - p.FoldDepth, topZ, p.TreadThickness));
 
@@ -52,7 +52,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             }
         }
 
-        private static void AddCentreColumn(SpiralStairGeometry geometry, SpiralStairSolution solution)
+        private static void AddCentreColumn(StairSpiralGeometry geometry, StairSpiralSolution solution)
         {
             var p = solution.Parameters;
             var height = p.FloorHeight + p.HandrailHeight + p.HandrailRadius;
@@ -61,7 +61,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
                 geometry.CentreColumn.Add(cylinder);
         }
 
-        private static void AddOpenBalustrade(SpiralStairGeometry geometry, SpiralStairSolution solution, double tolerance)
+        private static void AddOpenBalustrade(StairSpiralGeometry geometry, StairSpiralSolution solution, double tolerance)
         {
             var p = solution.Parameters;
             var balusterRadiusFromCenter = Math.Max(GetTreadInnerRadius(p) + 50.0, p.Radius - p.BalusterInsetFromOuterEdge);
@@ -95,7 +95,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             }
         }
 
-        private static double HandrailZAtAngle(SpiralStairSolution solution, double angle, bool clamp)
+        private static double HandrailZAtAngle(StairSpiralSolution solution, double angle, bool clamp)
         {
             var p = solution.Parameters;
             var signedFromStart = angle - p.StartAngleRadians;
@@ -108,14 +108,14 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             return p.BaseCenter.Z + p.FloorHeight * t + p.HandrailHeight;
         }
 
-        private static double HelixAngleForLength(double radius, SpiralStairSolution solution, double length)
+        private static double HelixAngleForLength(double radius, StairSpiralSolution solution, double length)
         {
             var verticalPerRadian = Math.Abs(solution.SignedTotalRotationRadians) < 1e-9 ? 0.0 : solution.Parameters.FloorHeight / Math.Abs(solution.SignedTotalRotationRadians);
             var lengthPerRadian = Math.Sqrt(radius * radius + verticalPerRadian * verticalPerRadian);
             return length / Math.Max(1.0, lengthPerRadian);
         }
 
-        private static void AddClosedSkinAndSoffit(SpiralStairGeometry geometry, SpiralStairSolution solution)
+        private static void AddClosedSkinAndSoffit(StairSpiralGeometry geometry, StairSpiralSolution solution)
         {
             var p = solution.Parameters;
             var inner = GetTreadInnerRadius(p);
@@ -136,7 +136,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
                 Math.Max(80, solution.TreadCount * 10)));
         }
 
-        private static void AddClosedSkin(SpiralStairGeometry geometry, SpiralStairSolution solution)
+        private static void AddClosedSkin(StairSpiralGeometry geometry, StairSpiralSolution solution)
         {
             var p = solution.Parameters;
             var skinThickness = p.ClosedSkinThickness;
@@ -228,24 +228,24 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             }
         }
 
-        private static void AddPreviewInfo(SpiralStairGeometry geometry, SpiralStairSolution solution)
+        private static void AddPreviewInfo(StairSpiralGeometry geometry, StairSpiralSolution solution)
         {
             var p = solution.Parameters;
             var labelPoint = p.BaseCenter + new Vector3d(p.Radius + 350.0, 0.0, p.FloorHeight * 0.5);
-            geometry.PreviewLabels.Add(new SpiralStairPreviewLabel(labelPoint, $"{solution.RiserCount} risers @ {solution.ActualRiserHeight:0} mm"));
-            geometry.PreviewLabels.Add(new SpiralStairPreviewLabel(labelPoint + Vector3d.ZAxis * 250.0, $"Rotation {solution.TotalRotationDegrees:0} deg"));
+            geometry.PreviewLabels.Add(new StairSpiralPreviewLabel(labelPoint, $"{solution.RiserCount} risers @ {solution.ActualRiserHeight:0} mm"));
+            geometry.PreviewLabels.Add(new StairSpiralPreviewLabel(labelPoint + Vector3d.ZAxis * 250.0, $"Rotation {solution.TotalRotationDegrees:0} deg"));
             if (!string.IsNullOrWhiteSpace(solution.Warning))
-                geometry.PreviewLabels.Add(new SpiralStairPreviewLabel(labelPoint + Vector3d.ZAxis * 500.0, solution.Warning));
-            geometry.PreviewLines.Add(new SpiralStairPreviewLine(p.BaseCenter, p.BaseCenter + Vector3d.ZAxis * p.FloorHeight));
-            geometry.PreviewLines.Add(new SpiralStairPreviewLine(p.BaseCenter, p.BaseCenter + UnitVector(p.StartAngleRadians) * p.Radius));
+                geometry.PreviewLabels.Add(new StairSpiralPreviewLabel(labelPoint + Vector3d.ZAxis * 500.0, solution.Warning));
+            geometry.PreviewLines.Add(new StairSpiralPreviewLine(p.BaseCenter, p.BaseCenter + Vector3d.ZAxis * p.FloorHeight));
+            geometry.PreviewLines.Add(new StairSpiralPreviewLine(p.BaseCenter, p.BaseCenter + UnitVector(p.StartAngleRadians) * p.Radius));
         }
 
-        private static double GetTreadInnerRadius(SpiralStairParameters p)
+        private static double GetTreadInnerRadius(StairSpiralParameters p)
         {
             return Math.Max(20.0, p.ColumnRadius - 5.0);
         }
 
-        private static double GetClosedSkinOuterRadius(SpiralStairParameters p)
+        private static double GetClosedSkinOuterRadius(StairSpiralParameters p)
         {
             if (p.ClosedSkinThickness > 0.001)
                 return p.Radius + p.ClosedSkinThickness;
@@ -253,7 +253,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
             return p.Radius;
         }
 
-        private static double GetClosedSkinInnerRadius(SpiralStairParameters p)
+        private static double GetClosedSkinInnerRadius(StairSpiralParameters p)
         {
             if (p.ClosedSkinThickness > 0.001)
                 return p.Radius;

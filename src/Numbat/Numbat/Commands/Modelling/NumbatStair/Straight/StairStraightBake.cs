@@ -4,21 +4,16 @@ using Rhino;
 using Rhino.DocObjects;
 using Rhino.Geometry;
 
-namespace Numbat.Commands.Modelling.NumbatSpiralStair
+namespace Numbat.Commands.Modelling.NumbatStair.Straight
 {
-    internal static class SpiralStairBake
+    internal static class StairStraightBake
     {
-        public static void AddGeometryToDocument(RhinoDoc doc, SpiralStairGeometry geometry)
+        public static void AddGeometryToDocument(RhinoDoc doc, StairStraightGeometry geometry)
         {
-            AddGeometry(doc, geometry.Treads, "Numbat::Spiral Stair::Treads", Color.FromArgb(218, 196, 166));
-            AddGeometry(doc, geometry.FrontLips, "Numbat::Spiral Stair::Front Lips", Color.FromArgb(232, 184, 158));
-            AddGeometry(doc, geometry.RearLips, "Numbat::Spiral Stair::Rear Lips", Color.FromArgb(205, 175, 218));
-            AddGeometry(doc, geometry.Risers, "Numbat::Spiral Stair::Risers", Color.FromArgb(188, 166, 207));
-            AddGeometry(doc, geometry.CentreColumn, "Numbat::Spiral Stair::Centre Column", Color.FromArgb(155, 169, 181));
-            AddGeometry(doc, geometry.Handrail, "Numbat::Spiral Stair::Handrail", Color.FromArgb(150, 203, 219));
-            AddGeometry(doc, geometry.Balusters, "Numbat::Spiral Stair::Balusters", Color.FromArgb(188, 224, 226));
-            AddGeometry(doc, geometry.Skin, "Numbat::Spiral Stair::Solid Skin", Color.FromArgb(166, 202, 168));
-            AddGeometry(doc, geometry.Soffit, "Numbat::Spiral Stair::Soffit", Color.FromArgb(190, 214, 186));
+            AddGeometry(doc, geometry.Treads, "Numbat::Straight Stair::Treads", Color.FromArgb(218, 196, 166));
+            AddGeometry(doc, geometry.Landings, "Numbat::Straight Stair::Landings", Color.FromArgb(232, 184, 158));
+            AddGeometry(doc, geometry.MonolithicBase, "Numbat::Straight Stair::Monolithic Base", Color.FromArgb(188, 166, 207));
+            AddGeometry(doc, geometry.Stringers, "Numbat::Straight Stair::Stringers", Color.FromArgb(155, 169, 181));
         }
 
         private static void AddGeometry(RhinoDoc doc, IEnumerable<GeometryBase> geometryItems, string layerPath, Color color)

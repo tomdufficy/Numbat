@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 using Rhino.Geometry;
 
-namespace Numbat.Commands.Modelling.NumbatSpiralStair
+namespace Numbat.Commands.Modelling.NumbatStair.Spiral
 {
-    internal class SpiralStairPreviewLabel
+    internal class StairSpiralPreviewLabel
     {
-        public SpiralStairPreviewLabel(Point3d point, string text)
+        public StairSpiralPreviewLabel(Point3d point, string text)
         {
             Point = point;
             Text = text;
@@ -15,9 +15,9 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
         public string Text { get; }
     }
 
-    internal class SpiralStairPreviewLine
+    internal class StairSpiralPreviewLine
     {
-        public SpiralStairPreviewLine(Point3d start, Point3d end)
+        public StairSpiralPreviewLine(Point3d start, Point3d end)
         {
             Start = start;
             End = end;
@@ -27,7 +27,7 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
         public Point3d End { get; }
     }
 
-    internal class SpiralStairGeometry
+    internal class StairSpiralGeometry
     {
         public List<GeometryBase> Treads { get; } = new List<GeometryBase>();
         public List<GeometryBase> FrontLips { get; } = new List<GeometryBase>();
@@ -38,8 +38,8 @@ namespace Numbat.Commands.Modelling.NumbatSpiralStair
         public List<GeometryBase> Balusters { get; } = new List<GeometryBase>();
         public List<GeometryBase> Skin { get; } = new List<GeometryBase>();
         public List<GeometryBase> Soffit { get; } = new List<GeometryBase>();
-        public List<SpiralStairPreviewLabel> PreviewLabels { get; } = new List<SpiralStairPreviewLabel>();
-        public List<SpiralStairPreviewLine> PreviewLines { get; } = new List<SpiralStairPreviewLine>();
+        public List<StairSpiralPreviewLabel> PreviewLabels { get; } = new List<StairSpiralPreviewLabel>();
+        public List<StairSpiralPreviewLine> PreviewLines { get; } = new List<StairSpiralPreviewLine>();
 
         public List<GeometryBase> AllGeometry()
         {
