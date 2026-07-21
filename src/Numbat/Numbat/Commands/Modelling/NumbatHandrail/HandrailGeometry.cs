@@ -46,6 +46,29 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
         public int SheetBaysReduced { get; set; }
         public int SheetBaysOmitted { get; set; }
 
+        public void Append(HandrailGeometry other)
+        {
+            if (other == null)
+                return;
+
+            TopRails.AddRange(other.TopRails);
+            BottomRails.AddRange(other.BottomRails);
+            Infill.AddRange(other.Infill);
+            PanelFrames.AddRange(other.PanelFrames);
+            PanelSheets.AddRange(other.PanelSheets);
+            EndPosts.AddRange(other.EndPosts);
+            IntermediatePosts.AddRange(other.IntermediatePosts);
+            SupportFeet.AddRange(other.SupportFeet);
+            Tabs.AddRange(other.Tabs);
+            PreviewLabels.AddRange(other.PreviewLabels);
+            PreviewLines.AddRange(other.PreviewLines);
+
+            PanelBaysReduced += other.PanelBaysReduced;
+            PanelBaysOmitted += other.PanelBaysOmitted;
+            SheetBaysReduced += other.SheetBaysReduced;
+            SheetBaysOmitted += other.SheetBaysOmitted;
+        }
+
         public List<Brep> AllBreps()
         {
             var all = new List<Brep>();

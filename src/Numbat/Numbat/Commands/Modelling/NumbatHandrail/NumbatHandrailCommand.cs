@@ -1,6 +1,6 @@
-﻿using Rhino;
+﻿using System.Collections.Generic;
+using Rhino;
 using Rhino.Commands;
-using Rhino.DocObjects;
 using Rhino.Geometry;
 using Rhino.Input;
 using Rhino.Input.Custom;
@@ -20,42 +20,10 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
-            var gc = new GetObject();
-            gc.SetCommandPrompt("Select open flat curve representing handrail path on ground. Press Enter for default 5000 mm railing");
-            gc.GeometryFilter = ObjectType.Curve;
-            gc.EnablePreSelect(true, true);
-            gc.AcceptNothing(true);
+            var pathResult = GetHandrailRuns(doc, out var handrailRuns, out var groundZ);
 
-            var getResult = gc.Get();
-
-            Curve originalCurve;
-
-            if (getResult == GetResult.Nothing)
-            {
-                originalCurve = new LineCurve(new Point3d(0.0, 0.0, 0.0), new Point3d(5000.0, 0.0, 0.0));
-            }
-            else
-            {
-                if (gc.CommandResult() != Result.Success)
-                    return gc.CommandResult();
-
-                originalCurve = gc.Object(0).Curve()?.DuplicateCurve();
-
-                if (originalCurve == null)
-                    return Result.Failure;
-            }
-
-            if (originalCurve.IsClosed)
-            {
-                RhinoApp.WriteLine("nbHandrail currently only supports open curves.");
-                return Result.Failure;
-            }
-
-            if (!HandrailGenerator.IsCurveFlatInZ(originalCurve, doc.ModelAbsoluteTolerance, out var groundZ))
-            {
-                RhinoApp.WriteLine("Input curve must be flat/planar in Z.");
-                return Result.Failure;
-            }
+            if (pathResult != Result.Success)
+                return pathResult;
 
             var height = new OptionDouble(1100.0, true, 100.0);
 
@@ -135,7 +103,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                         previewDims
                     );
 
-                    var previewGeometry = HandrailGenerator.CreateHandrailGeometry(originalCurve, settings, doc.ModelAbsoluteTolerance);
+                    var previewGeometry = HandrailGenerator.CreateHandrailGeometry(handrailRuns, settings, doc.ModelAbsoluteTolerance);
                     conduit.PreviewBreps = previewGeometry.AllBreps();
                     conduit.PreviewLabels = previewGeometry.PreviewLabels;
                     conduit.PreviewLines = previewGeometry.PreviewLines;
@@ -273,7 +241,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 previewDims
             );
 
-            var finalGeometry = HandrailGenerator.CreateHandrailGeometry(originalCurve, settings, doc.ModelAbsoluteTolerance);
+            var finalGeometry = HandrailGenerator.CreateHandrailGeometry(handrailRuns, settings, doc.ModelAbsoluteTolerance);
             HandrailGenerator.AddGeometryToDocument(doc, finalGeometry);
 
             doc.Views.Redraw();
@@ -302,6 +270,80 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 RhinoApp.WriteLine($"Warning: {finalGeometry.SheetBaysOmitted} sheet bay(s) were omitted because there was insufficient space.");
 
             return Result.Success;
+        }
+
+        private static Result GetHandrailRuns(RhinoDoc doc, out List<Curve> runs, out double groundZ)
+        {
+            runs = new List<Curve>();
+            groundZ = 0.0;
+
+            var firstPointGetter = new GetPoint();
+            firstPointGetter.SetCommandPrompt("Pick handrail start point. Press Enter for default 5000 mm railing");
+            firstPointGetter.AcceptNothing(true);
+
+            var firstResult = firstPointGetter.Get();
+
+            if (firstResult == GetResult.Nothing)
+            {
+                runs.Add(new LineCurve(
+                    new Point3d(0.0, 0.0, 0.0),
+                    new Point3d(5000.0, 0.0, 0.0)
+                ));
+
+                return Result.Success;
+            }
+
+            if (firstPointGetter.CommandResult() != Result.Success)
+                return firstPointGetter.CommandResult();
+
+            var points = new List<Point3d> { firstPointGetter.Point() };
+            groundZ = points[0].Z;
+            var previewGroundZ = groundZ;
+
+            while (true)
+            {
+                var pointGetter = new GetPoint();
+                pointGetter.SetCommandPrompt("Pick next handrail point. Press Enter to finish");
+                pointGetter.SetBasePoint(points[points.Count - 1], true);
+                pointGetter.DrawLineFromPoint(points[points.Count - 1], true);
+                pointGetter.Constrain(new Plane(new Point3d(0.0, 0.0, groundZ), Vector3d.ZAxis), false);
+                pointGetter.AcceptNothing(points.Count >= 2);
+                pointGetter.DynamicDraw += (sender, e) =>
+                {
+                    var previewColor = System.Drawing.Color.FromArgb(246, 217, 245);
+
+                    for (var i = 0; i < points.Count - 1; i++)
+                        e.Display.DrawLine(points[i], points[i + 1], previewColor, 2);
+
+                    var currentPoint = e.CurrentPoint;
+                    currentPoint.Z = previewGroundZ;
+                    e.Display.DrawLine(points[points.Count - 1], currentPoint, previewColor, 2);
+                };
+
+                var result = pointGetter.Get();
+
+                if (result == GetResult.Nothing)
+                    break;
+
+                if (pointGetter.CommandResult() != Result.Success)
+                    return pointGetter.CommandResult();
+
+                var pickedPoint = pointGetter.Point();
+                pickedPoint.Z = groundZ;
+
+                if (pickedPoint.DistanceTo(points[points.Count - 1]) <= doc.ModelAbsoluteTolerance)
+                {
+                    RhinoApp.WriteLine("The next handrail point must be different from the previous point.");
+                    continue;
+                }
+
+                points.Add(pickedPoint);
+            }
+
+            for (var i = 0; i < points.Count - 1; i++)
+                runs.Add(new LineCurve(points[i], points[i + 1]));
+
+            return runs.Count > 0 ? Result.Success : Result.Cancel;
         }
 
         private static void ApplyOptionValuesToSettings(

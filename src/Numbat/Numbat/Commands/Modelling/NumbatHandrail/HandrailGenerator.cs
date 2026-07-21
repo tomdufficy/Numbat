@@ -30,25 +30,83 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
         public static HandrailGeometry CreateHandrailGeometry(Curve originalCurve, HandrailSettings settings, double tolerance)
         {
+            return CreateHandrailGeometry(originalCurve, settings, tolerance, true, true, true, true, true);
+        }
+
+        public static HandrailGeometry CreateHandrailGeometry(IReadOnlyList<Curve> runs, HandrailSettings settings, double tolerance)
+        {
+            var combined = new HandrailGeometry();
+
+            if (runs == null || runs.Count == 0)
+                return combined;
+
+            for (var i = 0; i < runs.Count; i++)
+            {
+                var run = runs[i];
+
+                if (run == null || run.GetLength() <= RhinoMath.ZeroTolerance)
+                    continue;
+
+                var runGeometry = CreateHandrailGeometry(
+                    run,
+                    settings,
+                    tolerance,
+                    includeStartPost: i == 0,
+                    includeEndPost: true,
+                    allowStartTab: i == 0,
+                    allowEndTab: i == runs.Count - 1,
+                    includeHeightDimension: i == 0
+                );
+
+                combined.Append(runGeometry);
+            }
+
+            return combined;
+        }
+
+        private static HandrailGeometry CreateHandrailGeometry(
+            Curve originalCurve,
+            HandrailSettings settings,
+            double tolerance,
+            bool includeStartPost,
+            bool includeEndPost,
+            bool allowStartTab,
+            bool allowEndTab,
+            bool includeHeightDimension)
+        {
             var geometry = new HandrailGeometry();
             var workingCurve = originalCurve.DuplicateCurve();
             Curve originalStartCurve = null;
             Curve originalEndCurve = null;
 
-            if (settings.Tabs)
+            if (settings.Tabs && (allowStartTab || allowEndTab))
             {
-                if (workingCurve.GetLength() <= settings.TabLength * 2.0)
+                var curveLength = workingCurve.GetLength();
+                var requiredLength = settings.TabLength * ((allowStartTab ? 1.0 : 0.0) + (allowEndTab ? 1.0 : 0.0));
+
+                if (curveLength <= requiredLength)
                     return geometry;
 
-                if (!workingCurve.LengthParameter(settings.TabLength, out var startT))
-                    return geometry;
+                var trimStart = workingCurve.Domain.Min;
+                var trimEnd = workingCurve.Domain.Max;
 
-                if (!workingCurve.LengthParameter(workingCurve.GetLength() - settings.TabLength, out var endT))
-                    return geometry;
+                if (allowStartTab)
+                {
+                    if (!workingCurve.LengthParameter(settings.TabLength, out trimStart))
+                        return geometry;
 
-                originalStartCurve = workingCurve.Trim(workingCurve.Domain.Min, startT);
-                originalEndCurve = workingCurve.Trim(endT, workingCurve.Domain.Max);
-                workingCurve = workingCurve.Trim(startT, endT);
+                    originalStartCurve = workingCurve.Trim(workingCurve.Domain.Min, trimStart);
+                }
+
+                if (allowEndTab)
+                {
+                    if (!workingCurve.LengthParameter(curveLength - settings.TabLength, out trimEnd))
+                        return geometry;
+
+                    originalEndCurve = workingCurve.Trim(trimEnd, workingCurve.Domain.Max);
+                }
+
+                workingCurve = workingCurve.Trim(trimStart, trimEnd);
 
                 if (workingCurve == null)
                     return geometry;
@@ -86,7 +144,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 postTopZ
             );
 
-            if (startPost != null)
+            if (includeStartPost && startPost != null)
                 geometry.EndPosts.Add(startPost);
 
             var endPost = CreateVerticalElementAtDistance(
@@ -98,7 +156,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 postTopZ
             );
 
-            if (endPost != null)
+            if (includeEndPost && endPost != null)
                 geometry.EndPosts.Add(endPost);
 
             for (var i = 1; i < postDistances.Count - 1; i++)
@@ -118,9 +176,17 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
             if (settings.BottomRailModeIndex == BottomRailRaised && settings.SupportFeet)
             {
+                var supportFootDistances = new List<double>(postDistances);
+
+                if (!includeStartPost && supportFootDistances.Count > 0)
+                    supportFootDistances.RemoveAt(0);
+
+                if (!includeEndPost && supportFootDistances.Count > 0)
+                    supportFootDistances.RemoveAt(supportFootDistances.Count - 1);
+
                 geometry.SupportFeet.AddRange(CreateSupportFeetAtPostDistances(
                     workingCurve,
-                    postDistances,
+                    supportFootDistances,
                     settings.BoxRailHeight,
                     settings.BoxRailDepth,
                     settings.GroundZ,
@@ -129,7 +195,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             }
 
             if (settings.PreviewDims)
-                AddPreviewLabels(geometry, workingCurve, postDistances, settings);
+                AddPreviewLabels(geometry, workingCurve, postDistances, settings, includeHeightDimension);
 
             for (var i = 0; i < postDistances.Count - 1; i++)
             {
@@ -186,7 +252,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 }
             }
 
-            if (settings.Tabs)
+            if (settings.Tabs && (allowStartTab || allowEndTab))
             {
                 var upperTabZ = settings.GroundZ + settings.Height - 75.0;
                 var lowerTabZ = bottomRailBottomZ + 75.0;
@@ -803,7 +869,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 breps.Add(brep);
         }
 
-        private static void AddPreviewLabels(HandrailGeometry geometry, Curve path, List<double> postDistances, HandrailSettings settings)
+        private static void AddPreviewLabels(HandrailGeometry geometry, Curve path, List<double> postDistances, HandrailSettings settings, bool includeHeightDimension)
         {
             var railLength = path.GetLength();
             var labelZ = settings.GroundZ + settings.Height + 100.0;
@@ -844,21 +910,24 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 AddCenteredTick(geometry, totalLineEnd, totalTickDirection, tickHalfLength);
             }
 
-            var heightPoint = PointAtDistanceAndZ(path, 0.0, settings.GroundZ + settings.Height * 0.5);
-
-            if (TryGetOutwardAtDistance(path, 0.0, out var heightTickDirection))
+            if (includeHeightDimension)
             {
-                heightPoint += heightTickDirection * heightDimOffset;
+                var heightPoint = PointAtDistanceAndZ(path, 0.0, settings.GroundZ + settings.Height * 0.5);
 
-                var heightLineBottom = PointAtDistanceAndZ(path, 0.0, settings.GroundZ) + heightTickDirection * heightDimOffset;
-                var heightLineTop = PointAtDistanceAndZ(path, 0.0, settings.GroundZ + settings.Height) + heightTickDirection * heightDimOffset;
+                if (TryGetOutwardAtDistance(path, 0.0, out var heightTickDirection))
+                {
+                    heightPoint += heightTickDirection * heightDimOffset;
 
-                AddPreviewLine(geometry, heightLineBottom, heightLineTop);
-                AddCenteredTick(geometry, heightLineBottom, heightTickDirection, tickHalfLength);
-                AddCenteredTick(geometry, heightLineTop, heightTickDirection, tickHalfLength);
+                    var heightLineBottom = PointAtDistanceAndZ(path, 0.0, settings.GroundZ) + heightTickDirection * heightDimOffset;
+                    var heightLineTop = PointAtDistanceAndZ(path, 0.0, settings.GroundZ + settings.Height) + heightTickDirection * heightDimOffset;
+
+                    AddPreviewLine(geometry, heightLineBottom, heightLineTop);
+                    AddCenteredTick(geometry, heightLineBottom, heightTickDirection, tickHalfLength);
+                    AddCenteredTick(geometry, heightLineTop, heightTickDirection, tickHalfLength);
+                }
+
+                geometry.PreviewLabels.Add(new HandrailPreviewLabel(heightPoint, "Height: " + FormatMillimetres(settings.Height)));
             }
-
-            geometry.PreviewLabels.Add(new HandrailPreviewLabel(heightPoint, "Height: " + FormatMillimetres(settings.Height)));
         }
 
         private static bool TryGetOutwardAtDistance(Curve path, double distance, out Vector3d outward)
