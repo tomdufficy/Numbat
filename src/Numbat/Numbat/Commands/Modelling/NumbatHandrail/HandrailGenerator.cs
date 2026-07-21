@@ -294,19 +294,23 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             var parentLayerIndex = EnsureLayer(doc, "nbHandrail", -1, System.Drawing.Color.FromArgb(214, 218, 216));
             var definitionGeometry = new List<GeometryBase>();
             var definitionAttributes = new List<ObjectAttributes>();
+            var createdChildDefinitions = new List<InstanceDefinition>();
 
-            AddBrepsToBlockIfAny(doc, geometry.TopRails, "Top Rails", parentLayerIndex, System.Drawing.Color.FromArgb(191, 214, 180), definitionGeometry, definitionAttributes);
-            AddBrepsToBlockIfAny(doc, geometry.BottomRails, "Bottom Rails", parentLayerIndex, System.Drawing.Color.FromArgb(178, 204, 218), definitionGeometry, definitionAttributes);
-            AddBrepsToBlockIfAny(doc, geometry.Infill, "Infill", parentLayerIndex, System.Drawing.Color.FromArgb(224, 204, 170), definitionGeometry, definitionAttributes);
-            AddBrepsToBlockIfAny(doc, geometry.PanelFrames, "Panel Frames", parentLayerIndex, System.Drawing.Color.FromArgb(205, 190, 220), definitionGeometry, definitionAttributes);
-            AddBrepsToBlockIfAny(doc, geometry.PanelSheets, "Panel Sheets", parentLayerIndex, System.Drawing.Color.FromArgb(184, 215, 211), definitionGeometry, definitionAttributes);
-            AddBrepsToBlockIfAny(doc, geometry.EndPosts, "End Posts", parentLayerIndex, System.Drawing.Color.FromArgb(218, 186, 176), definitionGeometry, definitionAttributes);
-            AddBrepsToBlockIfAny(doc, geometry.IntermediatePosts, "Intermediate Posts", parentLayerIndex, System.Drawing.Color.FromArgb(218, 204, 158), definitionGeometry, definitionAttributes);
-            AddBrepsToBlockIfAny(doc, geometry.SupportFeet, "Support Feet", parentLayerIndex, System.Drawing.Color.FromArgb(190, 197, 218), definitionGeometry, definitionAttributes);
-            AddBrepsToBlockIfAny(doc, geometry.Tabs, "Tabs", parentLayerIndex, System.Drawing.Color.FromArgb(224, 188, 206), definitionGeometry, definitionAttributes);
+            AddBrepsToNestedBlockIfAny(doc, geometry.TopRails, "Top Rails", parentLayerIndex, System.Drawing.Color.FromArgb(191, 214, 180), definitionGeometry, definitionAttributes, createdChildDefinitions);
+            AddBrepsToNestedBlockIfAny(doc, geometry.BottomRails, "Bottom Rails", parentLayerIndex, System.Drawing.Color.FromArgb(178, 204, 218), definitionGeometry, definitionAttributes, createdChildDefinitions);
+            AddBrepsToNestedBlockIfAny(doc, geometry.Infill, "Infill", parentLayerIndex, System.Drawing.Color.FromArgb(224, 204, 170), definitionGeometry, definitionAttributes, createdChildDefinitions);
+            AddBrepsToNestedBlockIfAny(doc, geometry.PanelFrames, "Panel Frames", parentLayerIndex, System.Drawing.Color.FromArgb(205, 190, 220), definitionGeometry, definitionAttributes, createdChildDefinitions);
+            AddBrepsToNestedBlockIfAny(doc, geometry.PanelSheets, "Panel Sheets", parentLayerIndex, System.Drawing.Color.FromArgb(184, 215, 211), definitionGeometry, definitionAttributes, createdChildDefinitions);
+            AddBrepsToNestedBlockIfAny(doc, geometry.EndPosts, "End Posts", parentLayerIndex, System.Drawing.Color.FromArgb(218, 186, 176), definitionGeometry, definitionAttributes, createdChildDefinitions);
+            AddBrepsToNestedBlockIfAny(doc, geometry.IntermediatePosts, "Intermediate Posts", parentLayerIndex, System.Drawing.Color.FromArgb(218, 204, 158), definitionGeometry, definitionAttributes, createdChildDefinitions);
+            AddBrepsToNestedBlockIfAny(doc, geometry.SupportFeet, "Support Feet", parentLayerIndex, System.Drawing.Color.FromArgb(190, 197, 218), definitionGeometry, definitionAttributes, createdChildDefinitions);
+            AddBrepsToNestedBlockIfAny(doc, geometry.Tabs, "Tabs", parentLayerIndex, System.Drawing.Color.FromArgb(224, 188, 206), definitionGeometry, definitionAttributes, createdChildDefinitions);
 
             if (definitionGeometry.Count == 0)
+            {
+                DeleteDefinitions(doc, createdChildDefinitions);
                 return;
+            }
 
             var definitionName = CreateUniqueBlockName(doc, "nbHandrail");
             var description = CreateHandrailDescription(settings);
@@ -319,7 +323,10 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             );
 
             if (definitionIndex < 0)
+            {
+                DeleteDefinitions(doc, createdChildDefinitions);
                 return;
+            }
 
             var instanceAttributes = new ObjectAttributes
             {
@@ -335,43 +342,177 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
                 if (failedDefinition != null)
                     doc.InstanceDefinitions.Delete(failedDefinition);
+
+                DeleteDefinitions(doc, createdChildDefinitions);
                 return;
             }
 
             var definition = doc.InstanceDefinitions[definitionIndex];
 
             if (definition != null)
-            {
-                foreach (var definitionObject in definition.GetObjects())
-                {
-                    if (definitionObject != null)
-                        ApplyTwoMeterBoxMapping(definitionObject);
-                }
-            }
+                ApplyMappingToDefinitionObjects(definition);
         }
 
-        private static void AddBrepsToBlockIfAny(
+        private static void AddBrepsToNestedBlockIfAny(
             RhinoDoc doc,
             List<Brep> breps,
             string layerName,
             int parentLayerIndex,
             System.Drawing.Color layerColor,
             List<GeometryBase> definitionGeometry,
-            List<ObjectAttributes> definitionAttributes)
+            List<ObjectAttributes> definitionAttributes,
+            List<InstanceDefinition> createdChildDefinitions)
         {
-            if (breps.Count == 0)
+            if (breps == null || breps.Count == 0)
                 return;
 
             var layerIndex = EnsureLayer(doc, layerName, parentLayerIndex, layerColor);
+            var groups = CreateRepeatedGeometryGroups(breps);
+            var groupNumber = 1;
+
+            foreach (var group in groups)
+            {
+                if (group.Items.Count < 2)
+                {
+                    foreach (var item in group.Items)
+                    {
+                        definitionGeometry.Add(item.Original.DuplicateBrep());
+                        definitionAttributes.Add(new ObjectAttributes { LayerIndex = layerIndex });
+                    }
+
+                    continue;
+                }
+
+                var childName = CreateUniqueBlockName(doc, "nbHandrail - " + layerName + " " + groupNumber);
+                var childAttributes = new ObjectAttributes { LayerIndex = layerIndex };
+                var childIndex = doc.InstanceDefinitions.Add(
+                    childName,
+                    "Repeated nbHandrail component",
+                    Point3d.Origin,
+                    group.NormalizedRepresentative.DuplicateBrep(),
+                    childAttributes
+                );
+
+                groupNumber++;
+
+                if (childIndex < 0)
+                {
+                    foreach (var item in group.Items)
+                    {
+                        definitionGeometry.Add(item.Original.DuplicateBrep());
+                        definitionAttributes.Add(new ObjectAttributes { LayerIndex = layerIndex });
+                    }
+
+                    continue;
+                }
+
+                var childDefinition = doc.InstanceDefinitions[childIndex];
+
+                if (childDefinition == null)
+                {
+                    foreach (var item in group.Items)
+                    {
+                        definitionGeometry.Add(item.Original.DuplicateBrep());
+                        definitionAttributes.Add(new ObjectAttributes { LayerIndex = layerIndex });
+                    }
+
+                    continue;
+                }
+
+                createdChildDefinitions.Add(childDefinition);
+                ApplyMappingToDefinitionObjects(childDefinition);
+
+                foreach (var item in group.Items)
+                {
+                    var instanceTransform = Transform.Translation(item.Centre.X, item.Centre.Y, item.Centre.Z);
+                    definitionGeometry.Add(new InstanceReferenceGeometry(childDefinition.Id, instanceTransform));
+                    definitionAttributes.Add(new ObjectAttributes { LayerIndex = layerIndex });
+                }
+            }
+        }
+
+        private static List<RepeatedGeometryGroup> CreateRepeatedGeometryGroups(List<Brep> breps)
+        {
+            var groups = new List<RepeatedGeometryGroup>();
 
             foreach (var brep in breps)
             {
                 if (brep == null)
                     continue;
 
-                definitionGeometry.Add(brep.DuplicateBrep());
-                definitionAttributes.Add(new ObjectAttributes { LayerIndex = layerIndex });
+                var duplicate = brep.DuplicateBrep();
+                var bbox = duplicate.GetBoundingBox(true);
+                var centre = bbox.Center;
+                duplicate.Transform(Transform.Translation(-centre.X, -centre.Y, -centre.Z));
+
+                RepeatedGeometryGroup matchingGroup = null;
+
+                foreach (var group in groups)
+                {
+                    if (GeometryBase.GeometryEquals(group.NormalizedRepresentative, duplicate))
+                    {
+                        matchingGroup = group;
+                        break;
+                    }
+                }
+
+                if (matchingGroup == null)
+                {
+                    matchingGroup = new RepeatedGeometryGroup(duplicate);
+                    groups.Add(matchingGroup);
+                }
+
+                matchingGroup.Items.Add(new RepeatedGeometryItem(brep, centre));
             }
+
+            return groups;
+        }
+
+        private static void ApplyMappingToDefinitionObjects(InstanceDefinition definition)
+        {
+            if (definition == null)
+                return;
+
+            foreach (var definitionObject in definition.GetObjects())
+            {
+                if (definitionObject != null && !(definitionObject.Geometry is InstanceReferenceGeometry))
+                    ApplyTwoMeterBoxMapping(definitionObject);
+            }
+        }
+
+        private static void DeleteDefinitions(RhinoDoc doc, List<InstanceDefinition> definitions)
+        {
+            for (var i = definitions.Count - 1; i >= 0; i--)
+            {
+                var definition = definitions[i];
+
+                if (definition != null)
+                    doc.InstanceDefinitions.Delete(definition);
+            }
+        }
+
+        private sealed class RepeatedGeometryGroup
+        {
+            public RepeatedGeometryGroup(Brep normalizedRepresentative)
+            {
+                NormalizedRepresentative = normalizedRepresentative;
+                Items = new List<RepeatedGeometryItem>();
+            }
+
+            public Brep NormalizedRepresentative { get; private set; }
+            public List<RepeatedGeometryItem> Items { get; private set; }
+        }
+
+        private sealed class RepeatedGeometryItem
+        {
+            public RepeatedGeometryItem(Brep original, Point3d centre)
+            {
+                Original = original;
+                Centre = centre;
+            }
+
+            public Brep Original { get; private set; }
+            public Point3d Centre { get; private set; }
         }
 
         private static string CreateUniqueBlockName(RhinoDoc doc, string baseName)

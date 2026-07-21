@@ -23,6 +23,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
         private readonly Label _panelTopGapLabel;
         private readonly Label _panelBottomGapLabel;
         private readonly Label _panelFrameConstructionLabel;
+        private bool _suppressEvents;
 
         public NumericStepper HeightStepper { get; private set; }
         public DropDown TopRailStyleDropDown { get; private set; }
@@ -59,13 +60,14 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
         public event EventHandler TabsChanged;
         public event EventHandler InfillChanged;
         public event EventHandler PreviewChanged;
+        public event EventHandler ResetDefaultsRequested;
 
         public HandrailDialog(HandrailSettings settings)
         {
             Title = "nbHandrail";
             Resizable = true;
             Padding = 10;
-            ClientSize = new Size(380, 800);
+            ClientSize = new Size(440, 800);
 
             HeightStepper = CreateStepper(100, 3000, 10, settings.Height);
 
@@ -212,6 +214,9 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
             PreviewDimensionsCheckBox.CheckedChanged += delegate { RaiseEvent(PreviewChanged); };
 
+            var resetButton = new Button { Text = "Reset Defaults" };
+            resetButton.Click += delegate { RaiseEvent(ResetDefaultsRequested); };
+
             var createButton = new Button { Text = "Create" };
             createButton.Click += delegate
             {
@@ -226,64 +231,92 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 Close();
             };
 
-            var layout = new DynamicLayout
+            var generalLayout = CreateSectionLayout();
+            generalLayout.AddRow(new Label { Text = "Height" }, HeightStepper);
+
+            var topRailLayout = CreateSectionLayout();
+            topRailLayout.AddRow(new Label { Text = "Style" }, TopRailStyleDropDown);
+            topRailLayout.AddRow(_boxRailDepthLabel, BoxRailDepthStepper);
+            topRailLayout.AddRow(_boxRailHeightLabel, BoxRailHeightStepper);
+            topRailLayout.AddRow(_topRailDiameterLabel, TopRailDiameterStepper);
+
+            var bottomRailLayout = CreateSectionLayout();
+            bottomRailLayout.AddRow(new Label { Text = "Style" }, BottomRailModeDropDown);
+            bottomRailLayout.AddRow(_bottomRailHeightLabel, BottomRailHeightStepper);
+            bottomRailLayout.AddRow(null, SupportFeetCheckBox);
+
+            var railsLayout = new DynamicLayout
             {
                 Padding = 0,
                 Spacing = new Size(5, 8),
                 DefaultSpacing = new Size(5, 5)
             };
+            railsLayout.AddRow(CreateGroup("Top Rail", topRailLayout));
+            railsLayout.AddRow(CreateGroup("Bottom Rail", bottomRailLayout));
 
-            layout.AddRow(new Label { Text = "Overall" });
-            layout.AddRow(new Label { Text = "Height" }, HeightStepper);
+            var layoutSection = CreateSectionLayout();
+            layoutSection.AddRow(new Label { Text = "Bay Layout" }, BayLayoutDropDown);
+            layoutSection.AddRow(_maxBayLengthLabel, MaxBayLengthStepper);
 
-            layout.AddSpace();
-            layout.AddRow(new Label { Text = "Top Rail" });
-            layout.AddRow(new Label { Text = "Style" }, TopRailStyleDropDown);
-            layout.AddRow(_boxRailDepthLabel, BoxRailDepthStepper);
-            layout.AddRow(_boxRailHeightLabel, BoxRailHeightStepper);
-            layout.AddRow(_topRailDiameterLabel, TopRailDiameterStepper);
+            var detailsLayout = CreateSectionLayout();
+            detailsLayout.AddRow(null, TabsCheckBox);
+            detailsLayout.AddRow(_tabLengthLabel, TabLengthStepper);
 
-            layout.AddSpace();
-            layout.AddRow(new Label { Text = "Bottom Rail" });
-            layout.AddRow(new Label { Text = "Style" }, BottomRailModeDropDown);
-            layout.AddRow(_bottomRailHeightLabel, BottomRailHeightStepper);
-            layout.AddRow(null, SupportFeetCheckBox);
+            var verticalLayout = CreateSectionLayout();
+            verticalLayout.AddRow(_infillWidthLabel, InfillWidthStepper);
+            verticalLayout.AddRow(_infillDepthLabel, InfillDepthStepper);
+            verticalLayout.AddRow(_maxInfillSpacingLabel, MaxInfillSpacingStepper);
 
-            layout.AddSpace();
-            layout.AddRow(new Label { Text = "Bays" });
-            layout.AddRow(new Label { Text = "Layout" }, BayLayoutDropDown);
-            layout.AddRow(_maxBayLengthLabel, MaxBayLengthStepper);
+            var zigZagLayout = CreateSectionLayout();
+            zigZagLayout.AddRow(_zigZagDiameterLabel, ZigZagDiameterStepper);
+            zigZagLayout.AddRow(_zigZagBayLengthLabel, ZigZagBayLengthStepper);
 
-            layout.AddSpace();
-            layout.AddRow(new Label { Text = "Tabs" });
-            layout.AddRow(null, TabsCheckBox);
-            layout.AddRow(_tabLengthLabel, TabLengthStepper);
+            var panelLayout = CreateSectionLayout();
+            panelLayout.AddRow(_panelGapLabel, PanelGapStepper);
+            panelLayout.AddRow(_panelFrameSizeLabel, PanelFrameSizeStepper);
+            panelLayout.AddRow(_panelSheetThicknessLabel, PanelSheetThicknessStepper);
+            panelLayout.AddRow(_panelTopGapLabel, PanelTopGapStepper);
+            panelLayout.AddRow(_panelBottomGapLabel, PanelBottomGapStepper);
+            panelLayout.AddRow(_panelFrameConstructionLabel, PanelFrameConstructionDropDown);
 
-            layout.AddSpace();
-            layout.AddRow(new Label { Text = "Infill" });
-            layout.AddRow(new Label { Text = "Style" }, InfillStyleDropDown);
-            layout.AddRow(_infillWidthLabel, InfillWidthStepper);
-            layout.AddRow(_infillDepthLabel, InfillDepthStepper);
-            layout.AddRow(_maxInfillSpacingLabel, MaxInfillSpacingStepper);
-            layout.AddRow(_zigZagDiameterLabel, ZigZagDiameterStepper);
-            layout.AddRow(_zigZagBayLengthLabel, ZigZagBayLengthStepper);
-            layout.AddRow(_panelGapLabel, PanelGapStepper);
-            layout.AddRow(_panelFrameSizeLabel, PanelFrameSizeStepper);
-            layout.AddRow(_panelSheetThicknessLabel, PanelSheetThicknessStepper);
-            layout.AddRow(_panelTopGapLabel, PanelTopGapStepper);
-            layout.AddRow(_panelBottomGapLabel, PanelBottomGapStepper);
-            layout.AddRow(_panelFrameConstructionLabel, PanelFrameConstructionDropDown);
+            var infillLayout = new DynamicLayout
+            {
+                Padding = 0,
+                Spacing = new Size(5, 8),
+                DefaultSpacing = new Size(5, 5)
+            };
+            infillLayout.AddRow(new Label { Text = "Style" }, InfillStyleDropDown);
+            infillLayout.AddRow(CreateGroup("Vertical", verticalLayout));
+            infillLayout.AddRow(CreateGroup("ZigZag", zigZagLayout));
+            infillLayout.AddRow(CreateGroup("Panel", panelLayout));
 
-            layout.AddSpace();
-            layout.AddRow(new Label { Text = "Preview" });
-            layout.AddRow(null, PreviewDimensionsCheckBox);
+            var previewLayout = CreateSectionLayout();
+            previewLayout.AddRow(null, PreviewDimensionsCheckBox);
 
-            layout.AddSpace();
-            layout.AddRow(null, createButton, cancelButton);
+            var buttonLayout = new DynamicLayout
+            {
+                Padding = 0,
+                Spacing = new Size(5, 5)
+            };
+            buttonLayout.AddRow(resetButton, null, createButton, cancelButton);
+
+            var mainLayout = new DynamicLayout
+            {
+                Padding = 0,
+                Spacing = new Size(5, 10),
+                DefaultSpacing = new Size(5, 5)
+            };
+            mainLayout.AddRow(CreateGroup("General", generalLayout));
+            mainLayout.AddRow(CreateGroup("Rails", railsLayout));
+            mainLayout.AddRow(CreateGroup("Layout", layoutSection));
+            mainLayout.AddRow(CreateGroup("Details", detailsLayout));
+            mainLayout.AddRow(CreateGroup("Infill", infillLayout));
+            mainLayout.AddRow(CreateGroup("Preview", previewLayout));
+            mainLayout.AddRow(buttonLayout);
 
             Content = new Scrollable
             {
-                Content = layout,
+                Content = mainLayout,
                 ExpandContentWidth = true
             };
 
@@ -292,6 +325,73 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             UpdateBayControlState();
             UpdateTabsControlState();
             UpdateInfillControlState();
+        }
+
+        public void ApplySettings(HandrailSettings settings)
+        {
+            if (settings == null)
+                return;
+
+            _suppressEvents = true;
+
+            try
+            {
+                HeightStepper.Value = settings.Height;
+                TopRailStyleDropDown.SelectedIndex = settings.TopRailStyleIndex;
+                BoxRailDepthStepper.Value = settings.BoxRailDepth;
+                BoxRailHeightStepper.Value = settings.BoxRailHeight;
+                TopRailDiameterStepper.Value = settings.TopRailDiameter;
+                BottomRailModeDropDown.SelectedIndex = settings.BottomRailModeIndex;
+                BottomRailHeightStepper.Value = settings.BottomRailHeight;
+                SupportFeetCheckBox.Checked = settings.SupportFeet;
+                BayLayoutDropDown.SelectedIndex = settings.BayLayoutIndex;
+                MaxBayLengthStepper.Value = settings.MaxBayLength;
+                TabsCheckBox.Checked = settings.Tabs;
+                TabLengthStepper.Value = settings.TabLength;
+                InfillStyleDropDown.SelectedIndex = settings.InfillStyleIndex;
+                InfillWidthStepper.Value = settings.InfillWidth;
+                InfillDepthStepper.Value = settings.InfillDepth;
+                MaxInfillSpacingStepper.Value = settings.MaxInfillSpacing;
+                ZigZagDiameterStepper.Value = settings.ZigZagDiameter;
+                ZigZagBayLengthStepper.Value = settings.ZigZagBayLength;
+                PanelGapStepper.Value = settings.PanelGap;
+                PanelFrameSizeStepper.Value = settings.PanelFrameWidth;
+                PanelSheetThicknessStepper.Value = settings.PanelSheetThickness;
+                PanelTopGapStepper.Value = settings.PanelTopGap;
+                PanelBottomGapStepper.Value = settings.PanelBottomGap;
+                PanelFrameConstructionDropDown.SelectedIndex = settings.PanelFrameConstructionIndex;
+                PreviewDimensionsCheckBox.Checked = settings.PreviewDims;
+            }
+            finally
+            {
+                _suppressEvents = false;
+            }
+
+            UpdateTopRailControlState();
+            UpdateBottomRailControlState();
+            UpdateBayControlState();
+            UpdateTabsControlState();
+            UpdateInfillControlState();
+        }
+
+        private static DynamicLayout CreateSectionLayout()
+        {
+            return new DynamicLayout
+            {
+                Padding = 5,
+                Spacing = new Size(5, 5),
+                DefaultSpacing = new Size(5, 5)
+            };
+        }
+
+        private static GroupBox CreateGroup(string text, Control content)
+        {
+            return new GroupBox
+            {
+                Text = text,
+                Padding = 5,
+                Content = content
+            };
         }
 
         private static NumericStepper CreateStepper(double min, double max, double increment, double value)
@@ -367,6 +467,9 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
         private void RaiseEvent(EventHandler handler)
         {
+            if (_suppressEvents)
+                return;
+
             if (handler != null)
                 handler(this, EventArgs.Empty);
         }

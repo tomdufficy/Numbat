@@ -40,36 +40,8 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
             _activeDoc = doc;
             _handrailRuns = handrailRuns;
-            _settings = new HandrailSettings
-            {
-                Height = 1100.0,
-                TopRailStyleIndex = 1,
-                BoxRailDepth = 40.0,
-                BoxRailHeight = 20.0,
-                TopRailDiameter = 50.0,
-                BottomRailModeIndex = 1,
-                BottomRailHeight = 100.0,
-                SupportFeet = false,
-                BayLayoutIndex = 1,
-                MaxBayLength = 1200.0,
-                Tabs = false,
-                TabLength = 75.0,
-                InfillStyleIndex = 0,
-                InfillWidth = 10.0,
-                InfillDepth = 20.0,
-                MaxInfillSpacing = 100.0,
-                ZigZagDiameter = 10.0,
-                ZigZagBayLength = 100.0,
-                PanelGap = 50.0,
-                PanelFrameWidth = 25.0,
-                PanelFrameDepth = 25.0,
-                PanelSheetThickness = 5.0,
-                PanelTopGap = 50.0,
-                PanelBottomGap = 100.0,
-                PanelFrameConstructionIndex = 0,
-                PreviewDims = true,
-                GroundZ = groundZ
-            };
+            _settings = HandrailSettings.Load(Settings);
+            _settings.GroundZ = groundZ;
 
             _conduit = new HandrailPreviewConduit
             {
@@ -86,6 +58,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             _dialog.TabsChanged += OnTabsChanged;
             _dialog.InfillChanged += OnInfillChanged;
             _dialog.PreviewChanged += OnPreviewChanged;
+            _dialog.ResetDefaultsRequested += OnResetDefaultsRequested;
             _dialog.Closed += OnDialogClosed;
             _dialog.Show(_activeDoc);
 
@@ -178,6 +151,18 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             UpdatePreview();
         }
 
+        private void OnResetDefaultsRequested(object sender, EventArgs e)
+        {
+            if (_dialog == null || _settings == null)
+                return;
+
+            var groundZ = _settings.GroundZ;
+            _settings = HandrailSettings.CreateDefaults();
+            _settings.GroundZ = groundZ;
+            _dialog.ApplySettings(_settings);
+            UpdatePreview();
+        }
+
         private void OnDialogClosed(object sender, EventArgs e)
         {
             var accepted = _dialog != null && _dialog.Accepted;
@@ -191,6 +176,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 );
 
                 HandrailGenerator.AddGeometryToDocument(_activeDoc, finalGeometry, _settings);
+                _settings.Save(Settings);
                 RhinoApp.WriteLine("nbHandrail created.");
                 RhinoApp.WriteLine($"Height: {_settings.Height}");
             }
@@ -226,6 +212,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 _dialog.TabsChanged -= OnTabsChanged;
                 _dialog.InfillChanged -= OnInfillChanged;
                 _dialog.PreviewChanged -= OnPreviewChanged;
+                _dialog.ResetDefaultsRequested -= OnResetDefaultsRequested;
                 _dialog.Closed -= OnDialogClosed;
             }
 
