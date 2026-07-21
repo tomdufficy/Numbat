@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Rhino;
 using Rhino.Commands;
 using Rhino.Geometry;
@@ -11,6 +12,12 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
     {
         public static NumbatHandrailCommand Instance { get; private set; }
 
+        private HandrailDialog _dialog;
+        private HandrailPreviewConduit _conduit;
+        private RhinoDoc _activeDoc;
+        private List<Curve> _handrailRuns;
+        private HandrailSettings _settings;
+
         public NumbatHandrailCommand()
         {
             Instance = this;
@@ -20,199 +27,49 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
+            if (_dialog != null)
+            {
+                _dialog.Focus();
+                return Result.Success;
+            }
+
             var pathResult = GetHandrailRuns(doc, out var handrailRuns, out var groundZ);
 
             if (pathResult != Result.Success)
                 return pathResult;
 
             var height = new OptionDouble(1100.0, true, 100.0);
-
             var topRailStyleIndex = 1;
-            string[] topRailStyleOptions = { "None", "Rectangular", "Round" };
             var boxRailDepth = new OptionDouble(40.0, true, 1.0);
             var boxRailHeight = new OptionDouble(20.0, true, 1.0);
             var topRailDiameter = new OptionDouble(50.0, true, 1.0);
-
             var bottomRailModeIndex = 1;
-            string[] bottomRailOptions = { "None", "Ground", "Raised" };
             var bottomRailHeight = new OptionDouble(100.0, true, 0.0);
             var supportFeet = new OptionToggle(true, "No", "Yes");
-
             var bayLayoutIndex = 1;
-            string[] bayLayoutOptions = { "None", "Automatic" };
             var maxBayLength = new OptionDouble(1200.0, true, 100.0);
-
             var tabs = new OptionToggle(false, "No", "Yes");
             var tabLength = new OptionDouble(75.0, true, 1.0);
-
             var infillStyleIndex = 0;
-            string[] infillStyleOptions = { "Vertical", "ZigZag", "Panel", "Sheet", "Empty" };
             var infillWidth = new OptionDouble(10.0, true, 1.0);
             var infillDepth = new OptionDouble(20.0, true, 1.0);
             var maxInfillSpacing = new OptionDouble(100.0, true, 10.0);
-
             var zigZagDiameter = new OptionDouble(10.0, true, 1.0);
             var zigZagBayLength = new OptionDouble(100.0, true, 10.0);
-
             var panelGap = new OptionDouble(50.0, true, 0.0);
             var panelFrameSize = new OptionDouble(25.0, true, 1.0);
             var panelSheetThickness = new OptionDouble(5.0, true, 1.0);
             var panelTopGap = new OptionDouble(50.0, true, 0.0);
             var panelBottomGap = new OptionDouble(100.0, true, 0.0);
             var panelFrameConstructionIndex = 0;
-            string[] panelFrameConstructionOptions = { "Solid", "Mitred" };
-
-
             var previewDims = new OptionToggle(true, "No", "Yes");
 
-            var settings = new HandrailSettings();
-            var conduit = new HandrailPreviewConduit();
-            conduit.Enabled = true;
-
-            try
-            {
-                while (true)
-                {
-                    ApplyOptionValuesToSettings(
-                        settings,
-                        groundZ,
-                        height,
-                        topRailStyleIndex,
-                        boxRailDepth,
-                        boxRailHeight,
-                        topRailDiameter,
-                        bottomRailModeIndex,
-                        bottomRailHeight,
-                        supportFeet,
-                        bayLayoutIndex,
-                        maxBayLength,
-                        tabs,
-                        tabLength,
-                        infillStyleIndex,
-                        infillWidth,
-                        infillDepth,
-                        maxInfillSpacing,
-                        zigZagDiameter,
-                        zigZagBayLength,
-                        panelGap,
-                        panelFrameSize,
-                        panelSheetThickness,
-                        panelTopGap,
-                        panelBottomGap,
-                        panelFrameConstructionIndex,
-                        previewDims
-                    );
-
-                    var previewGeometry = HandrailGenerator.CreateHandrailGeometry(handrailRuns, settings, doc.ModelAbsoluteTolerance);
-                    conduit.PreviewBreps = previewGeometry.AllBreps();
-                    conduit.PreviewLabels = previewGeometry.PreviewLabels;
-                    conduit.PreviewLines = previewGeometry.PreviewLines;
-                    doc.Views.Redraw();
-
-                    var getOptions = new GetOption();
-                    getOptions.SetCommandPrompt("Handrail options. Press Enter to create handrail");
-                    getOptions.AcceptNothing(true);
-
-                    getOptions.AddOptionDouble("Height", ref height);
-                    getOptions.AddOptionList("TopRailStyle", topRailStyleOptions, topRailStyleIndex);
-
-                    if (topRailStyleIndex == 1)
-                    {
-                        getOptions.AddOptionDouble("BoxRailDepth", ref boxRailDepth);
-                        getOptions.AddOptionDouble("BoxRailHeight", ref boxRailHeight);
-                    }
-                    else if (topRailStyleIndex == 2)
-                    {
-                        getOptions.AddOptionDouble("TopRailDiameter", ref topRailDiameter);
-                        getOptions.AddOptionDouble("BoxRailDepth", ref boxRailDepth);
-                        getOptions.AddOptionDouble("BoxRailHeight", ref boxRailHeight);
-                    }
-
-                    getOptions.AddOptionList("BottomRail", bottomRailOptions, bottomRailModeIndex);
-
-                    if (bottomRailModeIndex == 2)
-                    {
-                        getOptions.AddOptionDouble("BottomRailHeight", ref bottomRailHeight);
-
-                        if (bottomRailHeight.CurrentValue > RhinoMath.ZeroTolerance)
-                            getOptions.AddOptionToggle("SupportFeet", ref supportFeet);
-                    }
-
-                    getOptions.AddOptionList("BayLayout", bayLayoutOptions, bayLayoutIndex);
-
-                    if (bayLayoutIndex == 1)
-                        getOptions.AddOptionDouble("MaxBayLength", ref maxBayLength);
-
-                    getOptions.AddOptionToggle("Tabs", ref tabs);
-
-                    if (tabs.CurrentValue)
-                        getOptions.AddOptionDouble("TabLength", ref tabLength);
-
-                    getOptions.AddOptionList("InfillStyle", infillStyleOptions, infillStyleIndex);
-
-                    if (infillStyleIndex == 0)
-                    {
-                        getOptions.AddOptionDouble("InfillWidth", ref infillWidth);
-                        getOptions.AddOptionDouble("InfillDepth", ref infillDepth);
-                        getOptions.AddOptionDouble("MaxInfillSpacing", ref maxInfillSpacing);
-                    }
-                    else if (infillStyleIndex == 1)
-                    {
-                        getOptions.AddOptionDouble("ZigZagDiameter", ref zigZagDiameter);
-                        getOptions.AddOptionDouble("ZigZagBayLength", ref zigZagBayLength);
-                    }
-                    else if (infillStyleIndex == 2)
-                    {
-                        getOptions.AddOptionDouble("PanelGap", ref panelGap);
-                        getOptions.AddOptionDouble("PanelFrameSize", ref panelFrameSize);
-                        getOptions.AddOptionDouble("PanelSheetThickness", ref panelSheetThickness);
-                        getOptions.AddOptionDouble("PanelTopGap", ref panelTopGap);
-                        getOptions.AddOptionDouble("PanelBottomGap", ref panelBottomGap);
-                        getOptions.AddOptionList("PanelFrameConstruction", panelFrameConstructionOptions, panelFrameConstructionIndex);
-                    }
-
-                    getOptions.AddOptionToggle("PreviewDims", ref previewDims);
-
-                    var result = getOptions.Get();
-
-                    if (result == GetResult.Nothing)
-                        break;
-
-                    if (result == GetResult.Cancel)
-                        return Result.Cancel;
-
-                    if (result == GetResult.Option)
-                    {
-                        var option = getOptions.Option();
-
-                        if (option != null)
-                        {
-                            if (option.EnglishName == "TopRailStyle")
-                                topRailStyleIndex = option.CurrentListOptionIndex;
-
-                            if (option.EnglishName == "BottomRail")
-                                bottomRailModeIndex = option.CurrentListOptionIndex;
-
-                            if (option.EnglishName == "BayLayout")
-                                bayLayoutIndex = option.CurrentListOptionIndex;
-
-                            if (option.EnglishName == "InfillStyle")
-                                infillStyleIndex = option.CurrentListOptionIndex;
-
-                            if (option.EnglishName == "PanelFrameConstruction")
-                                panelFrameConstructionIndex = option.CurrentListOptionIndex;
-                        }
-                    }
-                }
-            }
-            finally
-            {
-                conduit.Enabled = false;
-                doc.Views.Redraw();
-            }
+            _activeDoc = doc;
+            _handrailRuns = handrailRuns;
+            _settings = new HandrailSettings();
 
             ApplyOptionValuesToSettings(
-                settings,
+                _settings,
                 groundZ,
                 height,
                 topRailStyleIndex,
@@ -241,35 +98,86 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 previewDims
             );
 
-            var finalGeometry = HandrailGenerator.CreateHandrailGeometry(handrailRuns, settings, doc.ModelAbsoluteTolerance);
-            HandrailGenerator.AddGeometryToDocument(doc, finalGeometry);
+            _conduit = new HandrailPreviewConduit
+            {
+                Enabled = true
+            };
 
-            doc.Views.Redraw();
+            UpdatePreview();
 
-            RhinoApp.WriteLine("nbHandrail created.");
-            RhinoApp.WriteLine($"Height: {settings.Height}");
-            RhinoApp.WriteLine($"Top rail style: {topRailStyleOptions[settings.TopRailStyleIndex]}");
-            RhinoApp.WriteLine($"Bottom rail: {bottomRailOptions[settings.BottomRailModeIndex]}");
-            RhinoApp.WriteLine($"Bay layout: {bayLayoutOptions[settings.BayLayoutIndex]}");
-
-            if (settings.BayLayoutIndex == 1)
-                RhinoApp.WriteLine($"Maximum bay length: {settings.MaxBayLength}");
-            RhinoApp.WriteLine($"Infill style: {infillStyleOptions[settings.InfillStyleIndex]}");
-            RhinoApp.WriteLine($"Tabs: {(settings.Tabs ? "Yes" : "No")}");
-
-            if (finalGeometry.PanelBaysReduced > 0)
-                RhinoApp.WriteLine($"Warning: {finalGeometry.PanelBaysReduced} panel bay(s) were reduced because there was insufficient space to maintain the requested panel gap.");
-
-            if (finalGeometry.PanelBaysOmitted > 0)
-                RhinoApp.WriteLine($"Warning: {finalGeometry.PanelBaysOmitted} panel bay(s) were omitted because there was insufficient space.");
-
-            if (finalGeometry.SheetBaysReduced > 0)
-                RhinoApp.WriteLine($"Warning: {finalGeometry.SheetBaysReduced} sheet bay(s) were reduced because there was insufficient space.");
-
-            if (finalGeometry.SheetBaysOmitted > 0)
-                RhinoApp.WriteLine($"Warning: {finalGeometry.SheetBaysOmitted} sheet bay(s) were omitted because there was insufficient space.");
+            _dialog = new HandrailDialog(_settings);
+            _dialog.HeightChanged += OnHeightChanged;
+            _dialog.Closed += OnDialogClosed;
+            _dialog.Show();
 
             return Result.Success;
+        }
+
+        private void OnHeightChanged(object sender, EventArgs e)
+        {
+            if (_dialog == null || _settings == null)
+                return;
+
+            _settings.Height = _dialog.HeightStepper.Value;
+            UpdatePreview();
+        }
+
+        private void OnDialogClosed(object sender, EventArgs e)
+        {
+            var accepted = _dialog != null && _dialog.Accepted;
+
+            if (accepted && _activeDoc != null && _handrailRuns != null && _settings != null)
+            {
+                var finalGeometry = HandrailGenerator.CreateHandrailGeometry(
+                    _handrailRuns,
+                    _settings,
+                    _activeDoc.ModelAbsoluteTolerance
+                );
+
+                HandrailGenerator.AddGeometryToDocument(_activeDoc, finalGeometry);
+                RhinoApp.WriteLine("nbHandrail created.");
+                RhinoApp.WriteLine($"Height: {_settings.Height}");
+            }
+
+            CleanupPreview();
+        }
+
+        private void UpdatePreview()
+        {
+            if (_activeDoc == null || _handrailRuns == null || _settings == null || _conduit == null)
+                return;
+
+            var previewGeometry = HandrailGenerator.CreateHandrailGeometry(
+                _handrailRuns,
+                _settings,
+                _activeDoc.ModelAbsoluteTolerance
+            );
+
+            _conduit.PreviewBreps = previewGeometry.AllBreps();
+            _conduit.PreviewLabels = previewGeometry.PreviewLabels;
+            _conduit.PreviewLines = previewGeometry.PreviewLines;
+            _activeDoc.Views.Redraw();
+        }
+
+        private void CleanupPreview()
+        {
+            if (_dialog != null)
+            {
+                _dialog.HeightChanged -= OnHeightChanged;
+                _dialog.Closed -= OnDialogClosed;
+            }
+
+            if (_conduit != null)
+                _conduit.Enabled = false;
+
+            if (_activeDoc != null)
+                _activeDoc.Views.Redraw();
+
+            _dialog = null;
+            _conduit = null;
+            _activeDoc = null;
+            _handrailRuns = null;
+            _settings = null;
         }
 
         private static Result GetHandrailRuns(RhinoDoc doc, out List<Curve> runs, out double groundZ)
