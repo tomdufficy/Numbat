@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Rhino;
 using Rhino.Commands;
 using Rhino.Geometry;
 using Rhino.Input;
 using Rhino.Input.Custom;
+using Rhino.UI;
 
 namespace Numbat.Commands.Modelling.NumbatHandrail
 {
@@ -34,69 +35,41 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             }
 
             var pathResult = GetHandrailRuns(doc, out var handrailRuns, out var groundZ);
-
             if (pathResult != Result.Success)
                 return pathResult;
 
-            var height = new OptionDouble(1100.0, true, 100.0);
-            var topRailStyleIndex = 1;
-            var boxRailDepth = new OptionDouble(40.0, true, 1.0);
-            var boxRailHeight = new OptionDouble(20.0, true, 1.0);
-            var topRailDiameter = new OptionDouble(50.0, true, 1.0);
-            var bottomRailModeIndex = 1;
-            var bottomRailHeight = new OptionDouble(100.0, true, 0.0);
-            var supportFeet = new OptionToggle(true, "No", "Yes");
-            var bayLayoutIndex = 1;
-            var maxBayLength = new OptionDouble(1200.0, true, 100.0);
-            var tabs = new OptionToggle(false, "No", "Yes");
-            var tabLength = new OptionDouble(75.0, true, 1.0);
-            var infillStyleIndex = 0;
-            var infillWidth = new OptionDouble(10.0, true, 1.0);
-            var infillDepth = new OptionDouble(20.0, true, 1.0);
-            var maxInfillSpacing = new OptionDouble(100.0, true, 10.0);
-            var zigZagDiameter = new OptionDouble(10.0, true, 1.0);
-            var zigZagBayLength = new OptionDouble(100.0, true, 10.0);
-            var panelGap = new OptionDouble(50.0, true, 0.0);
-            var panelFrameSize = new OptionDouble(25.0, true, 1.0);
-            var panelSheetThickness = new OptionDouble(5.0, true, 1.0);
-            var panelTopGap = new OptionDouble(50.0, true, 0.0);
-            var panelBottomGap = new OptionDouble(100.0, true, 0.0);
-            var panelFrameConstructionIndex = 0;
-            var previewDims = new OptionToggle(true, "No", "Yes");
-
             _activeDoc = doc;
             _handrailRuns = handrailRuns;
-            _settings = new HandrailSettings();
-
-            ApplyOptionValuesToSettings(
-                _settings,
-                groundZ,
-                height,
-                topRailStyleIndex,
-                boxRailDepth,
-                boxRailHeight,
-                topRailDiameter,
-                bottomRailModeIndex,
-                bottomRailHeight,
-                supportFeet,
-                bayLayoutIndex,
-                maxBayLength,
-                tabs,
-                tabLength,
-                infillStyleIndex,
-                infillWidth,
-                infillDepth,
-                maxInfillSpacing,
-                zigZagDiameter,
-                zigZagBayLength,
-                panelGap,
-                panelFrameSize,
-                panelSheetThickness,
-                panelTopGap,
-                panelBottomGap,
-                panelFrameConstructionIndex,
-                previewDims
-            );
+            _settings = new HandrailSettings
+            {
+                Height = 1100.0,
+                TopRailStyleIndex = 1,
+                BoxRailDepth = 40.0,
+                BoxRailHeight = 20.0,
+                TopRailDiameter = 50.0,
+                BottomRailModeIndex = 1,
+                BottomRailHeight = 100.0,
+                SupportFeet = false,
+                BayLayoutIndex = 1,
+                MaxBayLength = 1200.0,
+                Tabs = false,
+                TabLength = 75.0,
+                InfillStyleIndex = 0,
+                InfillWidth = 10.0,
+                InfillDepth = 20.0,
+                MaxInfillSpacing = 100.0,
+                ZigZagDiameter = 10.0,
+                ZigZagBayLength = 100.0,
+                PanelGap = 50.0,
+                PanelFrameWidth = 25.0,
+                PanelFrameDepth = 25.0,
+                PanelSheetThickness = 5.0,
+                PanelTopGap = 50.0,
+                PanelBottomGap = 100.0,
+                PanelFrameConstructionIndex = 0,
+                PreviewDims = true,
+                GroundZ = groundZ
+            };
 
             _conduit = new HandrailPreviewConduit
             {
@@ -107,8 +80,14 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
             _dialog = new HandrailDialog(_settings);
             _dialog.HeightChanged += OnHeightChanged;
+            _dialog.TopRailChanged += OnTopRailChanged;
+            _dialog.BottomRailChanged += OnBottomRailChanged;
+            _dialog.BaysChanged += OnBaysChanged;
+            _dialog.TabsChanged += OnTabsChanged;
+            _dialog.InfillChanged += OnInfillChanged;
+            _dialog.PreviewChanged += OnPreviewChanged;
             _dialog.Closed += OnDialogClosed;
-            _dialog.Show();
+            _dialog.Show(_activeDoc);
 
             return Result.Success;
         }
@@ -119,6 +98,83 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 return;
 
             _settings.Height = _dialog.HeightStepper.Value;
+            UpdatePreview();
+        }
+
+        private void OnTopRailChanged(object sender, EventArgs e)
+        {
+            if (_dialog == null || _settings == null)
+                return;
+
+            _settings.TopRailStyleIndex = _dialog.TopRailStyleDropDown.SelectedIndex;
+            _settings.BoxRailDepth = _dialog.BoxRailDepthStepper.Value;
+            _settings.BoxRailHeight = _dialog.BoxRailHeightStepper.Value;
+            _settings.TopRailDiameter = _dialog.TopRailDiameterStepper.Value;
+            UpdatePreview();
+        }
+
+        private void OnBottomRailChanged(object sender, EventArgs e)
+        {
+            if (_dialog == null || _settings == null)
+                return;
+
+            _settings.BottomRailModeIndex = _dialog.BottomRailModeDropDown.SelectedIndex;
+            _settings.BottomRailHeight = _dialog.BottomRailHeightStepper.Value;
+            _settings.SupportFeet =
+                _settings.BottomRailModeIndex == 2 &&
+                _settings.BottomRailHeight > RhinoMath.ZeroTolerance &&
+                _dialog.SupportFeetCheckBox.Checked == true;
+
+            UpdatePreview();
+        }
+
+        private void OnBaysChanged(object sender, EventArgs e)
+        {
+            if (_dialog == null || _settings == null)
+                return;
+
+            _settings.BayLayoutIndex = _dialog.BayLayoutDropDown.SelectedIndex;
+            _settings.MaxBayLength = _dialog.MaxBayLengthStepper.Value;
+            UpdatePreview();
+        }
+
+        private void OnTabsChanged(object sender, EventArgs e)
+        {
+            if (_dialog == null || _settings == null)
+                return;
+
+            _settings.Tabs = _dialog.TabsCheckBox.Checked == true;
+            _settings.TabLength = _dialog.TabLengthStepper.Value;
+            UpdatePreview();
+        }
+
+        private void OnInfillChanged(object sender, EventArgs e)
+        {
+            if (_dialog == null || _settings == null)
+                return;
+
+            _settings.InfillStyleIndex = _dialog.InfillStyleDropDown.SelectedIndex;
+            _settings.InfillWidth = _dialog.InfillWidthStepper.Value;
+            _settings.InfillDepth = _dialog.InfillDepthStepper.Value;
+            _settings.MaxInfillSpacing = _dialog.MaxInfillSpacingStepper.Value;
+            _settings.ZigZagDiameter = _dialog.ZigZagDiameterStepper.Value;
+            _settings.ZigZagBayLength = _dialog.ZigZagBayLengthStepper.Value;
+            _settings.PanelGap = _dialog.PanelGapStepper.Value;
+            _settings.PanelFrameWidth = _dialog.PanelFrameSizeStepper.Value;
+            _settings.PanelFrameDepth = _dialog.PanelFrameSizeStepper.Value;
+            _settings.PanelSheetThickness = _dialog.PanelSheetThicknessStepper.Value;
+            _settings.PanelTopGap = _dialog.PanelTopGapStepper.Value;
+            _settings.PanelBottomGap = _dialog.PanelBottomGapStepper.Value;
+            _settings.PanelFrameConstructionIndex = _dialog.PanelFrameConstructionDropDown.SelectedIndex;
+            UpdatePreview();
+        }
+
+        private void OnPreviewChanged(object sender, EventArgs e)
+        {
+            if (_dialog == null || _settings == null)
+                return;
+
+            _settings.PreviewDims = _dialog.PreviewDimensionsCheckBox.Checked == true;
             UpdatePreview();
         }
 
@@ -134,7 +190,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                     _activeDoc.ModelAbsoluteTolerance
                 );
 
-                HandrailGenerator.AddGeometryToDocument(_activeDoc, finalGeometry);
+                HandrailGenerator.AddGeometryToDocument(_activeDoc, finalGeometry, _settings);
                 RhinoApp.WriteLine("nbHandrail created.");
                 RhinoApp.WriteLine($"Height: {_settings.Height}");
             }
@@ -164,6 +220,12 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             if (_dialog != null)
             {
                 _dialog.HeightChanged -= OnHeightChanged;
+                _dialog.TopRailChanged -= OnTopRailChanged;
+                _dialog.BottomRailChanged -= OnBottomRailChanged;
+                _dialog.BaysChanged -= OnBaysChanged;
+                _dialog.TabsChanged -= OnTabsChanged;
+                _dialog.InfillChanged -= OnInfillChanged;
+                _dialog.PreviewChanged -= OnPreviewChanged;
                 _dialog.Closed -= OnDialogClosed;
             }
 
@@ -252,74 +314,6 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 runs.Add(new LineCurve(points[i], points[i + 1]));
 
             return runs.Count > 0 ? Result.Success : Result.Cancel;
-        }
-
-        private static void ApplyOptionValuesToSettings(
-            HandrailSettings settings,
-            double groundZ,
-            OptionDouble height,
-            int topRailStyleIndex,
-            OptionDouble boxRailDepth,
-            OptionDouble boxRailHeight,
-            OptionDouble topRailDiameter,
-            int bottomRailModeIndex,
-            OptionDouble bottomRailHeight,
-            OptionToggle supportFeet,
-            int bayLayoutIndex,
-            OptionDouble maxBayLength,
-            OptionToggle tabs,
-            OptionDouble tabLength,
-            int infillStyleIndex,
-            OptionDouble infillWidth,
-            OptionDouble infillDepth,
-            OptionDouble maxInfillSpacing,
-            OptionDouble zigZagDiameter,
-            OptionDouble zigZagBayLength,
-            OptionDouble panelGap,
-            OptionDouble panelFrameSize,
-            OptionDouble panelSheetThickness,
-            OptionDouble panelTopGap,
-            OptionDouble panelBottomGap,
-            int panelFrameConstructionIndex,
-            OptionToggle previewDims
-        )
-        {
-            settings.Height = height.CurrentValue;
-            settings.TopRailStyleIndex = topRailStyleIndex;
-            settings.BoxRailDepth = boxRailDepth.CurrentValue;
-            settings.BoxRailHeight = boxRailHeight.CurrentValue;
-            settings.TopRailDiameter = topRailDiameter.CurrentValue;
-
-            settings.BottomRailModeIndex = bottomRailModeIndex;
-            settings.BottomRailHeight = bottomRailHeight.CurrentValue;
-            settings.SupportFeet = bottomRailModeIndex == 2 && bottomRailHeight.CurrentValue > RhinoMath.ZeroTolerance && supportFeet.CurrentValue;
-
-            settings.BayLayoutIndex = bayLayoutIndex;
-            settings.MaxBayLength = maxBayLength.CurrentValue;
-
-            settings.Tabs = tabs.CurrentValue;
-            settings.TabLength = tabLength.CurrentValue;
-
-            settings.InfillStyleIndex = infillStyleIndex;
-            settings.InfillWidth = infillWidth.CurrentValue;
-            settings.InfillDepth = infillDepth.CurrentValue;
-            settings.MaxInfillSpacing = maxInfillSpacing.CurrentValue;
-
-            settings.ZigZagDiameter = zigZagDiameter.CurrentValue;
-            settings.ZigZagBayLength = zigZagBayLength.CurrentValue;
-
-            settings.PanelGap = panelGap.CurrentValue;
-            settings.PanelFrameWidth = panelFrameSize.CurrentValue;
-            settings.PanelFrameDepth = panelFrameSize.CurrentValue;
-            settings.PanelSheetThickness = panelSheetThickness.CurrentValue;
-            settings.PanelTopGap = panelTopGap.CurrentValue;
-            settings.PanelBottomGap = panelBottomGap.CurrentValue;
-            settings.PanelFrameConstructionIndex = panelFrameConstructionIndex;
-
-
-            settings.PreviewDims = previewDims.CurrentValue;
-
-            settings.GroundZ = groundZ;
         }
     }
 }

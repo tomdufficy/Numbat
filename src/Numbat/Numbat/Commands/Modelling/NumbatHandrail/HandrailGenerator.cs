@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Rhino;
 using Rhino.DocObjects;
@@ -284,7 +284,7 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             return Math.Abs(bbox.Max.Z - bbox.Min.Z) <= tolerance;
         }
 
-        public static void AddGeometryToDocument(RhinoDoc doc, HandrailGeometry geometry)
+        public static void AddGeometryToDocument(RhinoDoc doc, HandrailGeometry geometry, HandrailSettings settings)
         {
             var allBreps = geometry.AllBreps();
 
@@ -292,16 +292,136 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
                 return;
 
             var parentLayerIndex = EnsureLayer(doc, "nbHandrail", -1, System.Drawing.Color.FromArgb(214, 218, 216));
+            var definitionGeometry = new List<GeometryBase>();
+            var definitionAttributes = new List<ObjectAttributes>();
 
-            AddBrepsToChildLayerIfAny(doc, geometry.TopRails, "Top Rails", parentLayerIndex, System.Drawing.Color.FromArgb(191, 214, 180));
-            AddBrepsToChildLayerIfAny(doc, geometry.BottomRails, "Bottom Rails", parentLayerIndex, System.Drawing.Color.FromArgb(178, 204, 218));
-            AddBrepsToChildLayerIfAny(doc, geometry.Infill, "Infill", parentLayerIndex, System.Drawing.Color.FromArgb(224, 204, 170));
-            AddBrepsToChildLayerIfAny(doc, geometry.PanelFrames, "Panel Frames", parentLayerIndex, System.Drawing.Color.FromArgb(205, 190, 220));
-            AddBrepsToChildLayerIfAny(doc, geometry.PanelSheets, "Panel Sheets", parentLayerIndex, System.Drawing.Color.FromArgb(184, 215, 211));
-            AddBrepsToChildLayerIfAny(doc, geometry.EndPosts, "End Posts", parentLayerIndex, System.Drawing.Color.FromArgb(218, 186, 176));
-            AddBrepsToChildLayerIfAny(doc, geometry.IntermediatePosts, "Intermediate Posts", parentLayerIndex, System.Drawing.Color.FromArgb(218, 204, 158));
-            AddBrepsToChildLayerIfAny(doc, geometry.SupportFeet, "Support Feet", parentLayerIndex, System.Drawing.Color.FromArgb(190, 197, 218));
-            AddBrepsToChildLayerIfAny(doc, geometry.Tabs, "Tabs", parentLayerIndex, System.Drawing.Color.FromArgb(224, 188, 206));
+            AddBrepsToBlockIfAny(doc, geometry.TopRails, "Top Rails", parentLayerIndex, System.Drawing.Color.FromArgb(191, 214, 180), definitionGeometry, definitionAttributes);
+            AddBrepsToBlockIfAny(doc, geometry.BottomRails, "Bottom Rails", parentLayerIndex, System.Drawing.Color.FromArgb(178, 204, 218), definitionGeometry, definitionAttributes);
+            AddBrepsToBlockIfAny(doc, geometry.Infill, "Infill", parentLayerIndex, System.Drawing.Color.FromArgb(224, 204, 170), definitionGeometry, definitionAttributes);
+            AddBrepsToBlockIfAny(doc, geometry.PanelFrames, "Panel Frames", parentLayerIndex, System.Drawing.Color.FromArgb(205, 190, 220), definitionGeometry, definitionAttributes);
+            AddBrepsToBlockIfAny(doc, geometry.PanelSheets, "Panel Sheets", parentLayerIndex, System.Drawing.Color.FromArgb(184, 215, 211), definitionGeometry, definitionAttributes);
+            AddBrepsToBlockIfAny(doc, geometry.EndPosts, "End Posts", parentLayerIndex, System.Drawing.Color.FromArgb(218, 186, 176), definitionGeometry, definitionAttributes);
+            AddBrepsToBlockIfAny(doc, geometry.IntermediatePosts, "Intermediate Posts", parentLayerIndex, System.Drawing.Color.FromArgb(218, 204, 158), definitionGeometry, definitionAttributes);
+            AddBrepsToBlockIfAny(doc, geometry.SupportFeet, "Support Feet", parentLayerIndex, System.Drawing.Color.FromArgb(190, 197, 218), definitionGeometry, definitionAttributes);
+            AddBrepsToBlockIfAny(doc, geometry.Tabs, "Tabs", parentLayerIndex, System.Drawing.Color.FromArgb(224, 188, 206), definitionGeometry, definitionAttributes);
+
+            if (definitionGeometry.Count == 0)
+                return;
+
+            var definitionName = CreateUniqueBlockName(doc, "nbHandrail");
+            var description = CreateHandrailDescription(settings);
+            var definitionIndex = doc.InstanceDefinitions.Add(
+                definitionName,
+                description,
+                Point3d.Origin,
+                definitionGeometry,
+                definitionAttributes
+            );
+
+            if (definitionIndex < 0)
+                return;
+
+            var instanceAttributes = new ObjectAttributes
+            {
+                LayerIndex = parentLayerIndex,
+                Name = definitionName
+            };
+
+            var instanceId = doc.Objects.AddInstanceObject(definitionIndex, Transform.Identity, instanceAttributes);
+
+            if (instanceId == Guid.Empty)
+            {
+                var failedDefinition = doc.InstanceDefinitions[definitionIndex];
+
+                if (failedDefinition != null)
+                    doc.InstanceDefinitions.Delete(failedDefinition);
+                return;
+            }
+
+            var definition = doc.InstanceDefinitions[definitionIndex];
+
+            if (definition != null)
+            {
+                foreach (var definitionObject in definition.GetObjects())
+                {
+                    if (definitionObject != null)
+                        ApplyTwoMeterBoxMapping(definitionObject);
+                }
+            }
+        }
+
+        private static void AddBrepsToBlockIfAny(
+            RhinoDoc doc,
+            List<Brep> breps,
+            string layerName,
+            int parentLayerIndex,
+            System.Drawing.Color layerColor,
+            List<GeometryBase> definitionGeometry,
+            List<ObjectAttributes> definitionAttributes)
+        {
+            if (breps.Count == 0)
+                return;
+
+            var layerIndex = EnsureLayer(doc, layerName, parentLayerIndex, layerColor);
+
+            foreach (var brep in breps)
+            {
+                if (brep == null)
+                    continue;
+
+                definitionGeometry.Add(brep.DuplicateBrep());
+                definitionAttributes.Add(new ObjectAttributes { LayerIndex = layerIndex });
+            }
+        }
+
+        private static string CreateUniqueBlockName(RhinoDoc doc, string baseName)
+        {
+            var suffix = 1;
+            var candidate = baseName;
+
+            while (doc.InstanceDefinitions.Find(candidate) != null)
+            {
+                suffix++;
+                candidate = baseName + " " + suffix;
+            }
+
+            return candidate;
+        }
+
+        private static string CreateHandrailDescription(HandrailSettings settings)
+        {
+            if (settings == null)
+                return "Generated by nbHandrail";
+
+            return string.Join(System.Environment.NewLine, new[]
+            {
+                "Generated by nbHandrail",
+                "Height=" + settings.Height,
+                "TopRailStyleIndex=" + settings.TopRailStyleIndex,
+                "BoxRailDepth=" + settings.BoxRailDepth,
+                "BoxRailHeight=" + settings.BoxRailHeight,
+                "TopRailDiameter=" + settings.TopRailDiameter,
+                "BottomRailModeIndex=" + settings.BottomRailModeIndex,
+                "BottomRailHeight=" + settings.BottomRailHeight,
+                "SupportFeet=" + settings.SupportFeet,
+                "BayLayoutIndex=" + settings.BayLayoutIndex,
+                "MaxBayLength=" + settings.MaxBayLength,
+                "Tabs=" + settings.Tabs,
+                "TabLength=" + settings.TabLength,
+                "InfillStyleIndex=" + settings.InfillStyleIndex,
+                "InfillWidth=" + settings.InfillWidth,
+                "InfillDepth=" + settings.InfillDepth,
+                "MaxInfillSpacing=" + settings.MaxInfillSpacing,
+                "ZigZagDiameter=" + settings.ZigZagDiameter,
+                "ZigZagBayLength=" + settings.ZigZagBayLength,
+                "PanelGap=" + settings.PanelGap,
+                "PanelFrameWidth=" + settings.PanelFrameWidth,
+                "PanelFrameDepth=" + settings.PanelFrameDepth,
+                "PanelSheetThickness=" + settings.PanelSheetThickness,
+                "PanelTopGap=" + settings.PanelTopGap,
+                "PanelBottomGap=" + settings.PanelBottomGap,
+                "PanelFrameConstructionIndex=" + settings.PanelFrameConstructionIndex
+            });
         }
 
         private static double GetBottomRailBottomZ(HandrailSettings settings)
@@ -1069,15 +1189,6 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             return box.ToBrep();
         }
 
-        private static void AddBrepsToChildLayerIfAny(RhinoDoc doc, List<Brep> breps, string layerName, int parentLayerIndex, System.Drawing.Color layerColor)
-        {
-            if (breps.Count == 0)
-                return;
-
-            var layerIndex = EnsureLayer(doc, layerName, parentLayerIndex, layerColor);
-            AddBrepsToLayer(doc, breps, layerIndex);
-        }
-
         private static int EnsureLayer(RhinoDoc doc, string name, int parentLayerIndex, System.Drawing.Color? layerColor = null)
         {
             var parentId = Guid.Empty;
@@ -1111,24 +1222,8 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             return doc.Layers.Add(newLayer);
         }
 
-        private static void AddBrepsToLayer(RhinoDoc doc, List<Brep> breps, int layerIndex)
+        private static void ApplyTwoMeterBoxMapping(RhinoObject obj)
         {
-            foreach (var brep in breps)
-            {
-                var attributes = new ObjectAttributes
-                {
-                    LayerIndex = layerIndex
-                };
-
-                var id = doc.Objects.AddBrep(brep, attributes);
-                ApplyTwoMeterBoxMapping(doc, id);
-            }
-        }
-
-        private static void ApplyTwoMeterBoxMapping(RhinoDoc doc, Guid objectId)
-        {
-            var obj = doc.Objects.FindId(objectId);
-
             if (obj == null)
                 return;
 
@@ -1145,5 +1240,6 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
 
             obj.SetTextureMapping(1, mapping, Transform.Identity);
         }
+
     }
 }
