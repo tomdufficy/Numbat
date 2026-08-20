@@ -225,7 +225,7 @@ namespace Numbat.Commands.Analysis.NumbatProgramBlocks
             if (options.TextMode == ProgramTextMode.TextDot)
             {
                 var dot = new TextDot(
-                    row.Name + Environment.NewLine + areaValue + " m2",
+                    row.Name + System.Environment.NewLine + areaValue + " m2",
                     new Point3d(centreX, centreY, 0.0));
 
                 geometries.Add(dot);
@@ -443,7 +443,7 @@ namespace Numbat.Commands.Analysis.NumbatProgramBlocks
             string name = baseName;
             int suffix = 2;
 
-            while (doc.InstanceDefinitions.Find(name, true) != null)
+            while (doc.InstanceDefinitions.Find(name) != null)
             {
                 name = baseName + "_" + suffix;
                 suffix++;
