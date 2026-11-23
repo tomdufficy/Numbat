@@ -1,0 +1,85 @@
+# Publishes a release when a version tag (v1.2.3 or v1.2.3-beta.4) is pushed.
+#   1. Builds and packages, with the version taken from Numbat.csproj
+#   2. Checks that the tag matches that version and that the tagged commit is on main
+#   3. Checks that CHANGELOG.md has a section for the version
+#   4. Pushes the package to Yak, then creates the GitHub Release (notes from CHANGELOG, .yak attached)
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  YAK_URL: https://files.mcneel.com/yak/tools/0.19.1/win-x64/yak.exe
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Download Yak CLI
+        shell: pwsh
+        run: |
+          $yak = Join-Path $env:RUNNER_TEMP 'yak.exe'
+          Invoke-WebRequest -Uri $env:YAK_URL -OutFile $yak
+          "YAK_EXE=$yak" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Build and package
+        id: package
+        shell: pwsh
+        run: ./scripts/Build-YakPackage.ps1
+
+      - name: Verify tag, branch and changelog
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.package.outputs.version }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ($env:TAG -ne "v$env:VERSION") {
+            throw "Tag $env:TAG does not match <Version> $env:VERSION in Numbat.csproj"
+          }
+          git merge-base --is-ancestor $env:GITHUB_SHA origin/main
+          if ($LASTEXITCODE -ne 0) { throw "Tagged commit is not on main" }
+
+          $lines = Get-Content CHANGELOG.md
+          $start = ($lines | Select-String -Pattern "^## \[$([regex]::Escape($env:VERSION))\]").LineNumber
+          if (-not $start) { throw "CHANGELOG.md has no '## [$env:VERSION]' section" }
+          $notes = $lines[$start..($lines.Count - 1)] | ForEach-Object -Begin { $stop = $false } -Process {
+            if ($_ -match '^## |^\[[^\]]+\]: ') { $stop = $true }
+            if (-not $stop) { $_ }
+          }
+          ($notes -join "`n").Trim() | Out-File release-notes.md -Encoding utf8
+          Get-Content release-notes.md
+
+      - name: Push to Yak
+        shell: pwsh
+        env:
+          YAK_TOKEN: ${{ secrets.YAK_TOKEN }}
+        run: |
+          & $env:YAK_EXE push "${{ steps.package.outputs.yak_path }}"
+          if ($LASTEXITCODE -ne 0) { throw 'yak push failed' }
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          $ghArgs = @('release', 'create', $env:GITHUB_REF_NAME, "${{ steps.package.outputs.yak_path }}",
+                    '--title', "Numbat $env:VERSION", '--notes-file', 'release-notes.md', '--verify-tag')
+          if ($env:VERSION -like '*-*') { $ghArgs += '--prerelease' }
+          gh @ghArgs

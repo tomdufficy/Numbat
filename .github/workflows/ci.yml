@@ -1,0 +1,47 @@
+# Builds the plug-in and the Yak package on every push to main and every pull request.
+# The .yak is uploaded as a workflow artifact so it can be installed and tested before release.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  YAK_URL: https://files.mcneel.com/yak/tools/0.19.1/win-x64/yak.exe
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Download Yak CLI
+        shell: pwsh
+        run: |
+          $yak = Join-Path $env:RUNNER_TEMP 'yak.exe'
+          Invoke-WebRequest -Uri $env:YAK_URL -OutFile $yak
+          "YAK_EXE=$yak" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Build and package
+        id: package
+        shell: pwsh
+        run: ./scripts/Build-YakPackage.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: numbat-${{ steps.package.outputs.version }}-yak
+          path: ${{ steps.package.outputs.yak_path }}
+          if-no-files-found: error

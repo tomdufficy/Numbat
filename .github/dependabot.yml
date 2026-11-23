@@ -1,0 +1,11 @@
+# Keeps GitHub Actions versions current. NuGet is deliberately excluded: the RhinoCommon
+# reference sets the minimum supported Rhino version and must only be raised on purpose.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ['*']
