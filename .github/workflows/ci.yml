@@ -15,9 +15,6 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  YAK_URL: https://files.mcneel.com/yak/tools/0.19.1/win-x64/yak.exe
-
 jobs:
   build:
     runs-on: windows-latest
@@ -28,12 +25,7 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Download Yak CLI
-        shell: pwsh
-        run: |
-          $yak = Join-Path $env:RUNNER_TEMP 'yak.exe'
-          Invoke-WebRequest -Uri $env:YAK_URL -OutFile $yak
-          "YAK_EXE=$yak" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+      - uses: ./.github/actions/setup-yak
 
       - name: Build and package
         id: package

@@ -21,13 +21,19 @@
 .PARAMETER OutDir
     Output folder for the .yak file. The default is ./dist.
 
+.PARAMETER Platform
+    The Yak platform tag. The default is 'win', because Numbat is officially Windows-only.
+    The package is then named numbat-<version>-rh8_21-win.yak and is not offered on Mac.
+
 .OUTPUTS
     The full path of the built .yak file.
 #>
 [CmdletBinding()]
 param(
     [string]$Yak,
-    [string]$OutDir = (Join-Path $PSScriptRoot '..' 'dist')
+    [string]$OutDir = (Join-Path $PSScriptRoot '..' 'dist'),
+    [ValidateSet('win', 'mac', 'any')]
+    [string]$Platform = 'win'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -81,7 +87,7 @@ foreach ($fw in $frameworks) {
 Push-Location $stage
 try {
     Get-ChildItem *.yak -ErrorAction SilentlyContinue | Remove-Item
-    & $Yak build --platform any --version $version
+    & $Yak build --platform $Platform --version $version
     if ($LASTEXITCODE -ne 0) { throw 'yak build failed' }
     $built = Get-ChildItem *.yak | Select-Object -First 1
     if (-not $built) { throw 'yak build produced no .yak file' }

@@ -1,6 +1,6 @@
 ---
 name: release
-description: Cut a new Numbat release. Picks the version, updates CHANGELOG.md and Numbat.csproj, commits, then tags and pushes so CI publishes to Yak and GitHub Releases. Use when the maintainer asks to release, publish or ship a version.
+description: Cut a new Numbat release. Picks the version, updates CHANGELOG.md and Numbat.csproj, and tags it. CI then publishes to the test Yak server, waits for the maintainer to test and approve, and publishes to Yak and GitHub Releases. Use when the maintainer asks to release, publish or ship a version.
 disable-model-invocation: true
 argument-hint: "[version, e.g. 0.4.0-beta.1 (optional)]"
 ---
@@ -51,11 +51,35 @@ git tag -a v<version> -m "Numbat v<version>"
 git push origin v<version>
 ```
 
-The Release workflow checks the tag against the csproj version, checks that the commit is on main and that the changelog section exists, then pushes to Yak and creates the GitHub Release.
+The Release workflow runs three jobs:
+1. **build** checks the tag against the csproj version, checks that the commit is on main and that the changelog section exists, then builds and packages.
+2. **test-publish** pushes to the test Yak server (https://test.yak.rhino3d.com, wiped nightly). The run summary has the testing instructions.
+3. **publish** waits for the maintainer to approve the `yak` environment on GitHub, then pushes to the real Yak server and creates the GitHub Release.
 
-## 5. Confirm
+## 5. Hand over for testing and approval
 
-- Check the result with `gh run watch` (or `gh run list --workflow Release -L 1`).
+Once test-publish has succeeded, give the maintainer:
+- the run link
+- the steps to test from the test server:
+  1. In Rhino, open `Options`, then Package Manager, and add the source `https://test.yak.rhino3d.com`.
+  2. Install the version with "Include pre-releases" ticked.
+  3. Restart Rhino and try the commands.
+  4. Remove the test source again.
+- how to approve or reject: on the run page, click "Review deployments", tick `yak`, then choose Approve and deploy, or Reject.
+
+Never approve on the maintainer's behalf.
+
+**If rejected:** nothing reached the real Yak server, so the version number is not used up. Fix the problem through a normal PR. Then, with the maintainer's go-ahead, move the tag to the fixed commit and push it again. This starts a new run:
+```powershell
+git tag -d v<version>
+git push origin :refs/tags/v<version>
+git tag -a v<version> -m "Numbat v<version>"
+git push origin v<version>
+```
+
+## 6. Confirm
+
+- The run finished green: `gh run list --workflow Release -L 1`.
 - `yak search --all --prerelease Numbat` lists the new version.
-- `gh release view v<version>` shows it.
+- `gh release view v<version>` shows the release.
 - Report back with the links.
