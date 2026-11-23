@@ -30,7 +30,7 @@ In By layer mode you can work either way, and both count the same:
 - Click a use in the window to move the selected volumes onto its layer.
 - Or move volumes onto a use layer yourself, for example with the Layers panel or ChangeLayer.
 - Layers nested under a use layer count as that use too (for example nbGFA::Residential::Block A).
-- A new sublayer you make under GFA becomes a new use. Renaming or recolouring a use layer renames or recolours the use.
+- A new sublayer you make under nbGFA becomes a new use. Renaming or recolouring a use layer renames or recolours the use.
 - When nbGFA moves a volume onto a use layer, it remembers the layer the volume came from. Excluding the volume puts it back there, out of the total. If that layer has since been deleted, the volume goes onto the nbGFA layer itself, which is not counted.
 - Switching back to By object puts volumes back on the layers they came from and stores their use on each volume. Volumes you moved onto a use layer yourself stay where they are.
 
