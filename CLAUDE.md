@@ -9,7 +9,7 @@ src/Numbat/Numbat.slnx               solution
 src/Numbat/Numbat/Numbat.csproj      single project: net48 + net8.0 -> Numbat.rhp. <Version> lives here.
 src/Numbat/Numbat/manifest.yml       Yak manifest (version injected at build time)
 src/Numbat/Numbat/Commands/
-  Analysis/                          nbGFA, nbProgramBlocks
+  Analysis/                          nbGFA
   Modelling/                         nbHandrail, nbPV, nbStair*, nbPavementPlacer, nbRandomColour,
                                      nbTextureShuffle, nbTemplate
 scripts/Build-YakPackage.ps1         build + package into dist/*.yak (used by CI and locally)

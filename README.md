@@ -23,12 +23,6 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each release.
 
 Calculates gross floor area from selected closed polysurfaces. The command identifies the lowest face of each selected solid, validates that the face is horizontal and planar, rejects contained volumes, and reports the combined area in square metres.
 
-### nbProgramBlocks
-
-Creates area-scaled program blocks from tab-separated data copied from Excel. The first three columns are interpreted as program name, area in m2, and category; later columns are ignored. Each program becomes a block containing a plan rectangle and either text objects or a text dot, with an optional 3.5 m-high volume. Categories are placed on child layers below `nbPROGRAM` and assigned sequential pastel colours. Category rows are arranged downward in negative Y, with programs running left to right.
-
-Program areas are always interpreted as square metres and are converted to the active Rhino model units. Pressing Enter at the placement prompt uses 0,0,0. Multi-line Excel cells are not supported. Category names that resolve to the same valid Rhino layer name are treated as the same category. Repeated program names create separate block definitions with numeric suffixes, for example `Program_Kitchen_2`.
-
 ## Modelling commands
 
 ### nbRandomColour

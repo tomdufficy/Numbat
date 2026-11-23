@@ -6,7 +6,7 @@ authors:
 - Tom Dufficy
 description: >
   Architectural modelling and analysis tools for Rhino 8: stairs, handrails,
-  PV arrays, paving, program blocks, gross floor area and layer utilities.
+  PV arrays, paving, gross floor area and layer utilities.
 url: https://github.com/tomdufficy/Numbat
 icon: numbat-icon-512.png
 keywords:
@@ -18,5 +18,4 @@ keywords:
 - solar
 - paving
 - gfa
-- program
 - layers
