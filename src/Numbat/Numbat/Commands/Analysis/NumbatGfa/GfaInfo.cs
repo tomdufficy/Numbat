@@ -11,7 +11,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
 
         public const string Copyright = "© 2026 Tom Dufficy";
 
-        /// <summary>Top-level layer used in By layer mode (GFA::Residential, GFA::Unassigned, ...).</summary>
+        /// <summary>Top-level layer used in By layer mode (GFA::Residential, GFA::Excluded, ...).</summary>
         public const string RootLayer = "GFA";
 
         /// <summary>Object user-string key that holds a volume's use (e.g. "Residential").</summary>

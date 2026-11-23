@@ -278,14 +278,21 @@ namespace Numbat.UI
 
         // ---- containers -------------------------------------------------------------------------
 
-        /// <summary>Header band of a panel or window: mark, title, version, then room for icon buttons on the right.</summary>
+        /// <summary>
+        /// Header band of a panel or window: optional mark, title, version, then room for icon buttons on the right.
+        /// Pass null <paramref name="letters"/> for no mark. Numbat windows use no mark until commands get their own icons.
+        /// </summary>
         public static void Header(Graphics g, float width, string letters, string title, string version = null)
         {
             KitPalette c = C;
             g.FillRectangle(c.Surface, 0, 0, width, Kit.HeaderH);
             HLine(g, 0, width, Kit.HeaderH - 1, c.Border);
-            LogoTile(g, new RectangleF(Kit.Pad, (Kit.HeaderH - 22) / 2, 22, 22), letters);
-            float x = Kit.Pad + 22 + 8;
+            float x = Kit.Pad;
+            if (!string.IsNullOrEmpty(letters))
+            {
+                LogoTile(g, new RectangleF(Kit.Pad, (Kit.HeaderH - 22) / 2, 22, 22), letters);
+                x += 22 + 8;
+            }
             TextMiddle(g, KitFonts.Title, c.Text, x, 0, Kit.HeaderH - 1, title);
             if (!string.IsNullOrEmpty(version))
             {

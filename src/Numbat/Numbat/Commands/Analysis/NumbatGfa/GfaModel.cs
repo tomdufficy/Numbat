@@ -39,9 +39,9 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         public double Selected { get; internal set; }
         public int SelectedCount { get; internal set; }
 
-        /// <summary>By layer mode: volumes on the GFA::Unassigned layer (not part of the total).</summary>
-        public double UnassignedArea { get; internal set; }
-        public int UnassignedCount { get; internal set; }
+        /// <summary>By layer mode: volumes on the GFA::Excluded layer (not part of the total).</summary>
+        public double ExcludedArea { get; internal set; }
+        public int ExcludedCount { get; internal set; }
 
         public Dictionary<string, double> AreaByUse { get; } = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, int> CountByUse { get; } = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -163,7 +163,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         {
             public TrackingMode Mode;
             public Dictionary<int, UseCategory> LayerMap;
-            public int UnassignedLayer = -1;
+            public int ExcludedLayer = -1;
             public Func<string, UseCategory> FindOrAdd;
 
             public UseCategory UseOf(RhinoObject obj)
@@ -185,7 +185,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             {
                 Layer root = LayerSync.FindRoot(doc);
                 r.LayerMap = LayerSync.BuildMap(doc, root, _categories);
-                r.UnassignedLayer = LayerSync.FindUnassigned(doc);
+                r.ExcludedLayer = LayerSync.FindExcluded(doc);
             }
             return r;
         }
@@ -238,12 +238,12 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             return n;
         }
 
-        /// <summary>Removes the use. By object: back to layer colour. By layer: moved to GFA::Unassigned.</summary>
-        public int Unassign(RhinoDoc doc, IEnumerable<RhinoObject> objects)
+        /// <summary>Excludes volumes from the total. By object: back to layer colour. By layer: moved to GFA::Excluded.</summary>
+        public int Exclude(RhinoDoc doc, IEnumerable<RhinoObject> objects)
         {
             LoadDocumentSettings(doc);
-            int layer = Mode == TrackingMode.ByLayer ? LayerSync.EnsureUnassigned(doc) : -1;
-            return ModifyEach(doc, objects.Where(Volumes.IsCandidate), $"{GfaInfo.Name}: unassign", (o, attr) =>
+            int layer = Mode == TrackingMode.ByLayer ? LayerSync.EnsureExcluded(doc) : -1;
+            return ModifyEach(doc, objects.Where(Volumes.IsCandidate), $"{GfaInfo.Name}: exclude", (o, attr) =>
             {
                 attr.DeleteUserString(GfaInfo.UseKey);
                 if (layer >= 0) attr.LayerIndex = layer;
@@ -271,7 +271,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             {
                 if (mode == TrackingMode.ByLayer)
                 {
-                    LayerSync.EnsureUnassigned(doc);
+                    LayerSync.EnsureExcluded(doc);
                     foreach (UseCategory use in _categories)
                     {
                         int index = LayerSync.EnsureUseLayer(doc, use);
@@ -329,8 +329,8 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             name = UseCategory.Clean(name);
             if (name.Length == 0) return "Enter a name.";
             if (!ModelComponent.IsValidComponentName(name)) return "That name can't be used as a layer name.";
-            if (string.Equals(name, LayerSync.UnassignedName, StringComparison.OrdinalIgnoreCase))
-                return $"\"{LayerSync.UnassignedName}\" is reserved.";
+            if (string.Equals(name, LayerSync.ExcludedName, StringComparison.OrdinalIgnoreCase))
+                return $"\"{LayerSync.ExcludedName}\" is reserved.";
             UseCategory clash = Find(name);
             if (clash != null && clash != except) return $"\"{clash.Name}\" already exists.";
             return null;
@@ -347,10 +347,25 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             return use;
         }
 
-        /// <summary>Removes a use. Its volumes are unassigned first. Returns how many.</summary>
+        /// <summary>
+        /// The use that removed uses hand their volumes to, so they stay in the total, or null when there is none
+        /// (or it is the use being removed).
+        /// </summary>
+        public UseCategory FallbackFor(UseCategory removing)
+        {
+            UseCategory fallback = Find(UseCategory.UnassignedName);
+            return fallback == removing ? null : fallback;
+        }
+
+        /// <summary>
+        /// Removes a use. Its volumes move to the Unassigned use if there is one (so they stay in the total),
+        /// otherwise they are excluded. Returns how many volumes changed.
+        /// </summary>
         public int RemoveCategory(RhinoDoc doc, UseCategory use)
         {
-            int n = Unassign(doc, ObjectsWithUse(doc, use));
+            List<RhinoObject> volumes = ObjectsWithUse(doc, use);
+            UseCategory fallback = FallbackFor(use);
+            int n = fallback != null ? Assign(doc, volumes, fallback) : Exclude(doc, volumes);
             _categories.Remove(use);
             if (Mode == TrackingMode.ByLayer)
             {
@@ -584,8 +599,8 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             {
                 UseCategory use = r.UseOf(obj);
                 bool selected = obj.IsSelected(false) > 0;
-                bool onUnassigned = r.UnassignedLayer >= 0 && obj.Attributes.LayerIndex == r.UnassignedLayer;
-                if (use == null && !selected && !onUnassigned) continue;
+                bool onExcluded = r.ExcludedLayer >= 0 && obj.Attributes.LayerIndex == r.ExcludedLayer;
+                if (use == null && !selected && !onExcluded) continue;
                 if (use == null && !Volumes.IsCandidate(obj)) continue; // ignore stray curves etc.
 
                 seen.Add(obj.Id);
@@ -600,10 +615,10 @@ namespace Numbat.Commands.Analysis.NumbatGfa
 
                 if (use == null)
                 {
-                    if (onUnassigned && info.Counted)
+                    if (onExcluded && info.Counted)
                     {
-                        tally.UnassignedArea += area;
-                        tally.UnassignedCount++;
+                        tally.ExcludedArea += area;
+                        tally.ExcludedCount++;
                     }
                     continue;
                 }
@@ -659,7 +674,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                 // The whole GFA layer was deleted: rebuild it (empty) so assigning keeps working.
                 foreach (UseCategory use in _categories) use.LayerId = Guid.Empty;
                 foreach (UseCategory use in _categories) LayerSync.EnsureUseLayer(doc, use);
-                LayerSync.EnsureUnassigned(doc);
+                LayerSync.EnsureExcluded(doc);
                 WriteCategories(doc);
                 return;
             }

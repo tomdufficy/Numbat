@@ -69,13 +69,13 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             {
                 byIndex[gu.AddOption(OptionName(use.Name))] = use;
             }
-            int unassign = gu.AddOption("Unassign");
+            int exclude = gu.AddOption("Exclude");
 
             if (gu.Get() != GetResult.Option) return Result.Cancel;
             int picked = gu.Option().Index;
 
-            int n = picked == unassign
-                ? model.Unassign(doc, objects)
+            int n = picked == exclude
+                ? model.Exclude(doc, objects)
                 : model.Assign(doc, objects, byIndex[picked]);
             RhinoApp.WriteLine($"{GfaInfo.Name}: {n} volume(s) updated.");
             return Result.Success;

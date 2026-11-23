@@ -23,7 +23,7 @@ nbGFA tracks the gross floor area (GFA) of your massing as you design. You give 
 Click ⋯ and pick one. Each document remembers its choice. You can switch at any time and your assignments carry across.
 
 - By object (default): the use is stored on each volume and shown by its colour. Your own layers are left alone.
-- By layer: nbGFA makes a "GFA" layer with one sublayer per use (GFA::Residential, GFA::Office, ...) plus GFA::Unassigned. The layer a volume sits on is its use.
+- By layer: nbGFA makes a "GFA" layer with one sublayer per use (GFA::Residential, GFA::Office, GFA::Unassigned, ...) plus GFA::Excluded. The layer a volume sits on is its use.
 
 In By layer mode you can work either way, and both count the same:
 
@@ -31,7 +31,7 @@ In By layer mode you can work either way, and both count the same:
 - Or move volumes onto a use layer yourself, for example with the Layers panel or ChangeLayer.
 - Layers nested under a use layer count as that use too (for example GFA::Residential::Block A).
 - A new sublayer you make under GFA becomes a new use. Renaming or recolouring a use layer renames or recolours the use.
-- Unassigning moves volumes to GFA::Unassigned. Its total is shown in the window but not included in TOTAL GFA.
+- Excluding moves volumes to GFA::Excluded. Its total is shown in the window but not included in TOTAL GFA.
 - Switching back to By object leaves volumes on the GFA layers and stores their use on each volume.
 
 ## 4. Assign uses
@@ -41,10 +41,11 @@ In By layer mode you can work either way, and both count the same:
 - Assigning a volume that already has a use moves it to the new use.
 - You can also use the nbGFAAssign command: select volumes, then pick a use on the command line.
 - Assignments are saved in the .3dm file and kept when you copy, move or mirror.
+- Not sure of the use yet? Assign the volume to Unassigned. It counts toward TOTAL GFA like any other use, so you always see the full area, and you can move it to its real use later. Unassigned is an ordinary use: you can rename, recolour, limit or remove it.
 
 ## 5. Read the numbers
 
-- TOTAL GFA is the sum of all volumes that have a use. Unassigned boxes are not counted.
+- TOTAL GFA is the sum of all volumes that have a use, including Unassigned. Boxes you have never given a use, and excluded boxes, are not counted.
 - The Total GFA box also shows the tracking mode: by object or by layer.
 - The Selected box shows the GFA of whatever volumes you have selected right now, assigned or not.
 - Each use card shows its colour, GFA, share of the total, and how many volumes it has. The bar along the bottom of the card fills up with its share.
@@ -69,15 +70,15 @@ In By layer mode you can work either way, and both count the same:
 
 - Click Add use, or right-click a use and choose Add use, to add a new use with a name and colour.
 - Right-click a use, then choose Rename / colour to change it. Its volumes (and its layer) follow automatically.
-- Right-click a use, then choose Remove to delete it. Its volumes are unassigned first.
+- Right-click a use, then choose Remove to delete it. Its volumes move to Unassigned, so they stay in the total. If you have removed Unassigned too, they are excluded instead.
 - Each document keeps its own list of uses.
 
 ## 8. Right-click options on a use
 
 - Assign selected: same as clicking the card.
-- Unassign selected: removes the use from the selected volumes.
+- Exclude selected from GFA: takes the selected volumes out of the total and removes their use.
 - Select all: selects every volume with that use.
-- Unassign all: removes that use from all of its volumes.
+- Exclude all from GFA: takes all of that use's volumes out of the total.
 
 ## 9. Fix problem volumes
 
@@ -107,5 +108,5 @@ Use Select in the check window to select the problem volumes in Rhino.
 
 ## Tips
 
-- Undo works for assigning, unassigning, flattening and switching modes.
+- Undo works for assigning, excluding, flattening and switching modes.
 - Hidden and locked volumes still count towards GFA.

@@ -12,13 +12,12 @@ using SdColor = System.Drawing.Color;
 namespace Numbat.Commands.Analysis.NumbatGfa
 {
     /// <summary>
-    /// The content of the nbGFA window, drawn with the Rhino UI kit: header with mark and icon buttons, summary
+    /// The content of the nbGFA window, drawn with the Rhino UI kit: header with title and icon buttons, summary
     /// tiles, status callouts, then the uses as bars or a pie chart, and a footer. Clicking a use assigns the
     /// selected volumes; right-click (or Shift+F10) opens its options. Everything is keyboard reachable.
     /// </summary>
     internal sealed class GfaView : KitCanvas
     {
-        private const string Mark = "Su";
         private const float RowH = 58;
         private const float RowGap = 6;
 
@@ -55,7 +54,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         private static float FooterH =>
             Kit.Pad + 3 * KitPaint.LineHeight(KitFonts.Caption) + 2 * 4 + Kit.Pad;
 
-        /// <summary>Extra status lines: units warning, volume issues, unassigned layer.</summary>
+        /// <summary>Extra status lines: units warning, volume issues, excluded layer.</summary>
         private List<(CalloutKind kind, string text, string link, Action click)> Callouts(Tally t)
         {
             var lines = new List<(CalloutKind, string, string, Action)>();
@@ -66,10 +65,10 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                 lines.Add((CalloutKind.Warning, $"{t.Issues.Count} volume issue(s){notCounted}.", "Review",
                     () => IssuesDialog.Show(ParentWindow, _model, RhinoDoc.ActiveDoc)));
             }
-            if (t.Mode == TrackingMode.ByLayer && t.UnassignedCount > 0)
+            if (t.Mode == TrackingMode.ByLayer && t.ExcludedCount > 0)
             {
                 lines.Add((CalloutKind.Info,
-                    $"Unassigned layer: {Format(t.UnassignedArea)} {t.Unit} in {t.UnassignedCount} volume(s), not in the total.",
+                    $"Excluded layer: {Format(t.ExcludedArea)} {t.Unit} in {t.ExcludedCount} volume(s), not in the total.",
                     null, null));
             }
             return lines;
@@ -156,7 +155,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
 
         private void DrawHeader(Graphics g, float w)
         {
-            KitPaint.Header(g, w, Mark, GfaInfo.Name);
+            KitPaint.Header(g, w, null, GfaInfo.Name);
 
             RectangleF more = KitPaint.HeaderButton(w, 0);
             RectangleF help = KitPaint.HeaderButton(w, 1);
@@ -522,10 +521,10 @@ namespace Numbat.Commands.Analysis.NumbatGfa
 
             menu.Items.Add(Item($"Assign {selected.Count} selected to {use.Name}", selected.Count > 0,
                 () => Assign(doc, use, selected)));
-            menu.Items.Add(Item($"Unassign {selectedAssigned.Count} selected", selectedAssigned.Count > 0, () =>
+            menu.Items.Add(Item($"Exclude {selectedAssigned.Count} selected from GFA", selectedAssigned.Count > 0, () =>
             {
-                int n = _model.Unassign(doc, selectedAssigned);
-                RhinoApp.WriteLine($"{GfaInfo.Name}: {n} volume(s) unassigned.");
+                int n = _model.Exclude(doc, selectedAssigned);
+                RhinoApp.WriteLine($"{GfaInfo.Name}: {n} volume(s) excluded from GFA.");
             }));
             menu.Items.Add(Item($"Select all {use.Name} ({ofThisUse.Count})", ofThisUse.Count > 0, () =>
             {
@@ -533,10 +532,10 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                 foreach (RhinoObject o in ofThisUse) o.Select(true);
                 doc.Views.Redraw();
             }));
-            menu.Items.Add(Item($"Unassign all {use.Name} ({ofThisUse.Count})", ofThisUse.Count > 0, () =>
+            menu.Items.Add(Item($"Exclude all {use.Name} ({ofThisUse.Count}) from GFA", ofThisUse.Count > 0, () =>
             {
-                int n = _model.Unassign(doc, ofThisUse);
-                RhinoApp.WriteLine($"{GfaInfo.Name}: {n} volume(s) unassigned from {use.Name}.");
+                int n = _model.Exclude(doc, ofThisUse);
+                RhinoApp.WriteLine($"{GfaInfo.Name}: {n} {use.Name} volume(s) excluded from GFA.");
             }));
 
             menu.Items.Add(new SeparatorMenuItem());
@@ -639,14 +638,19 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         private void RemoveUse(RhinoDoc doc, UseCategory use)
         {
             int count = _model.ObjectsWithUse(doc, use).Count();
+            UseCategory fallback = _model.FallbackFor(use);
             string message = count == 0
                 ? $"Remove the use \"{use.Name}\"?"
-                : $"Remove the use \"{use.Name}\"?\n\n{count} volume(s) will be unassigned and go back to their layer colour.";
+                : fallback != null
+                    ? $"Remove the use \"{use.Name}\"?\n\n{count} volume(s) will move to \"{fallback.Name}\" and stay in the total."
+                    : $"Remove the use \"{use.Name}\"?\n\n{count} volume(s) will be excluded from the total and go back to their layer colour.";
             if (MessageBox.Show(this, message, GfaInfo.Name, MessageBoxButtons.YesNo, MessageBoxType.Question)
                 != DialogResult.Yes) return;
 
             int n = _model.RemoveCategory(doc, use);
-            RhinoApp.WriteLine($"{GfaInfo.Name}: removed {use.Name}; {n} volume(s) unassigned.");
+            RhinoApp.WriteLine(fallback != null
+                ? $"{GfaInfo.Name}: removed {use.Name}; {n} volume(s) moved to {fallback.Name}."
+                : $"{GfaInfo.Name}: removed {use.Name}; {n} volume(s) excluded from GFA.");
         }
 
         private static ButtonMenuItem Item(string text, bool enabled, Action action)

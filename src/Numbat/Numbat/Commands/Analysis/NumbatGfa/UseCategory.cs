@@ -29,7 +29,13 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         /// <summary>The use's sublayer under the GFA layer (By layer mode). Empty until one is made.</summary>
         public Guid LayerId { get; set; }
 
-        /// <summary>Pastel defaults, dark enough to carry white text.</summary>
+        /// <summary>
+        /// Name of the default use for volumes that count toward the total but have no use decided yet.
+        /// It is an ordinary use: it can be renamed, recoloured, limited or removed.
+        /// </summary>
+        public const string UnassignedName = "Unassigned";
+
+        /// <summary>Pastel defaults, dark enough to carry white text. Unassigned is a neutral grey.</summary>
         public static List<UseCategory> Defaults() => new List<UseCategory>
         {
             new UseCategory("Residential", Color.FromArgb(226, 145, 178)),
@@ -38,6 +44,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             new UseCategory("Hotel",       Color.FromArgb(132, 190, 158)),
             new UseCategory("Amenity",     Color.FromArgb(166, 150, 214)),
             new UseCategory("Parking",     Color.FromArgb(140, 160, 180)),
+            new UseCategory(UnassignedName, Color.FromArgb(150, 150, 158)),
         };
 
         /// <summary>A soft colour for uses found in a document but not in its category list.</summary>

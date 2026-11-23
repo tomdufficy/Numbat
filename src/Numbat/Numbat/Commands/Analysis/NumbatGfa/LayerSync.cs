@@ -11,13 +11,13 @@ namespace Numbat.Commands.Analysis.NumbatGfa
     /// The layer tree used in By layer mode:
     ///   GFA
     ///     Residential, Office, ...   (one sublayer per use; nested layers below them count too)
-    ///     Unassigned
+    ///     Excluded      (volumes left out of the total)
     /// </summary>
     internal static class LayerSync
     {
-        public const string UnassignedName = "Unassigned";
+        public const string ExcludedName = "Excluded";
         private static readonly Color RootColor = Color.FromArgb(120, 120, 130);
-        private static readonly Color UnassignedColor = Color.FromArgb(190, 190, 195);
+        private static readonly Color ExcludedColor = Color.FromArgb(190, 190, 195);
 
         public static Layer FindRoot(RhinoDoc doc)
         {
@@ -35,17 +35,17 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             return doc.Layers[index];
         }
 
-        public static int EnsureUnassigned(RhinoDoc doc)
+        public static int EnsureExcluded(RhinoDoc doc)
         {
             Layer root = EnsureRoot(doc);
-            int index = doc.Layers.FindByFullPath($"{GfaInfo.RootLayer}::{UnassignedName}", -1);
+            int index = doc.Layers.FindByFullPath($"{GfaInfo.RootLayer}::{ExcludedName}", -1);
             if (index >= 0 && !doc.Layers[index].IsDeleted) return index;
-            return Checked(doc.Layers.Add(new Layer { Name = UnassignedName, Color = UnassignedColor, ParentLayerId = root.Id }), UnassignedName);
+            return Checked(doc.Layers.Add(new Layer { Name = ExcludedName, Color = ExcludedColor, ParentLayerId = root.Id }), ExcludedName);
         }
 
-        public static int FindUnassigned(RhinoDoc doc)
+        public static int FindExcluded(RhinoDoc doc)
         {
-            int index = doc.Layers.FindByFullPath($"{GfaInfo.RootLayer}::{UnassignedName}", -1);
+            int index = doc.Layers.FindByFullPath($"{GfaInfo.RootLayer}::{ExcludedName}", -1);
             return index >= 0 && !doc.Layers[index].IsDeleted ? index : -1;
         }
 
@@ -80,11 +80,11 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             return layer == null || layer.IsDeleted ? null : layer;
         }
 
-        /// <summary>Direct sublayers of the GFA layer, except Unassigned.</summary>
+        /// <summary>Direct sublayers of the GFA layer, except Excluded.</summary>
         public static List<Layer> UseLayers(RhinoDoc doc, Layer root) =>
             doc.Layers
                 .Where(l => !l.IsDeleted && l.ParentLayerId == root.Id &&
-                            !string.Equals(l.Name, UnassignedName, StringComparison.OrdinalIgnoreCase))
+                            !string.Equals(l.Name, ExcludedName, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(l => l.SortIndex)
                 .ToList();
 
