@@ -4,13 +4,19 @@ This file records notable changes to Numbat. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
+### Added
+- nbGFAAssign, nbGFACheck and nbGFAHelp: assign uses from the command line, check volumes for problems, and open the nbGFA how-to guide.
+
 ### Changed
+- nbGFA has been rewritten as a live GFA tracker. Instead of selecting solids and getting one total, it now opens a floating window that updates as you model. Give each storey volume a use, see each use's GFA and share of the total, and set minimum and maximum shares that are flagged when broken. Uses can be tracked per object or by `GFA::<use>` sublayers, and are saved in the document. See the how-to guide (`nbGFAHelp`).
 - nbTemplate: pressing Enter at the placement prompt now uses the origin (0,0,0).
 - Numbat now requires Rhino 8.21 or later. It targets .NET 8 (Rhino's default runtime since 8.20) and .NET Framework 4.8, as McNeel recommends.
 - Package Manager listing: improved description and search keywords.
 - Numbat is now officially Windows-only. Package Manager no longer offers new versions on Mac.
 
 ### Fixed
+- nbGFA: a floor split into several flat faces is now counted in full. Previously only one of the faces was counted.
+- nbGFA: open polysurfaces and volumes without a flat bottom are now flagged in the window instead of being skipped silently.
 - The package now includes the .NET Framework build, so Numbat also loads when Rhino 8 is started with `/netfx`. Previously only the .NET Core build was shipped.
 
 ## [0.3.0-beta.2] - 2026-08-20

@@ -23,4 +23,9 @@
     <PackageReference Include="RhinoCommon" Version="8.21.25188.17001" ExcludeAssets="runtime" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The nbGFA how-to lives in docs/ (readable on GitHub) and is shown in Rhino by nbGFAHelp and the window's ? button. -->
+    <EmbeddedResource Include="..\..\..\docs\nbGFA.md" LogicalName="Numbat.Docs.nbGFA.md" />
+  </ItemGroup>
+
 </Project>
