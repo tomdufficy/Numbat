@@ -116,9 +116,14 @@ namespace Numbat.UI
             TextColor = C.Text2,
         };
 
-        /// <summary>Validation message under a field (error colour, 11 px). Empty until set.</summary>
+        /// <summary>
+        /// Validation message under a field (error colour, 11 px). Starts as a blank line so the dialog already has
+        /// room for it: a dialog doesn't grow when the text is set later, so an empty label would stay invisible.
+        /// Set it back to " " (not "") to clear it.
+        /// </summary>
         public static Label Error() => new Label
         {
+            Text = " ",
             Font = KitFonts.Scaled(11, Weight.Regular),
             TextColor = C.Err,
         };

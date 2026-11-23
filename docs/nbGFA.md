@@ -109,6 +109,7 @@ nbGFA is the only one that shows up as you type. The others are helpers for macr
 - nbGFA: opens the window, or brings it to the front.
 - nbGFAAssign: assigns a use from the command line.
 - nbGFACheck: checks assigned volumes for problems.
+- nbGFADemo: adds three example blocks of 2, 4 and 6 storeys on an "nbGFA demo" layer, so you can try nbGFA straight away. Running it again replaces them.
 - nbGFAHelp: shows this guide. You can also open it with the ? button in the window, or press F1 there.
 
 ## 10. Look, size and keyboard

@@ -19,6 +19,8 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             Label error = KitForm.Error();
             var (ok, cancel) = dialog.StandardButtons(okText);
 
+            // Say what's wrong as soon as the name is typed, not only when Add is clicked.
+            nameBox.TextChanged += (s, e) => error.Text = validate(nameBox.Text) ?? " ";
             ok.Click += (s, e) =>
             {
                 string problem = validate(nameBox.Text);
@@ -35,7 +37,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                 KitForm.Rows(
                     KitForm.Row("Name", nameBox),
                     KitForm.Row("Colour", KitForm.HStack(picker)),
-                    KitForm.Row(null, KitForm.Caption("Mid-tone colours read best in the window and the viewport.", 220)),
+                    KitForm.Row(null, KitForm.Caption("Mid-tone colours read best.")),
                     KitForm.Row(null, error)),
                 new Control[] { cancel, ok });
 

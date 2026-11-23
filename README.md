@@ -30,6 +30,7 @@ Everything is done from the window. For macros and keyboard users there are thre
 | `nbGFAAssign` | Select volumes, then pick a use (or Exclude) on the command line. |
 | `nbGFACheck` | Checks assigned volumes: open, tilted, no flat bottom, overlapping. |
 | `nbGFAHelp` | Shows the how-to guide ([docs/nbGFA.md](docs/nbGFA.md)). |
+| `nbGFADemo` | Adds three example blocks (2, 4 and 6 storeys) on an "nbGFA demo" layer to try nbGFA on. |
 
 ### nbProgramBlocks
 

@@ -5,7 +5,7 @@ This file records notable changes to Numbat. The format follows [Keep a Changelo
 ## [Unreleased]
 
 ### Added
-- nbGFAAssign, nbGFACheck and nbGFAHelp: assign uses from the command line, check volumes for problems, and open the nbGFA how-to guide.
+- nbGFAAssign, nbGFACheck, nbGFAHelp and nbGFADemo: assign uses from the command line, check volumes for problems, open the nbGFA how-to guide, and add example blocks to try it on. They work when typed in full but don't appear in autocomplete.
 
 ### Changed
 - nbGFA has been rewritten as a live GFA tracker. Instead of selecting solids and getting one total, it now opens a floating window that updates as you model. Give each storey volume a use, see each use's GFA and share of the total, set minimum and maximum limits per use as a share (%) or an area (m²), and set a minimum and maximum total GFA. Broken limits are flagged; an off-target total shows a small warning icon that explains on hover. Volumes whose use isn't decided yet can go in the default Unassigned use, so they still count toward the total. Uses can be tracked per object or by `nbGFA::<use>` sublayers, and are saved in the document. See the how-to guide (`nbGFAHelp`).

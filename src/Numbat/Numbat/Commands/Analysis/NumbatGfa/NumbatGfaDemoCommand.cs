@@ -1,4 +1,3 @@
-#if DEBUG
 using System;
 using System.Drawing;
 using Rhino;
@@ -9,15 +8,16 @@ using Rhino.Geometry;
 namespace Numbat.Commands.Analysis.NumbatGfa
 {
     /// <summary>
-    /// Development helper (Debug builds only): builds three apartment blocks of 2, 4 and 6 storeys,
-    /// one closed box per storey, slightly rotated, on a "nbGFA test" layer. Running it again replaces them.
+    /// Demo: builds three apartment blocks of 2, 4 and 6 storeys, one closed box per storey, slightly rotated,
+    /// on an "nbGFA demo" layer, to try nbGFA on. Running it again replaces them. Shipped in every build but hidden
+    /// (see CLAUDE.md: every tool has a hidden &lt;command&gt;Demo).
     /// Dimensions are in metres and converted to the model's units, so it works in mm and m files alike.
     /// </summary>
     // Hidden: works when typed in full, but doesn't appear in autocomplete, so typing "nb" only offers nbGFA.
     [CommandStyle(Style.Hidden)]
     public class NumbatGfaDemoCommand : Command
     {
-        private const string LayerName = "nbGFA test";
+        private const string LayerName = "nbGFA demo";
         private const double StoreyHeight = 3.2; // m, floor to floor
 
         // origin (m), footprint width x depth (m), storeys, rotation (degrees)
@@ -34,6 +34,11 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         {
             double s = RhinoMath.UnitScale(UnitSystem.Meters, doc.ModelUnitSystem);
             int layer = GetOrAddLayer(doc);
+            if (layer < 0)
+            {
+                RhinoApp.WriteLine($"{GfaInfo.Name}: could not create the \"{LayerName}\" layer.");
+                return Result.Failure;
+            }
 
             // Replace boxes from a previous run.
             foreach (RhinoObject old in doc.Objects.FindByLayer(doc.Layers[layer]) ?? Array.Empty<RhinoObject>())
@@ -62,7 +67,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             doc.Views.ActiveView?.ActiveViewport.ZoomExtents();
             doc.Views.Redraw();
             RhinoApp.WriteLine($"{GfaInfo.Name}: added {count} storey volumes on layer \"{LayerName}\" " +
-                               "(18x12 m x2, 24x13 m x4, 16x15 m x6).");
+                               "(18x12 m x2, 24x13 m x4, 16x15 m x6). Run nbGFA to try them.");
             return Result.Success;
         }
 
@@ -74,4 +79,3 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         }
     }
 }
-#endif
