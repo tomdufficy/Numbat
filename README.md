@@ -43,7 +43,16 @@ Randomises Rhino layer colours. Colours can be assigned independently to every l
 
 ### nbTextureShuffle
 
-Collects texture-mapping shuffle options for selected surfaces, polysurfaces and meshes. The current implementation reports the selected mapping settings but does not yet modify object texture mapping.
+Breaks up obviously repeating textures (brick, stone, timber cladding). Opens a small window: select surfaces, polysurfaces, meshes or SubDs, then click **Shuffle** as often as you like until it looks right. Each click gives the selected objects a box mapping moved by a new random amount, and each click is one undo step.
+
+- **Repeat X / Y / Z** set how big one texture repeat is. Changing them resizes the selection's box mapping straight away, keeping its position.
+- **Align to**: World keeps neighbouring objects continuous; Object follows each object's largest flat face.
+- **Same for all selected** moves every selected object's texture by the same amount; off, each gets its own.
+- **Up to / Along** limit how far, and in which directions, the texture may move.
+- **Straighten** puts the box mapping back at its starting position, with no random move.
+- **Remove mapping** takes the box mapping off, so Rhino's default surface mapping is used again.
+
+`-nbTextureShuffle` on the command line (for macros) shuffles the selected objects once with the window's saved settings.
 
 ### nbPavementPlacer
 
