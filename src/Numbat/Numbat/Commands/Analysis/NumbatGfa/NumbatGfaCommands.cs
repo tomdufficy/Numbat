@@ -22,6 +22,8 @@ namespace Numbat.Commands.Analysis.NumbatGfa
     }
 
     /// <summary>Checks assigned volumes for problems (open, tilted, no flat bottom, overlaps).</summary>
+    // Hidden: works when typed in full, but doesn't appear in autocomplete, so typing "nb" only offers nbGFA.
+    [CommandStyle(Style.Hidden)]
     public class NumbatGfaCheckCommand : Command
     {
         public override string EnglishName => "nbGFACheck";
@@ -34,6 +36,8 @@ namespace Numbat.Commands.Analysis.NumbatGfa
     }
 
     /// <summary>Shows the how-to guide (docs/nbGFA.md).</summary>
+    // Hidden: works when typed in full, but doesn't appear in autocomplete, so typing "nb" only offers nbGFA.
+    [CommandStyle(Style.Hidden)]
     public class NumbatGfaHelpCommand : Command
     {
         public override string EnglishName => "nbGFAHelp";
@@ -46,6 +50,8 @@ namespace Numbat.Commands.Analysis.NumbatGfa
     }
 
     /// <summary>Command-line way to assign a use: select volumes, then pick a use.</summary>
+    // Hidden: works when typed in full, but doesn't appear in autocomplete, so typing "nb" only offers nbGFA.
+    [CommandStyle(Style.Hidden)]
     public class NumbatGfaAssignCommand : Command
     {
         public override string EnglishName => "nbGFAAssign";

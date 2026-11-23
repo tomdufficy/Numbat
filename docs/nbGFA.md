@@ -104,6 +104,8 @@ Use Select in the check window to select the problem volumes in Rhino.
 
 ## Commands
 
+nbGFA is the only one that shows up as you type. The others are helpers for macros and keyboard users: type their full name and press Enter.
+
 - nbGFA: opens the window, or brings it to the front.
 - nbGFAAssign: assigns a use from the command line.
 - nbGFACheck: checks assigned volumes for problems.

@@ -13,6 +13,8 @@ namespace Numbat.Commands.Analysis.NumbatGfa
     /// one closed box per storey, slightly rotated, on a "nbGFA test" layer. Running it again replaces them.
     /// Dimensions are in metres and converted to the model's units, so it works in mm and m files alike.
     /// </summary>
+    // Hidden: works when typed in full, but doesn't appear in autocomplete, so typing "nb" only offers nbGFA.
+    [CommandStyle(Style.Hidden)]
     public class NumbatGfaDemoCommand : Command
     {
         private const string LayerName = "nbGFA test";

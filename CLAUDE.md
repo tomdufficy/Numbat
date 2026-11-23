@@ -35,6 +35,8 @@ Larger commands each get a folder and follow this split:
 
 Keep new commands in this shape.
 
+Each tool has one discoverable command (`nbGFA`, `nbTextureShuffle`, ...). Helper commands that a window already covers (`nbGFAAssign`, `nbGFACheck`, `nbGFAHelp`, demo commands) get `[CommandStyle(Style.Hidden)]`: they work when typed in full but stay out of autocomplete, so typing `nb` only lists the main tools.
+
 ## Shared UI kit (`src/Numbat/Numbat/UI/`)
 
 New and reworked windows and dialogs use the kit so all of Numbat looks and behaves the same. nbGFA is the first command on it; the others move over as they are reworked.

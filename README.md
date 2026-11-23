@@ -22,6 +22,8 @@ Tracks gross floor area live while you model. Model each storey as one closed bo
 
 Volumes are checked as you work: open polysurfaces, bottoms that are slightly tilted, and boxes with no flat bottom are flagged, and `nbGFACheck` also finds overlapping volumes and can level tilted ones.
 
+Everything is done from the window. For macros and keyboard users there are three helper commands; they don't appear in Rhino's autocomplete (so typing `nb` only offers `nbGFA`), but they work when typed in full:
+
 | Command | What it does |
 |---|---|
 | `nbGFA` | Opens the GFA window, or brings it to the front. |
