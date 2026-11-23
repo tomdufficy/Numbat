@@ -50,7 +50,7 @@ In By layer mode you can work either way, and both count the same:
 - The Total GFA box also shows the tracking mode: by object or by layer.
 - The Selected box shows the GFA of whatever volumes you have selected right now, assigned or not.
 - Each use card shows its colour, GFA, share of the total, and how many volumes it has. The bar along the bottom of the card fills up with its share.
-- The line at the bottom of the window tells you whether all uses are within their limits.
+- The line at the bottom of the window tells you whether all uses, and the total, are within their limits.
 
 ## 5a. Bars or pie chart
 

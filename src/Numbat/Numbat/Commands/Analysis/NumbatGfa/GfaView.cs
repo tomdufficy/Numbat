@@ -54,7 +54,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         private float W => Width > 0 ? LogicalWidth : 330;
 
         private static float FooterH =>
-            Kit.Pad + 3 * KitPaint.LineHeight(KitFonts.Caption) + 2 * 4 + Kit.Pad;
+            Kit.Pad + 2 * KitPaint.LineHeight(KitFonts.Caption) + 4 + Kit.Pad;
 
         /// <summary>Extra status lines: units warning, volume issues.</summary>
         private List<(CalloutKind kind, string text, string link, Action click)> Callouts(Tally t)
@@ -220,11 +220,6 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                 KitPaint.StatusLine(g, Kit.Pad, y, C.Outline, "No limits or target set", statusW);
             y += lh + 4;
 
-            string hint = Pie
-                ? "Click a slice or label to assign the selection · right-click for options"
-                : "Click a use to assign the selection · right-click for options";
-            g.DrawText(KitFonts.Caption, C.Text3, Kit.Pad, y, KitPaint.Fit(KitFonts.Caption, hint, w - 2 * Kit.Pad));
-            y += lh + 4;
             g.DrawText(KitFonts.Caption, C.Text3, Kit.Pad, y, GfaInfo.Copyright);
         }
 
