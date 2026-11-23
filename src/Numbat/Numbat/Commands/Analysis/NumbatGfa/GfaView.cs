@@ -54,7 +54,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         private static float FooterH =>
             Kit.Pad + 3 * KitPaint.LineHeight(KitFonts.Caption) + 2 * 4 + Kit.Pad;
 
-        /// <summary>Extra status lines: units warning, volume issues, excluded layer.</summary>
+        /// <summary>Extra status lines: units warning, volume issues.</summary>
         private List<(CalloutKind kind, string text, string link, Action click)> Callouts(Tally t)
         {
             var lines = new List<(CalloutKind, string, string, Action)>();
@@ -64,12 +64,6 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                 string notCounted = t.NotCountedCount > 0 ? $", {t.NotCountedCount} not counted" : string.Empty;
                 lines.Add((CalloutKind.Warning, $"{t.Issues.Count} volume issue(s){notCounted}.", "Review",
                     () => IssuesDialog.Show(ParentWindow, _model, RhinoDoc.ActiveDoc)));
-            }
-            if (t.Mode == TrackingMode.ByLayer && t.ExcludedCount > 0)
-            {
-                lines.Add((CalloutKind.Info,
-                    $"Excluded layer: {Format(t.ExcludedArea)} {t.Unit} in {t.ExcludedCount} volume(s), not in the total.",
-                    null, null));
             }
             return lines;
         }
@@ -593,7 +587,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             menu.Items.Add(new SeparatorMenuItem());
 
             var byObject = new RadioMenuItem { Text = "Track uses by object", Checked = _model.Mode == TrackingMode.ByObject };
-            var byLayer = new RadioMenuItem(byObject) { Text = "Track uses by layer (GFA::<use>)", Checked = _model.Mode == TrackingMode.ByLayer };
+            var byLayer = new RadioMenuItem(byObject) { Text = "Track uses by layer (nbGFA::<use>)", Checked = _model.Mode == TrackingMode.ByLayer };
             byObject.Click += (s, e) => SwitchMode(doc, TrackingMode.ByObject);
             byLayer.Click += (s, e) => SwitchMode(doc, TrackingMode.ByLayer);
             menu.Items.Add(byObject);
@@ -620,10 +614,11 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         {
             if (mode == _model.Mode) return;
             string message = mode == TrackingMode.ByLayer
-                ? "Track uses by layer?\n\nnbGFA creates a \"GFA\" layer with one sublayer per use and moves assigned " +
-                  "volumes onto them. From then on, moving a volume onto a use's layer assigns it."
-                : "Track uses by object?\n\nVolumes stay on their current layers; their use is stored on the object " +
-                  "and shown by object colour.";
+                ? "Track uses by layer?\n\nnbGFA creates an \"nbGFA\" layer with one sublayer per use and moves assigned " +
+                  "volumes onto them, remembering the layer each came from. From then on, moving a volume onto a " +
+                  "use's layer assigns it."
+                : "Track uses by object?\n\nVolumes go back to the layers they came from; their use is stored on the " +
+                  "object and shown by object colour.";
             if (MessageBox.Show(this, message, GfaInfo.Name, MessageBoxButtons.OKCancel, MessageBoxType.Question)
                 != DialogResult.Ok) return;
 

@@ -9,15 +9,13 @@ namespace Numbat.Commands.Analysis.NumbatGfa
 {
     /// <summary>
     /// The layer tree used in By layer mode:
-    ///   GFA
-    ///     Residential, Office, ...   (one sublayer per use; nested layers below them count too)
-    ///     Excluded      (volumes left out of the total)
+    ///   nbGFA
+    ///     Residential, Office, ..., Unassigned   (one sublayer per use; nested layers below them count too)
+    /// Volumes anywhere else, including directly on nbGFA itself, are not counted.
     /// </summary>
     internal static class LayerSync
     {
-        public const string ExcludedName = "Excluded";
         private static readonly Color RootColor = Color.FromArgb(120, 120, 130);
-        private static readonly Color ExcludedColor = Color.FromArgb(190, 190, 195);
 
         public static Layer FindRoot(RhinoDoc doc)
         {
@@ -35,18 +33,20 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             return doc.Layers[index];
         }
 
-        public static int EnsureExcluded(RhinoDoc doc)
+        /// <summary>True when the layer is the nbGFA layer or any layer below it.</summary>
+        public static bool IsOnTree(RhinoDoc doc, int layerIndex)
         {
-            Layer root = EnsureRoot(doc);
-            int index = doc.Layers.FindByFullPath($"{GfaInfo.RootLayer}::{ExcludedName}", -1);
-            if (index >= 0 && !doc.Layers[index].IsDeleted) return index;
-            return Checked(doc.Layers.Add(new Layer { Name = ExcludedName, Color = ExcludedColor, ParentLayerId = root.Id }), ExcludedName);
-        }
-
-        public static int FindExcluded(RhinoDoc doc)
-        {
-            int index = doc.Layers.FindByFullPath($"{GfaInfo.RootLayer}::{ExcludedName}", -1);
-            return index >= 0 && !doc.Layers[index].IsDeleted ? index : -1;
+            Layer root = FindRoot(doc);
+            if (root == null || layerIndex < 0 || layerIndex >= doc.Layers.Count) return false;
+            Layer current = doc.Layers[layerIndex];
+            int guard = 0;
+            while (current != null && guard++ < 64)
+            {
+                if (current.Id == root.Id) return true;
+                if (current.ParentLayerId == Guid.Empty) return false;
+                current = doc.Layers.FindId(current.ParentLayerId);
+            }
+            return false;
         }
 
         /// <summary>The use's layer, created if needed. Updates <see cref="UseCategory.LayerId"/>.</summary>
@@ -80,11 +80,10 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             return layer == null || layer.IsDeleted ? null : layer;
         }
 
-        /// <summary>Direct sublayers of the GFA layer, except Excluded.</summary>
+        /// <summary>Direct sublayers of the nbGFA layer: one per use.</summary>
         public static List<Layer> UseLayers(RhinoDoc doc, Layer root) =>
             doc.Layers
-                .Where(l => !l.IsDeleted && l.ParentLayerId == root.Id &&
-                            !string.Equals(l.Name, ExcludedName, StringComparison.OrdinalIgnoreCase))
+                .Where(l => !l.IsDeleted && l.ParentLayerId == root.Id)
                 .OrderBy(l => l.SortIndex)
                 .ToList();
 
@@ -102,7 +101,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
 
             foreach (Layer layer in layers.Values)
             {
-                // Walk up until we reach a direct child of the GFA layer.
+                // Walk up until we reach a direct child of the nbGFA layer.
                 Layer current = layer;
                 int guard = 0;
                 while (current != null && current.ParentLayerId != root.Id && guard++ < 64)

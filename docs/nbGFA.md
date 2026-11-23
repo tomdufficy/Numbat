@@ -23,16 +23,16 @@ nbGFA tracks the gross floor area (GFA) of your massing as you design. You give 
 Click ⋯ and pick one. Each document remembers its choice. You can switch at any time and your assignments carry across.
 
 - By object (default): the use is stored on each volume and shown by its colour. Your own layers are left alone.
-- By layer: nbGFA makes a "GFA" layer with one sublayer per use (GFA::Residential, GFA::Office, GFA::Unassigned, ...) plus GFA::Excluded. The layer a volume sits on is its use.
+- By layer: nbGFA makes an "nbGFA" layer with one sublayer per use (nbGFA::Residential, nbGFA::Office, nbGFA::Unassigned, ...). The layer a volume sits on is its use. Volumes on any other layer are not counted.
 
 In By layer mode you can work either way, and both count the same:
 
 - Click a use in the window to move the selected volumes onto its layer.
 - Or move volumes onto a use layer yourself, for example with the Layers panel or ChangeLayer.
-- Layers nested under a use layer count as that use too (for example GFA::Residential::Block A).
+- Layers nested under a use layer count as that use too (for example nbGFA::Residential::Block A).
 - A new sublayer you make under GFA becomes a new use. Renaming or recolouring a use layer renames or recolours the use.
-- Excluding moves volumes to GFA::Excluded. Its total is shown in the window but not included in TOTAL GFA.
-- Switching back to By object leaves volumes on the GFA layers and stores their use on each volume.
+- When nbGFA moves a volume onto a use layer, it remembers the layer the volume came from. Excluding the volume puts it back there, out of the total. If that layer has since been deleted, the volume goes onto the nbGFA layer itself, which is not counted.
+- Switching back to By object puts volumes back on the layers they came from and stores their use on each volume. Volumes you moved onto a use layer yourself stay where they are.
 
 ## 4. Assign uses
 
@@ -42,6 +42,7 @@ In By layer mode you can work either way, and both count the same:
 - You can also use the nbGFAAssign command: select volumes, then pick a use on the command line.
 - Assignments are saved in the .3dm file and kept when you copy, move or mirror.
 - Not sure of the use yet? Assign the volume to Unassigned. It counts toward TOTAL GFA like any other use, so you always see the full area, and you can move it to its real use later. Unassigned is an ordinary use: you can rename, recolour, limit or remove it.
+- In short: Unassigned means counted, use not decided yet. Excluded means not counted at all.
 
 ## 5. Read the numbers
 
@@ -85,7 +86,7 @@ In By layer mode you can work either way, and both count the same:
 ## 8. Right-click options on a use
 
 - Assign selected: same as clicking the card.
-- Exclude selected from GFA: takes the selected volumes out of the total and removes their use.
+- Exclude selected from GFA: takes the selected volumes out of the total. By object, their use is removed. By layer, they go back to the layer they came from.
 - Select all: selects every volume with that use.
 - Exclude all from GFA: takes all of that use's volumes out of the total.
 

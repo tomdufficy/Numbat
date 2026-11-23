@@ -14,7 +14,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
     {
         /// <summary>Use stored on the object (user string); object colour shows the use.</summary>
         ByObject,
-        /// <summary>Use = the GFA sublayer the object is on. Moving objects between layers reassigns them.</summary>
+        /// <summary>Use = the nbGFA sublayer the object is on. Moving objects between layers reassigns them.</summary>
         ByLayer,
     }
 
@@ -39,10 +39,6 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         public double Total { get; internal set; }
         public double Selected { get; internal set; }
         public int SelectedCount { get; internal set; }
-
-        /// <summary>By layer mode: volumes on the GFA::Excluded layer (not part of the total).</summary>
-        public double ExcludedArea { get; internal set; }
-        public int ExcludedCount { get; internal set; }
 
         public Dictionary<string, double> AreaByUse { get; } = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, int> CountByUse { get; } = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -228,7 +224,6 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         {
             public TrackingMode Mode;
             public Dictionary<int, UseCategory> LayerMap;
-            public int ExcludedLayer = -1;
             public Func<string, UseCategory> FindOrAdd;
 
             public UseCategory UseOf(RhinoObject obj)
@@ -250,7 +245,6 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             {
                 Layer root = LayerSync.FindRoot(doc);
                 r.LayerMap = LayerSync.BuildMap(doc, root, _categories);
-                r.ExcludedLayer = LayerSync.FindExcluded(doc);
             }
             return r;
         }
@@ -290,6 +284,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                 attr.SetUserString(GfaInfo.UseKey, use.Name);
                 if (layer >= 0)
                 {
+                    RememberHome(doc, o, attr);
                     attr.LayerIndex = layer;
                     attr.ColorSource = ObjectColorSource.ColorFromLayer;
                 }
@@ -303,25 +298,54 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             return n;
         }
 
-        /// <summary>Excludes volumes from the total. By object: back to layer colour. By layer: moved to GFA::Excluded.</summary>
+        /// <summary>
+        /// Takes volumes out of the total. By object: the use is removed and the volume goes back to its layer
+        /// colour. By layer: the volume moves off the nbGFA layers, back to the layer it came from, or onto the
+        /// nbGFA layer itself (which is not counted) when that layer is gone.
+        /// </summary>
         public int Exclude(RhinoDoc doc, IEnumerable<RhinoObject> objects)
         {
             LoadDocumentSettings(doc);
-            int layer = Mode == TrackingMode.ByLayer ? LayerSync.EnsureExcluded(doc) : -1;
+            int fallback = Mode == TrackingMode.ByLayer ? LayerSync.EnsureRoot(doc).Index : -1;
             return ModifyEach(doc, objects.Where(Volumes.IsCandidate), $"{GfaInfo.Name}: exclude", (o, attr) =>
             {
                 attr.DeleteUserString(GfaInfo.UseKey);
-                if (layer >= 0) attr.LayerIndex = layer;
+                if (fallback >= 0 && LayerSync.IsOnTree(doc, attr.LayerIndex))
+                {
+                    attr.LayerIndex = HomeLayer(doc, attr, fallback);
+                    attr.DeleteUserString(GfaInfo.HomeLayerKey);
+                }
                 attr.ColorSource = ObjectColorSource.ColorFromLayer;
             });
+        }
+
+        /// <summary>
+        /// Before By layer mode moves a volume onto the nbGFA layers, remembers the layer it was on. A volume that
+        /// is already on the nbGFA layers (moving between uses) keeps the layer it first came from.
+        /// </summary>
+        private static void RememberHome(RhinoDoc doc, RhinoObject obj, ObjectAttributes attr)
+        {
+            int current = obj.Attributes.LayerIndex;
+            if (LayerSync.IsOnTree(doc, current) || current < 0 || current >= doc.Layers.Count) return;
+            attr.SetUserString(GfaInfo.HomeLayerKey, doc.Layers[current].Id.ToString());
+        }
+
+        /// <summary>The remembered layer if it still exists and is not on the nbGFA layers, else <paramref name="fallback"/>.</summary>
+        private static int HomeLayer(RhinoDoc doc, ObjectAttributes attr, int fallback)
+        {
+            if (!Guid.TryParse(attr.GetUserString(GfaInfo.HomeLayerKey), out Guid id)) return fallback;
+            Layer home = doc.Layers.FindId(id);
+            if (home == null || home.IsDeleted || LayerSync.IsOnTree(doc, home.Index)) return fallback;
+            return home.Index;
         }
 
         // ================================================================ mode
 
         /// <summary>
         /// Switches between By object and By layer for this document, carrying assignments across.
-        /// By layer: assigned volumes move to their GFA sublayer. By object: volumes keep their layer and get
-        /// their use stored on the object instead.
+        /// By layer: assigned volumes move to their nbGFA sublayer, and the layer they came from is remembered.
+        /// By object: volumes go back to the layer they came from (or stay put if it is gone) and get their use
+        /// stored on the object instead.
         /// </summary>
         public void SetMode(RhinoDoc doc, TrackingMode mode)
         {
@@ -336,7 +360,6 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             {
                 if (mode == TrackingMode.ByLayer)
                 {
-                    LayerSync.EnsureExcluded(doc);
                     foreach (UseCategory use in _categories)
                     {
                         int index = LayerSync.EnsureUseLayer(doc, use);
@@ -348,6 +371,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                         UseCategory use = before.UseOf(obj);
                         if (use == null) continue;
                         ObjectAttributes attr = obj.Attributes.Duplicate();
+                        RememberHome(doc, obj, attr);
                         attr.LayerIndex = layerOf[use];
                         attr.ColorSource = ObjectColorSource.ColorFromLayer;
                         doc.Objects.ModifyAttributes(obj, attr, true);
@@ -371,6 +395,12 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                             attr.ObjectColor = use.Color;
                             attr.ColorSource = ObjectColorSource.ColorFromObject;
                         }
+                        // Back to the layer it was on before By layer mode moved it, if that layer still exists.
+                        if (LayerSync.IsOnTree(doc, attr.LayerIndex))
+                        {
+                            attr.LayerIndex = HomeLayer(doc, attr, attr.LayerIndex);
+                        }
+                        attr.DeleteUserString(GfaInfo.HomeLayerKey);
                         doc.Objects.ModifyAttributes(obj, attr, true);
                     }
                 }
@@ -394,8 +424,6 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             name = UseCategory.Clean(name);
             if (name.Length == 0) return "Enter a name.";
             if (!ModelComponent.IsValidComponentName(name)) return "That name can't be used as a layer name.";
-            if (string.Equals(name, LayerSync.ExcludedName, StringComparison.OrdinalIgnoreCase))
-                return $"\"{LayerSync.ExcludedName}\" is reserved.";
             UseCategory clash = Find(name);
             if (clash != null && clash != except) return $"\"{clash.Name}\" already exists.";
             return null;
@@ -664,8 +692,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             {
                 UseCategory use = r.UseOf(obj);
                 bool selected = obj.IsSelected(false) > 0;
-                bool onExcluded = r.ExcludedLayer >= 0 && obj.Attributes.LayerIndex == r.ExcludedLayer;
-                if (use == null && !selected && !onExcluded) continue;
+                if (use == null && !selected) continue;
                 if (use == null && !Volumes.IsCandidate(obj)) continue; // ignore stray curves etc.
 
                 seen.Add(obj.Id);
@@ -678,15 +705,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                     tally.SelectedCount++;
                 }
 
-                if (use == null)
-                {
-                    if (onExcluded && info.Counted)
-                    {
-                        tally.ExcludedArea += area;
-                        tally.ExcludedCount++;
-                    }
-                    continue;
-                }
+                if (use == null) continue;
 
                 bool flagged = !info.Counted ||
                                (info.Status == VolumeStatus.Tilted && obj.Attributes.GetUserString(IgnoreKey) != IgnoreTiltValue);
@@ -736,10 +755,9 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             Layer root = LayerSync.FindRoot(doc);
             if (root == null)
             {
-                // The whole GFA layer was deleted: rebuild it (empty) so assigning keeps working.
+                // The whole nbGFA layer was deleted: rebuild it (empty) so assigning keeps working.
                 foreach (UseCategory use in _categories) use.LayerId = Guid.Empty;
                 foreach (UseCategory use in _categories) LayerSync.EnsureUseLayer(doc, use);
-                LayerSync.EnsureExcluded(doc);
                 WriteCategories(doc);
                 return;
             }
