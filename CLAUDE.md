@@ -1,6 +1,6 @@
 # Numbat: notes for Claude Code
 
-Numbat is a Rhino 8 plugin (RhinoCommon, C#) of architectural modelling and analysis commands, all prefixed `nb`. It is distributed through McNeel's Yak package server as `Numbat`. The minimum supported version is Rhino 8.21.
+Numbat is a Rhino 8 plugin (RhinoCommon, C#) of architectural modelling and analysis commands, all prefixed `nb`. It is distributed through McNeel's Yak package server as `Numbat`. It supports Rhino 8.21 or later, on Windows only.
 
 ## Layout
 
@@ -14,7 +14,8 @@ src/Numbat/Numbat/Commands/
                                      nbTextureShuffle, nbTemplate
 scripts/Build-YakPackage.ps1         build + package into dist/*.yak (used by CI and locally)
 .github/workflows/ci.yml             build + package on push to main and on every PR; .yak uploaded as an artifact
-.github/workflows/release.yml        on tag v*: verify, push to Yak, create GitHub Release
+.github/workflows/release.yml        on tag v*: verify -> test Yak server -> approval -> Yak + GitHub Release
+.github/actions/setup-yak/           downloads the pinned Yak CLI (one place to change its version)
 .github/dependabot.yml               monthly GitHub Actions updates (NuGet deliberately excluded)
 .claude/skills/release/              /release: the release procedure
 docs/audit-2026-11.md                audit backlog of known issues per command
@@ -36,10 +37,10 @@ Keep new commands in this shape.
 
 ```powershell
 dotnet build src/Numbat/Numbat/Numbat.csproj -c Release
-./scripts/Build-YakPackage.ps1     # -> dist/numbat-<version>-rh8_21-any.yak
+./scripts/Build-YakPackage.ps1     # -> dist/numbat-<version>-rh8_21-win.yak
 ```
 
-The build must stay at zero warnings. The package holds `net48/` and `net8.0/` subfolders with `manifest.yml` at the root, which is McNeel's multi-target layout. The RhinoCommon package version sets the Yak distribution tag (`rh8_21`), and therefore the minimum Rhino version. Only raise it deliberately, and say so in the changelog.
+The build must stay at zero warnings. The package holds `net48/` and `net8.0/` subfolders with `manifest.yml` at the root, which is McNeel's multi-target layout. The RhinoCommon package version sets the Yak distribution tag (`rh8_21`), and therefore the minimum Rhino version. Only raise it deliberately, and say so in the changelog. The platform tag is `win` because Numbat is officially Windows-only. Keeping the code free of Windows-only APIs still matters, in case Mac support is added later.
 
 ## Testing in Rhino
 
@@ -56,7 +57,7 @@ There are no automated tests yet. To verify a change:
 - Never hardcode millimetre values. Define defaults in mm and scale them with `RhinoMath.UnitScale(UnitSystem.Millimeters, doc.ModelUnitSystem)`. Report lengths and areas with their units.
 - Use `doc.ModelAbsoluteTolerance` / `doc.ModelAngleToleranceRadians` for tolerances.
 - Validate layer names with `Layer.IsValidName`. Check `doc.Layers.Add` and `doc.InstanceDefinitions.Add` for a `-1` return. Don't overwrite the properties of existing layers.
-- Use Eto for UI and clipboard access, not WinForms, so the plugin stays usable on Mac. `System.Drawing.Color` is fine.
+- Use Eto for UI and clipboard access, not WinForms. Numbat ships Windows-only, but Eto keeps the Mac option open. `System.Drawing.Color` is fine.
 - The code must compile for net48: no APIs newer than .NET Framework 4.8.
 - Where practical, give dialog-driven commands a scripted fallback (`RunMode.Scripted` uses command-line options).
 
@@ -74,7 +75,8 @@ API reference, checked locally first:
 The setup that predates Claude Code was not presumed correct. When touching repo structure, CI or release tooling, follow current official guidance over what is already there, and say so when changing it.
 - GitHub Actions: https://docs.github.com/en/actions
   - Keep `permissions:` minimal.
-  - Secrets: `YAK_TOKEN`, a non-expiring key from `yak login --ci`.
+  - Secrets: `YAK_TOKEN`, a non-expiring key from `yak login --ci`. It is stored only in the `yak-test` and `yak` environments, both limited to `v*` tags, never as a repo-level secret.
+  - The `yak` environment requires the maintainer's approval. Never weaken or bypass that.
   - Security hardening: https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions
 - GitHub Releases: https://docs.github.com/en/repositories/releasing-projects-on-github
 - Dependabot: https://docs.github.com/en/code-security/dependabot/working-with-dependabot/keeping-your-actions-up-to-date-with-dependabot

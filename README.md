@@ -8,7 +8,7 @@ Numbat is a collection of architectural modelling and analysis tools for Rhino 8
 
 ## Installation
 
-Requires Rhino 8 (8.21 or later). Numbat is developed and tested on Windows. The package also installs on Mac, but it has not been tested there.
+Requires Rhino 8 (8.21 or later) on Windows. Mac is not supported.
 
 Open **Rhino Package Manager**, enable **Include pre-releases**, search for **Numbat**, and install the package.
 
@@ -89,7 +89,7 @@ dotnet build src/Numbat/Numbat/Numbat.csproj -c Release   # build net48 + net8.0
 ./scripts/Build-YakPackage.ps1                            # build and package into dist/*.yak
 ```
 
-To debug, use the `Rhino 8 - netcore` launch profile, or drag `Numbat.rhp` from `bin/` into Rhino. Every push and pull request is built by CI, and the resulting `.yak` can be downloaded from the workflow run. Pushing a `v*` tag publishes a release to Yak and GitHub Releases.
+To debug, use the `Rhino 8 - netcore` launch profile, or drag `Numbat.rhp` from `bin/` into Rhino. Every push and pull request is built by CI, and the resulting `.yak` can be downloaded from the workflow run. Pushing a `v*` tag starts a release. The package first goes to McNeel's test Yak server for a final check, and it is published to Yak and GitHub Releases only after the maintainer approves.
 
 ## License
 

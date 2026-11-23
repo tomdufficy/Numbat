@@ -1,0 +1,14 @@
+# Downloads McNeel's standalone Yak CLI (pinned version) and exposes it as $env:YAK_EXE.
+# Shared by the CI and Release workflows so the Yak version is defined in one place.
+name: Setup Yak CLI
+description: Download the pinned standalone Yak CLI and set YAK_EXE
+runs:
+  using: composite
+  steps:
+    - name: Download Yak CLI 0.19.1
+      shell: pwsh
+      run: |
+        $yak = Join-Path $env:RUNNER_TEMP 'yak.exe'
+        Invoke-WebRequest -Uri 'https://files.mcneel.com/yak/tools/0.19.1/win-x64/yak.exe' -OutFile $yak
+        & $yak version
+        "YAK_EXE=$yak" | Out-File $env:GITHUB_ENV -Append -Encoding utf8

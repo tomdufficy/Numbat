@@ -8,6 +8,7 @@ This file records notable changes to Numbat. The format follows [Keep a Changelo
 - nbTemplate: pressing Enter at the placement prompt now uses the origin (0,0,0).
 - Numbat now requires Rhino 8.21 or later. It targets .NET 8 (Rhino's default runtime since 8.20) and .NET Framework 4.8, as McNeel recommends.
 - Package Manager listing: improved description and search keywords.
+- Numbat is now officially Windows-only. Package Manager no longer offers new versions on Mac.
 
 ### Fixed
 - The package now includes the .NET Framework build, so Numbat also loads when Rhino 8 is started with `/netfx`. Previously only the .NET Core build was shipped.

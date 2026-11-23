@@ -1,8 +1,16 @@
 # Publishes a release when a version tag (v1.2.3 or v1.2.3-beta.4) is pushed.
-#   1. Builds and packages, with the version taken from Numbat.csproj
-#   2. Checks that the tag matches that version and that the tagged commit is on main
-#   3. Checks that CHANGELOG.md has a section for the version
-#   4. Pushes the package to Yak, then creates the GitHub Release (notes from CHANGELOG, .yak attached)
+#
+#   1. build         Build and package; check tag == csproj <Version>, tag is on main,
+#                    and CHANGELOG.md has a section for the version.
+#   2. test-publish  Push the package to McNeel's test Yak server (wiped nightly) so it can
+#                    be installed through Rhino's Package Manager and tried out.
+#   3. publish       Pauses until the maintainer approves the "yak" environment on GitHub, then
+#                    pushes to the real Yak server and creates the GitHub Release.
+#
+# Rejecting at step 3 publishes nothing, and the version number is not used up.
+#
+# Secrets: YAK_TOKEN (from `yak login --ci`) is stored in the "yak-test" and "yak" environments,
+# both restricted to v* tags. "yak" also requires approval by a reviewer.
 name: Release
 
 on:
@@ -10,18 +18,17 @@ on:
     tags: ['v*']
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release
   cancel-in-progress: false
 
-env:
-  YAK_URL: https://files.mcneel.com/yak/tools/0.19.1/win-x64/yak.exe
-
 jobs:
-  release:
+  build:
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.package.outputs.version }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -31,12 +38,7 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Download Yak CLI
-        shell: pwsh
-        run: |
-          $yak = Join-Path $env:RUNNER_TEMP 'yak.exe'
-          Invoke-WebRequest -Uri $env:YAK_URL -OutFile $yak
-          "YAK_EXE=$yak" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+      - uses: ./.github/actions/setup-yak
 
       - name: Build and package
         id: package
@@ -62,24 +64,96 @@ jobs:
             if ($_ -match '^## |^\[[^\]]+\]: ') { $stop = $true }
             if (-not $stop) { $_ }
           }
-          ($notes -join "`n").Trim() | Out-File release-notes.md -Encoding utf8
-          Get-Content release-notes.md
+          ($notes -join "`n").Trim() | Out-File dist/release-notes.md -Encoding utf8
+          Get-Content dist/release-notes.md
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release
+          path: |
+            dist/*.yak
+            dist/release-notes.md
+          if-no-files-found: error
+
+  test-publish:
+    needs: build
+    runs-on: windows-latest
+    environment: yak-test
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-yak
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: release
+          path: dist
+
+      - name: Push to test Yak server
+        shell: pwsh
+        env:
+          YAK_TOKEN: ${{ secrets.YAK_TOKEN }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          $source = 'https://test.yak.rhino3d.com'
+          $yakFile = (Get-ChildItem dist/*.yak | Select-Object -First 1).FullName
+          & $env:YAK_EXE push --source $source $yakFile
+          if ($LASTEXITCODE -ne 0) { throw 'yak push to the test server failed' }
+
+          $found = & $env:YAK_EXE search --source $source --all --prerelease Numbat
+          $found
+          if (-not ($found -match [regex]::Escape($env:VERSION))) {
+            throw "Version $env:VERSION not found on the test server after pushing"
+          }
+
+          @"
+          ## Numbat $env:VERSION is on the test Yak server
+
+          Before approving the **publish** job:
+          1. In Rhino, run ``Options``, open **Package Manager**, and add the source ``$source``.
+          2. Open Package Manager, search **Numbat** with **Include pre-releases** ticked, and install $env:VERSION.
+          3. Restart Rhino and try the commands.
+          4. Remove the test source again.
+
+          The test server is wiped every night, so test and approve on the same day.
+          "@ | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+
+  publish:
+    needs: [build, test-publish]
+    runs-on: windows-latest
+    environment: yak
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-yak
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: release
+          path: dist
 
       - name: Push to Yak
         shell: pwsh
         env:
           YAK_TOKEN: ${{ secrets.YAK_TOKEN }}
         run: |
-          & $env:YAK_EXE push "${{ steps.package.outputs.yak_path }}"
+          $yakFile = (Get-ChildItem dist/*.yak | Select-Object -First 1).FullName
+          & $env:YAK_EXE push $yakFile
           if ($LASTEXITCODE -ne 0) { throw 'yak push failed' }
 
       - name: Create GitHub Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.package.outputs.version }}
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
-          $ghArgs = @('release', 'create', $env:GITHUB_REF_NAME, "${{ steps.package.outputs.yak_path }}",
-                    '--title', "Numbat $env:VERSION", '--notes-file', 'release-notes.md', '--verify-tag')
+          $yakFile = (Get-ChildItem dist/*.yak | Select-Object -First 1).FullName
+          $ghArgs = @('release', 'create', $env:GITHUB_REF_NAME, $yakFile,
+                      '--repo', $env:GITHUB_REPOSITORY,
+                      '--title', "Numbat $env:VERSION",
+                      '--notes-file', 'dist/release-notes.md',
+                      '--verify-tag')
           if ($env:VERSION -like '*-*') { $ghArgs += '--prerelease' }
           gh @ghArgs
