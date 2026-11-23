@@ -22,9 +22,9 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 8.0.x
 
@@ -40,7 +40,7 @@ jobs:
         shell: pwsh
         run: ./scripts/Build-YakPackage.ps1
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: numbat-${{ steps.package.outputs.version }}-yak
           path: ${{ steps.package.outputs.yak_path }}
