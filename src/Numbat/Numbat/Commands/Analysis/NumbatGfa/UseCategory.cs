@@ -24,7 +24,18 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         /// <summary>Maximum share of total GFA, 0..1. Null = no limit.</summary>
         public double? MaxShare { get; set; }
 
-        public bool HasLimits => MinShare.HasValue || MaxShare.HasValue;
+        /// <summary>Minimum GFA in the display unit (m², or ft² in imperial models). Null = no limit.</summary>
+        public double? MinArea { get; set; }
+
+        /// <summary>Maximum GFA in the display unit (m², or ft² in imperial models). Null = no limit.</summary>
+        public double? MaxArea { get; set; }
+
+        public bool HasLimits => MinShare.HasValue || MaxShare.HasValue || MinArea.HasValue || MaxArea.HasValue;
+
+        public void ClearLimits()
+        {
+            MinShare = MaxShare = MinArea = MaxArea = null;
+        }
 
         /// <summary>The use's sublayer under the GFA layer (By layer mode). Empty until one is made.</summary>
         public Guid LayerId { get; set; }
@@ -56,13 +67,15 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             return palette[Math.Abs(hash % palette.Length)];
         }
 
-        // Stored one category per line: name \t r,g,b \t min \t max \t layer id
+        // Stored one category per line: name \t r,g,b \t min share \t max share \t layer id \t min area \t max area
         internal string Serialize() => string.Join("\t",
             Clean(Name),
             $"{Color.R},{Color.G},{Color.B}",
             Num(MinShare),
             Num(MaxShare),
-            LayerId == Guid.Empty ? string.Empty : LayerId.ToString());
+            LayerId == Guid.Empty ? string.Empty : LayerId.ToString(),
+            Num(MinArea),
+            Num(MaxArea));
 
         internal static UseCategory Deserialize(string line)
         {
@@ -82,6 +95,8 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                 MinShare = parts.Length > 2 ? Parse(parts[2]) : null,
                 MaxShare = parts.Length > 3 ? Parse(parts[3]) : null,
                 LayerId = parts.Length > 4 && Guid.TryParse(parts[4], out Guid id) ? id : Guid.Empty,
+                MinArea = parts.Length > 5 ? Parse(parts[5]) : null,
+                MaxArea = parts.Length > 6 ? Parse(parts[6]) : null,
             };
         }
 

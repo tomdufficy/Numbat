@@ -172,12 +172,26 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                 null, "More options");
         }
 
-        private static void DrawTiles(Graphics g, Tally t, float w, float y)
+        private void DrawTiles(Graphics g, Tally t, float w, float y)
         {
             float inner = w - 2 * Kit.Pad - Kit.Gap;
             float w1 = (float)Math.Floor(inner * 0.58f);
             string mode = t.Mode == TrackingMode.ByLayer ? "by layer" : "by object";
-            KitPaint.Tile(g, new RectangleF(Kit.Pad, y, w1, TilesH), $"Total GFA · {mode}", $"{Format(t.Total)} {t.Unit}", big: true);
+            var r1 = new RectangleF(Kit.Pad, y, w1, TilesH);
+            KitPaint.Tile(g, r1, $"Total GFA · {mode}", $"{Format(t.Total)} {t.Unit}", big: true);
+
+            // Total GFA target: a small warning icon only when the total is off target; details on hover.
+            string miss = t.TargetMiss();
+            if (miss != null)
+            {
+                KitIcons.Draw(g, KitIcon.Warning, new RectangleF(r1.Right - 8 - 14, r1.Y + 8, 14, 14), C.Warn);
+            }
+            string tip = miss != null
+                ? $"Total GFA is {miss}. Right-click to change the target."
+                : t.HasTarget
+                    ? $"Total GFA is within its target ({t.TargetText()}). Right-click to change it."
+                    : "Right-click to set a minimum or maximum total GFA.";
+            AddTarget("total", r1, null, p => ShowTargetMenu(RhinoDoc.ActiveDoc, p), tip);
 
             var r2 = new RectangleF(Kit.Pad + w1 + Kit.Gap, y, inner - w1, TilesH);
             if (t.SelectedCount > 0)
@@ -255,20 +269,29 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             }
             else
             {
-                KitPaint.TextRight(g, KitFonts.Caption, c.Text3, right, line2, LimitText(use));
+                float detailW = KitPaint.Measure(KitFonts.Caption, detail).Width;
+                string limits = KitPaint.Fit(KitFonts.Caption, LimitText(use, t.Unit), right - left - detailW - 12);
+                KitPaint.TextRight(g, KitFonts.Caption, c.Text3, right, line2, limits);
             }
 
             KitPaint.Bar(g, new RectangleF(left, rect.Bottom - 12, right - left, 4), share, colour);
             if (st.Focused) KitPaint.FocusRing(g, rect, Kit.RadiusCard);
         }
 
-        private static string LimitText(UseCategory use)
+        private static string LimitText(UseCategory use, string unit)
         {
+            var parts = new List<string>();
             if (use.MinShare.HasValue && use.MaxShare.HasValue)
-                return $"{Tally.Pct(use.MinShare.Value)}–{Tally.Pct(use.MaxShare.Value)}";
-            if (use.MaxShare.HasValue) return $"max {Tally.Pct(use.MaxShare.Value)}";
-            if (use.MinShare.HasValue) return $"min {Tally.Pct(use.MinShare.Value)}";
-            return null;
+                parts.Add($"{Tally.Pct(use.MinShare.Value)}–{Tally.Pct(use.MaxShare.Value)}");
+            else if (use.MaxShare.HasValue) parts.Add($"max {Tally.Pct(use.MaxShare.Value)}");
+            else if (use.MinShare.HasValue) parts.Add($"min {Tally.Pct(use.MinShare.Value)}");
+
+            if (use.MinArea.HasValue && use.MaxArea.HasValue)
+                parts.Add($"{Tally.Num(use.MinArea.Value)}–{Tally.Num(use.MaxArea.Value)} {unit}");
+            else if (use.MaxArea.HasValue) parts.Add($"max {Tally.Num(use.MaxArea.Value)} {unit}");
+            else if (use.MinArea.HasValue) parts.Add($"min {Tally.Num(use.MinArea.Value)} {unit}");
+
+            return parts.Count == 0 ? null : string.Join(" · ", parts);
         }
 
         // ---- pie view ------------------------------------------------------------------------
@@ -539,14 +562,16 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             }));
 
             menu.Items.Add(new SeparatorMenuItem());
-            menu.Items.Add(Item("Set max %…", true, () => EditLimit(doc, use, max: true)));
-            menu.Items.Add(Item("Set min %…", true, () => EditLimit(doc, use, max: false)));
+            string unit = _model.Current.Unit;
+            menu.Items.Add(Item("Set max %…", true, () => EditShareLimit(doc, use, max: true)));
+            menu.Items.Add(Item("Set min %…", true, () => EditShareLimit(doc, use, max: false)));
+            menu.Items.Add(Item($"Set max {unit}…", true, () => EditAreaLimit(doc, use, max: true)));
+            menu.Items.Add(Item($"Set min {unit}…", true, () => EditAreaLimit(doc, use, max: false)));
             if (use.HasLimits)
             {
                 menu.Items.Add(Item("Clear limits", true, () =>
                 {
-                    use.MinShare = null;
-                    use.MaxShare = null;
+                    use.ClearLimits();
                     _model.SaveCategories(doc);
                 }));
             }
@@ -578,6 +603,9 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             menu.Items.Add(Item(Pie ? "Show as bars" : "Show as pie chart", true, ToggleView));
             menu.Items.Add(Item("Check volumes…", true, () => IssuesDialog.Show(ParentWindow, _model, doc)));
             menu.Items.Add(Item("Add use…", true, () => AddUse(doc)));
+            var target = new SubMenuItem { Text = "Total GFA target" };
+            foreach (MenuItem item in TargetItems(doc)) target.Items.Add(item);
+            menu.Items.Add(target);
 
             menu.Items.Add(new SeparatorMenuItem());
             Display.AddMenuItems(menu, () => DisplayChanged?.Invoke(this, EventArgs.Empty));
@@ -603,13 +631,55 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             RhinoApp.WriteLine($"{GfaInfo.Name}: now tracking uses by {(mode == TrackingMode.ByLayer ? "layer" : "object")}.");
         }
 
-        private void EditLimit(RhinoDoc doc, UseCategory use, bool max)
+        private void EditShareLimit(RhinoDoc doc, UseCategory use, bool max)
         {
             double? current = max ? use.MaxShare : use.MinShare;
-            double? value = PercentDialog.Ask(ParentWindow, $"{(max ? "Max" : "Min")} share for {use.Name}", current);
-            if (!value.HasValue) return;
+            LimitDialog.Answer answer = LimitDialog.Ask(ParentWindow, $"{(max ? "Max" : "Min")} share for {use.Name}",
+                "Share", "% of total GFA", current * 100, 100);
+            if (answer == null) return;
+            double? value = answer.Value / 100;
             if (max) use.MaxShare = value; else use.MinShare = value;
             _model.SaveCategories(doc);
+        }
+
+        private void EditAreaLimit(RhinoDoc doc, UseCategory use, bool max)
+        {
+            string unit = _model.Current.Unit;
+            double? current = max ? use.MaxArea : use.MinArea;
+            LimitDialog.Answer answer = LimitDialog.Ask(ParentWindow, $"{(max ? "Max" : "Min")} GFA for {use.Name}",
+                "GFA", unit, current, null);
+            if (answer == null) return;
+            if (max) use.MaxArea = answer.Value; else use.MinArea = answer.Value;
+            _model.SaveCategories(doc);
+        }
+
+        private IEnumerable<MenuItem> TargetItems(RhinoDoc doc)
+        {
+            string unit = _model.Current.Unit;
+            yield return Item($"Set max total {unit}…", true, () => EditTarget(doc, max: true));
+            yield return Item($"Set min total {unit}…", true, () => EditTarget(doc, max: false));
+            yield return Item("Clear target", _model.TargetMin.HasValue || _model.TargetMax.HasValue,
+                () => _model.SetTarget(doc, null, null));
+        }
+
+        private void ShowTargetMenu(RhinoDoc doc, PointF location)
+        {
+            if (doc == null) return;
+            var menu = new ContextMenu();
+            foreach (MenuItem item in TargetItems(doc)) menu.Items.Add(item);
+            menu.Show(this, ToControl(location));
+        }
+
+        private void EditTarget(RhinoDoc doc, bool max)
+        {
+            if (doc == null) return;
+            string unit = _model.Current.Unit;
+            double? current = max ? _model.TargetMax : _model.TargetMin;
+            LimitDialog.Answer answer = LimitDialog.Ask(ParentWindow, $"{(max ? "Max" : "Min")} total GFA",
+                "Total GFA", unit, current, null);
+            if (answer == null) return;
+            if (max) _model.SetTarget(doc, _model.TargetMin, answer.Value);
+            else _model.SetTarget(doc, answer.Value, _model.TargetMax);
         }
 
         private void AddUse(RhinoDoc doc)

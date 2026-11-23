@@ -61,10 +61,19 @@ In By layer mode you can work either way, and both count the same:
 
 ## 6. Set limits
 
-- Right-click a use, then choose Set max % or Set min %. For example, set Residential to a max of 30%.
-- A use that breaks its limit gets a red outline and a warning sign with words such as "over max 30%".
-- Right-click, then choose Clear limits to remove them.
+- Right-click a use, then choose Set max % or Set min % to limit its share of the total. For example, set Residential to a max of 30%.
+- Or choose Set max m² or Set min m² to limit its area. For example, set Retail to a min of 500 m².
+- You can combine both kinds. The limits show at the bottom right of the use's card.
+- A use that breaks a limit gets a red outline and a warning sign with words such as "over max 30%" or "under min 500 m²".
+- To remove one limit, open it again and leave the box empty. Right-click, then choose Clear limits to remove them all.
 - Limits are saved with the document.
+
+## 6a. Total GFA target
+
+- Right-click the Total GFA box (or use ⋯ → Total GFA target), then choose Set max total m² or Set min total m².
+- When the total is outside the target, a small warning sign appears in the corner of the Total GFA box. Hover over the box to see how far over or under you are, for example "1,200 m² over the max of 10,000 m²".
+- When the total is on target, nothing is shown. Hover over the box to see the target.
+- Choose Clear target to remove it. The target is saved with the document.
 
 ## 7. Manage uses
 

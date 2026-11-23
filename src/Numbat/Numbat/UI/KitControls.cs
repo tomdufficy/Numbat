@@ -53,7 +53,10 @@ namespace Numbat.UI
 
         private void UpdateSize()
         {
-            Size = new Size((int)Math.Ceiling(KitPaint.ButtonWidth(_text, _icon, _badge) * S),
+            // +2 px slack: the button is drawn inset by half a pixel and text measurement rounds, so a button sized
+            // to the exact text width would clip its last letters ("Check aga…").
+            float slack = string.IsNullOrEmpty(_text) ? 0 : 2;
+            Size = new Size((int)Math.Ceiling((KitPaint.ButtonWidth(_text, _icon, _badge) + slack) * S),
                 (int)Math.Ceiling(Kit.ControlH * S));
             Invalidate();
         }

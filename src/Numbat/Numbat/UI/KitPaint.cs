@@ -76,7 +76,8 @@ namespace Numbat.UI
         /// <summary>Shortens text with an ellipsis until it fits the width.</summary>
         public static string Fit(Font font, string text, float width)
         {
-            if (string.IsNullOrEmpty(text) || font.MeasureString(text).Width <= width) return text;
+            // Half a pixel of tolerance: sub-pixel rounding must not turn a fitting label into "Clo…".
+            if (string.IsNullOrEmpty(text) || font.MeasureString(text).Width <= width + 0.5f) return text;
             for (int n = text.Length - 1; n > 0; n--)
             {
                 string s = text.Substring(0, n).TrimEnd() + "…";

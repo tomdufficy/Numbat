@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Rhino;
 using Rhino.DocObjects;
@@ -64,10 +65,42 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             double share = Share(c);
             if (c.MaxShare.HasValue && share > c.MaxShare.Value + eps) return $"over max {Pct(c.MaxShare.Value)}";
             if (c.MinShare.HasValue && share < c.MinShare.Value - eps) return $"under min {Pct(c.MinShare.Value)}";
+            double area = Area(c);
+            if (c.MaxArea.HasValue && area > c.MaxArea.Value + eps) return $"over max {AreaText(c.MaxArea.Value)}";
+            if (c.MinArea.HasValue && area < c.MinArea.Value - eps) return $"under min {AreaText(c.MinArea.Value)}";
+            return null;
+        }
+
+        /// <summary>Minimum and maximum total GFA for the document, in the display unit. Null = not set.</summary>
+        public double? TargetMin { get; internal set; }
+        public double? TargetMax { get; internal set; }
+        public bool HasTarget => TargetMin.HasValue || TargetMax.HasValue;
+
+        /// <summary>How far the total is outside its target ("1,200 m² over the max of 10,000 m²"), or null.</summary>
+        public string TargetMiss()
+        {
+            const double eps = 1e-6;
+            if (TargetMax.HasValue && Total > TargetMax.Value + eps)
+                return $"{AreaText(Total - TargetMax.Value)} over the max of {AreaText(TargetMax.Value)}";
+            if (TargetMin.HasValue && Total < TargetMin.Value - eps)
+                return $"{AreaText(TargetMin.Value - Total)} under the min of {AreaText(TargetMin.Value)}";
+            return null;
+        }
+
+        /// <summary>The target as text ("8,000–10,000 m²", "max 10,000 m²"), or null.</summary>
+        public string TargetText()
+        {
+            if (TargetMin.HasValue && TargetMax.HasValue) return $"{Num(TargetMin.Value)}–{AreaText(TargetMax.Value)}";
+            if (TargetMax.HasValue) return $"max {AreaText(TargetMax.Value)}";
+            if (TargetMin.HasValue) return $"min {AreaText(TargetMin.Value)}";
             return null;
         }
 
         public static string Pct(double fraction) => $"{fraction * 100:0.#}%";
+
+        public static string Num(double area) => area.ToString("#,0");
+
+        public string AreaText(double area) => $"{Num(area)} {Unit}";
     }
 
     /// <summary>Full check including the slower overlap test. Built on demand by <see cref="GfaModel.Check"/>.</summary>
@@ -92,6 +125,8 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         public const string IgnoreKey = GfaInfo.IgnoreKey;
         private const string IgnoreTiltValue = "tilt";
         private const string ModeEntry = "mode";
+        private const string TargetMinEntry = "target.min";
+        private const string TargetMaxEntry = "target.max";
 
         private readonly Dictionary<Guid, (uint serial, VolumeInfo info)> _cache =
             new Dictionary<Guid, (uint, VolumeInfo)>();
@@ -106,6 +141,36 @@ namespace Numbat.Commands.Analysis.NumbatGfa
 
         public IReadOnlyList<UseCategory> Categories => _categories;
         public TrackingMode Mode { get; private set; } = TrackingMode.ByObject;
+
+        /// <summary>The document's minimum / maximum total GFA in the display unit. Null = not set.</summary>
+        public double? TargetMin { get; private set; }
+        public double? TargetMax { get; private set; }
+
+        /// <summary>Sets the document's total GFA target (null clears that bound) and refreshes the window.</summary>
+        public void SetTarget(RhinoDoc doc, double? min, double? max)
+        {
+            if (doc == null) return;
+            LoadDocumentSettings(doc);
+            TargetMin = min;
+            TargetMax = max;
+            WriteNumber(doc, TargetMinEntry, min);
+            WriteNumber(doc, TargetMaxEntry, max);
+            _dirty = true;
+        }
+
+        private static void WriteNumber(RhinoDoc doc, string entry, double? value)
+        {
+            if (value.HasValue)
+                doc.Strings.SetString(GfaInfo.DocSection, entry, value.Value.ToString("R", CultureInfo.InvariantCulture));
+            else
+                doc.Strings.Delete(GfaInfo.DocSection, entry);
+        }
+
+        private static double? ReadNumber(RhinoDoc doc, string entry)
+        {
+            string text = doc.Strings.GetValue(GfaInfo.DocSection, entry);
+            return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double v) ? v : (double?)null;
+        }
         public Tally Current { get; private set; } = Tally.Empty;
 
         public void Attach()
@@ -589,7 +654,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
 
             double scale = Volumes.AreaScale(doc, out string unit, out bool imperial);
             double tol = doc.ModelAbsoluteTolerance;
-            var tally = new Tally { Unit = unit, Mode = Mode };
+            var tally = new Tally { Unit = unit, Mode = Mode, TargetMin = TargetMin, TargetMax = TargetMax };
             if (imperial) WarnImperial(doc, tally, unit);
 
             Resolver r = MakeResolver(doc);
@@ -717,6 +782,8 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             Mode = doc.Strings.GetValue(GfaInfo.DocSection, ModeEntry) == "layer"
                 ? TrackingMode.ByLayer
                 : TrackingMode.ByObject;
+            TargetMin = ReadNumber(doc, TargetMinEntry);
+            TargetMax = ReadNumber(doc, TargetMaxEntry);
         }
 
         private static IEnumerable<RhinoObject> AllObjects(RhinoDoc doc)
