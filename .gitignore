@@ -1,99 +1,36 @@
-# ============================================================
-# Rhino Plugin (.NET) - Standard .gitignore
-# Shared across all plugin repositories
-# ============================================================
-
-# ------------------------------------------------------------
 # Build output
-# ------------------------------------------------------------
 [Bb]in/
 [Oo]bj/
-[Dd]ebug/
-[Rr]elease/
-Package/
-publish/
-
-# Plugin binaries
+dist/
 *.rhp
+*.yak
 
-# ------------------------------------------------------------
-# Visual Studio / Rider / VS Code
-# ------------------------------------------------------------
+# IDEs
 .vs/
 .idea/
-
 *.user
-*.rsuser
 *.suo
-*.userosscache
-*.sln.docstates
-
+*.rsuser
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
 !.vscode/tasks.json
 !.vscode/launch.json
 
-# ------------------------------------------------------------
+# Claude Code: personal settings stay local; shared .claude/ config is committed
+.claude/settings.local.json
+
 # Logs
-# ------------------------------------------------------------
 *.log
 *.binlog
 
-# ------------------------------------------------------------
-# Python
-# ------------------------------------------------------------
-__pycache__/
-*.pyc
-
-# ------------------------------------------------------------
 # Rhino temporary / backup files
-# ------------------------------------------------------------
 *.3dmbak
-*.3dm.rhl
 *.rhl
 *.bak
 *.tmp
 
-# ------------------------------------------------------------
-# Operating system
-# ------------------------------------------------------------
+# OS / tools
 .DS_Store
 Thumbs.db
-
-# ------------------------------------------------------------
-# Adobe temporary files
-# ------------------------------------------------------------
 *.ai~
-
-# ------------------------------------------------------------
-# Keep source assets
-# ------------------------------------------------------------
-
-# Rhino source models
-!*.3dm
-
-# Toolbar files
-!*.rui
-
-# Illustrator source artwork
-!*.ai
-
-# SVG source artwork
-!*.svg
-
-# PNG assets
-!*.png
-
-# GIF demonstrations
-!*.gif
-
-# Markdown documentation
-!*.md
-
-# PowerShell automation
-!*.ps1
-
-# YAML workflows/manifests
-!*.yml
-!*.yaml

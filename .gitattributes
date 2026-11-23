@@ -1,2 +1,13 @@
-# Auto detect text files and perform LF normalization
+# Normalise text files to LF in the repo; Git converts to the platform default on checkout.
 * text=auto
+
+# Windows-specific scripts keep CRLF in the working tree
+*.ps1 text eol=crlf
+
+# Binary assets
+*.png binary
+*.gif binary
+*.ico binary
+*.ai  binary
+*.3dm binary
+*.yak binary

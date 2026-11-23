@@ -12,8 +12,9 @@ namespace Numbat.Commands.Modelling.NumbatTemplate
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
             var gp = new GetPoint();
-            gp.SetCommandPrompt("Pick the top-left corner for the Numbat template layer guide");
-            GetResult result = gp.Get();
+		gp.SetCommandPrompt("Pick the top-left corner for the Numbat template layer guide");
+		gp.SetDefaultPoint(Rhino.Geometry.Point3d.Origin);
+		GetResult result = gp.Get();
 
             if (result != GetResult.Point)
                 return Result.Cancel;

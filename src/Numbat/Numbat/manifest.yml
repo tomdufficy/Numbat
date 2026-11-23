@@ -1,8 +1,22 @@
+# Yak package manifest. The version is supplied at build time from <Version> in
+# Numbat.csproj by scripts/Build-YakPackage.ps1 (yak build --version).
 name: Numbat
 version: $version
 authors:
 - Tom Dufficy
 description: >
-  Architectural productivity tools for Rhino.
+  Architectural modelling and analysis tools for Rhino 8: stairs, handrails,
+  PV arrays, paving, program blocks, gross floor area and layer utilities.
 url: https://github.com/tomdufficy/Numbat
 icon: numbat-icon-512.png
+keywords:
+- architecture
+- stairs
+- handrail
+- railing
+- pv
+- solar
+- paving
+- gfa
+- program
+- layers
