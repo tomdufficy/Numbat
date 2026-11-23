@@ -46,6 +46,7 @@ New and reworked windows and dialogs use the kit so all of Numbat looks and beha
 - Fonts come from `KitFonts`, icons from `KitIcons`, buttons and cards from `KitPaint` / `KitControls`, dialogs from `KitDialog`. Sizes are in design px; `KitCanvas` applies `Kit.Scale`.
 - `Display.Load()` applies the saved interface size and outline options; call it before showing a kit window.
 - No mark, logo or icon in window headers: pass `null` as the letters to `KitPaint.Header`. Revisit only when commands get their own icons.
+- No how-to or instruction text in window footers. A footer holds status (for example limits met / broken) and the copyright only. Explain how things work in hover tips, the empty state of a list, or the user guide.
 - Keep kit types `internal` and free of command-specific code.
 - The accent comes from the Numbat logo palette (ink #2D2B28, tan #C79C69, cream #FFFBEA, brown #6C4B33, rust #A9714B): brown in light mode, tan in dark mode. Tan and rust are too light for text on light backgrounds. Keep every text/background pair at 4.5:1 contrast or better.
 
