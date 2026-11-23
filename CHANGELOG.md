@@ -11,6 +11,7 @@ This file records notable changes to Numbat. The format follows [Keep a Changelo
 - Numbat is now officially Windows-only. Package Manager no longer offers new versions on Mac.
 
 ### Fixed
+- nbHandrail: the panel frame options were labelled the wrong way round. Choosing "Chamfered" built a single solid frame, and "Single Solid" built a mitred one. The options are now "Single Solid" and "Mitred", and each builds what it says. Your saved choice keeps producing the same frame as before, but the dialog now names it correctly.
 - The package now includes the .NET Framework build, so Numbat also loads when Rhino 8 is started with `/netfx`. Previously only the .NET Core build was shipped.
 
 ## [0.3.0-beta.2] - 2026-08-20
