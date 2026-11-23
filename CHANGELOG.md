@@ -12,6 +12,7 @@ This file records notable changes to Numbat. The format follows [Keep a Changelo
 - New Package Manager icon: the Numbat logo redrawn in five colours on a cream tile, so it reads on both light and dark themes.
 
 ### Fixed
+- nbHandrail: the panel frame options were labelled the wrong way round. Choosing "Chamfered" built a single solid frame, and "Single Solid" built a mitred one. The options are now "Single Solid" and "Mitred", and each builds what it says. Your saved choice keeps producing the same frame as before, but the dialog now names it correctly.
 - The package now includes the .NET Framework build, so Numbat also loads when Rhino 8 is started with `/netfx`. Previously only the .NET Core build was shipped.
 
 ## [0.3.0-beta.2] - 2026-08-20
