@@ -1,29 +1,26 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
-	<PropertyGroup>
-		<!-- Select the framework(s) you wish to target.
-        Rhino 6: net45
-        Rhino 7: net48
-        Rhino 8 Windows: net48, net7.0, net7.0-windows, net7.0-windows10.0.22000.0, etc
-        Rhino 8 Mac: net7.0, net7.0-macos, net7.0-macos12.0, etc
-    -->
-		<TargetFrameworks>net7.0;net48</TargetFrameworks>
-		<EnableDynamicLoading>true</EnableDynamicLoading>
-		<TargetExt>.rhp</TargetExt>
-		<NoWarn>NU1701</NoWarn>
-	</PropertyGroup>
+  <PropertyGroup>
+    <!-- Rhino 8 per McNeel guidance: net8.0 (default runtime from Rhino 8.20, Windows + Mac)
+         and net48 (Windows, when Rhino is started with /netfx). -->
+    <TargetFrameworks>net48;net8.0</TargetFrameworks>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <TargetExt>.rhp</TargetExt>
+    <NoWarn>NU1701</NoWarn>
+  </PropertyGroup>
 
-	<PropertyGroup>
-		<!-- Specifies information for Assembly and Yak -->
-		<Version>0.3.0-beta.2</Version>
-		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-		<Title>Numbat</Title>
-		<Company>Tom Dufficy</Company>
-		<Description>Architectural productivity tools</Description>
-	</PropertyGroup>
+  <PropertyGroup>
+    <!-- Single source of truth for the release version (assembly, Yak package and git tag v<Version>). -->
+    <Version>0.3.0-beta.2</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Title>Numbat</Title>
+    <Company>Tom Dufficy</Company>
+    <Description>Architectural productivity tools</Description>
+  </PropertyGroup>
 
-	<ItemGroup>
-		<PackageReference Include="RhinoCommon" Version="8.0.23304.9001" ExcludeAssets="runtime" />
-	</ItemGroup>
+  <ItemGroup>
+    <!-- The RhinoCommon version sets the minimum supported Rhino (Yak tag rh8_21). Raise it only on purpose. -->
+    <PackageReference Include="RhinoCommon" Version="8.21.25188.17001" ExcludeAssets="runtime" />
+  </ItemGroup>
 
 </Project>

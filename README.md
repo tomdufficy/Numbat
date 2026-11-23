@@ -8,7 +8,11 @@ Numbat is a collection of architectural modelling and analysis tools for Rhino 8
 
 ## Installation
 
+Requires Rhino 8 (8.21 or later). Numbat is developed and tested on Windows. The package also installs on Mac, but it has not been tested there.
+
 Open **Rhino Package Manager**, enable **Include pre-releases**, search for **Numbat**, and install the package.
+
+See [CHANGELOG.md](CHANGELOG.md) for what changed in each release.
 
 ## Analysis commands
 
@@ -75,6 +79,17 @@ Generates spiral stairs with configurable stair construction, central column, tr
 ### nbTemplate
 
 Recreates the Numbat template layer structure and places reference geometry and layer-path labels for the generated layers.
+
+## Building from source
+
+Requires the .NET 8 SDK (or newer) on Windows.
+
+```powershell
+dotnet build src/Numbat/Numbat/Numbat.csproj -c Release   # build net48 + net8.0 plug-ins
+./scripts/Build-YakPackage.ps1                            # build and package into dist/*.yak
+```
+
+To debug, use the `Rhino 8 - netcore` launch profile, or drag `Numbat.rhp` from `bin/` into Rhino. Every push and pull request is built by CI, and the resulting `.yak` can be downloaded from the workflow run. Pushing a `v*` tag publishes a release to Yak and GitHub Releases.
 
 ## License
 
