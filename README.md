@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="assets/brand/numbat-icon-512.png" width="128" alt="Numbat logo">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/numbat-icon-tile.svg">
+    <img src="assets/brand/numbat-icon.svg" width="160" alt="Numbat logo">
+  </picture>
 </p>
 
 # Numbat
