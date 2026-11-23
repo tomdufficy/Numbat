@@ -19,6 +19,10 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         private const int MinWidth = 280;
         private const int MinHeight = 240;
 
+        // Width kept free on the right for the vertical scrollbar, whether or not it is showing, so the content
+        // (header buttons, cards) doesn't shift sideways when switching between bars and pie.
+        private const int ScrollbarGutter = 17;
+
         // Remembered between openings and Rhino sessions.
         private const string KeyX = "window.x";
         private const string KeyY = "window.y";
@@ -52,12 +56,12 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                 Content = _view,
                 Border = BorderType.None,
                 BackgroundColor = Kit.Colours.Surface,
-                ExpandContentWidth = true,
+                ExpandContentWidth = false,
                 ExpandContentHeight = true,
             };
             _view.ViewportHeight = () => _scroll.ClientSize.Height;
             _view.SizeChanged += (s, e) => _view.UpdateHeight();
-            _scroll.SizeChanged += (s, e) => _view.Invalidate();
+            _scroll.SizeChanged += (s, e) => FitViewWidth();
             _view.ViewChanged += (s, e) => NumbatPlugin.Instance.Settings.SetString(KeyView, _view.Pie ? "pie" : "bars");
             _view.DisplayChanged += (s, e) => OnDisplayChanged();
             Content = _scroll;
@@ -118,7 +122,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             int h = settings.GetInteger(KeyH, -1);
             if (w < MinimumSize.Width || h < MinimumSize.Height)
             {
-                w = (int)(DefaultWidth * Kit.Scale);
+                w = (int)((DefaultWidth + ScrollbarGutter) * Kit.Scale);
                 h = (int)Math.Ceiling(_view.ContentHeight(DefaultWidth) * Kit.Scale);
             }
             ClientSize = new Size(w, Math.Max(h, MinimumSize.Height));
@@ -131,6 +135,13 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             settings.SetInteger(KeyY, Location.Y);
             settings.SetInteger(KeyW, ClientSize.Width);
             settings.SetInteger(KeyH, ClientSize.Height);
+        }
+
+        private void FitViewWidth()
+        {
+            int width = Math.Max(1, _scroll.Width - ScrollbarGutter);
+            if (_view.Width != width) _view.Width = width;
+            _view.UpdateHeight();
         }
 
         private void OnModelChanged(object sender, EventArgs e) => _view.UpdateHeight();

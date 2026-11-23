@@ -32,6 +32,8 @@ namespace Numbat.UI
 
         private readonly List<Target> _targets = new List<Target>();
         private string _hover, _pressed, _focus;
+        private UITimer _tipTimer;
+        private bool _tipShown;
         private bool _keyboard; // focus ring only after keyboard use, like :focus-visible
 
         /// <summary>F1 was pressed while this part had focus.</summary>
@@ -56,6 +58,13 @@ namespace Numbat.UI
             };
             LostFocus += (s, e) => { _pressed = null; Invalidate(); };
         }
+
+        /// <summary>
+        /// Draw hover tips inside the canvas instead of using the native tooltip. Use for large canvases with many
+        /// targets: the native tooltip of a single control is only read when the mouse enters it, so per-target tips
+        /// would never show. Small single controls keep the native tooltip, which can extend past their bounds.
+        /// </summary>
+        protected virtual bool DrawnTips => false;
 
         /// <summary>Show the focus ring as soon as the part gets focus (true for single controls).</summary>
         protected virtual bool RingOnFocus => false;
@@ -82,6 +91,7 @@ namespace Numbat.UI
             g.ScaleTransform(S);
             _targets.Clear();
             PaintContent(g);
+            if (DrawnTips && _tipShown) PaintTip(g);
             g.RestoreTransform();
             if (_focus != null && Find(_focus) == null) _focus = null;
         }
@@ -130,9 +140,53 @@ namespace Numbat.UI
             string id = t != null && t.Enabled ? t.Id : null;
             if (id == _hover) return;
             _hover = id;
-            ToolTip = t?.Tip;
+            if (DrawnTips) RestartTip(t?.Tip);
+            else ToolTip = t?.Tip;
             Cursor = id != null ? Cursors.Pointer : Cursors.Default;
             Invalidate();
+        }
+
+        // ---- drawn tips ---------------------------------------------------------------------------
+
+        private void RestartTip(string tip)
+        {
+            _tipTimer?.Stop();
+            bool wasShown = _tipShown;
+            _tipShown = false;
+            if (wasShown) Invalidate();
+            if (string.IsNullOrEmpty(tip)) return;
+            if (_tipTimer == null)
+            {
+                _tipTimer = new UITimer { Interval = 0.45 };
+                _tipTimer.Elapsed += (s, e) =>
+                {
+                    _tipTimer.Stop();
+                    _tipShown = true;
+                    Invalidate();
+                };
+            }
+            _tipTimer.Start();
+        }
+
+        /// <summary>The hovered target's tip as a small dark box just below it (or above, near the bottom).</summary>
+        private void PaintTip(Graphics g)
+        {
+            Target t = Find(_hover);
+            if (t == null || string.IsNullOrEmpty(t.Tip)) return;
+            KitPalette c = Kit.Colours;
+            Font font = KitFonts.Caption;
+            float maxText = Math.Min(260, LogicalWidth - 32);
+            List<string> lines = KitPaint.Wrap(font, t.Tip, maxText);
+            float lh = KitPaint.LineHeight(font);
+            float textW = 0;
+            foreach (string line in lines) textW = Math.Max(textW, KitPaint.Measure(font, line).Width);
+            float w = textW + 16, h = lines.Count * lh + 10;
+            float x = Math.Max(8, Math.Min(t.Rect.X, LogicalWidth - w - 8));
+            float y = t.Rect.Bottom + 6;
+            if (y + h > LogicalHeight - 4) y = Math.Max(4, t.Rect.Y - h - 6);
+            var box = new RectangleF(x, y, w, h);
+            KitPaint.Fill(g, box, 6, c.Text);
+            for (int i = 0; i < lines.Count; i++) g.DrawText(font, c.Surface, x + 8, y + 5 + i * lh, lines[i]);
         }
 
         private void OnMove(object sender, MouseEventArgs e) => SetHover(HitTest(ToLogical(e.Location)));

@@ -45,6 +45,8 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         /// <summary>Visible height of the scroller in control pixels, so the footer can sit at the bottom.</summary>
         public Func<float> ViewportHeight { get; set; } = () => 0;
 
+        protected override bool DrawnTips => true;
+
         private static KitPalette C => Kit.Colours;
 
         // ---- layout --------------------------------------------------------------------------
@@ -181,7 +183,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                 KitIcons.Draw(g, KitIcon.Warning, new RectangleF(r1.Right - 8 - 14, r1.Y + 8, 14, 14), C.Warn);
             }
             string tip = miss != null
-                ? $"Total GFA is {miss}. Right-click to change the target."
+                ? $"Off target: total GFA is {miss}. Right-click to change the target."
                 : t.HasTarget
                     ? $"Total GFA is within its target ({t.TargetText()}). Right-click to change it."
                     : "Right-click to set a minimum or maximum total GFA.";
@@ -204,9 +206,18 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             float lh = KitPaint.LineHeight(KitFonts.Caption);
             int broken = _model.Categories.Count(u => t.Violation(u) != null);
             bool anyLimits = _model.Categories.Any(u => u.HasLimits);
-            if (broken > 0) KitPaint.StatusLine(g, Kit.Pad, y, C.Warn, $"{broken} use(s) outside their limits", w - 2 * Kit.Pad);
-            else if (anyLimits) KitPaint.StatusLine(g, Kit.Pad, y, C.Ok, "All uses within their limits", w - 2 * Kit.Pad);
-            else KitPaint.StatusLine(g, Kit.Pad, y, C.Outline, "No limits set", w - 2 * Kit.Pad);
+            string miss = t.TargetMiss();
+            float statusW = w - 2 * Kit.Pad;
+            if (broken > 0 && miss != null)
+                KitPaint.StatusLine(g, Kit.Pad, y, C.Warn, $"{broken} use(s) outside their limits · total off target", statusW);
+            else if (broken > 0)
+                KitPaint.StatusLine(g, Kit.Pad, y, C.Warn, $"{broken} use(s) outside their limits", statusW);
+            else if (miss != null)
+                KitPaint.StatusLine(g, Kit.Pad, y, C.Warn, $"Total GFA is {miss}", statusW);
+            else if (anyLimits || t.HasTarget)
+                KitPaint.StatusLine(g, Kit.Pad, y, C.Ok, "All limits met", statusW);
+            else
+                KitPaint.StatusLine(g, Kit.Pad, y, C.Outline, "No limits or target set", statusW);
             y += lh + 4;
 
             string hint = Pie
