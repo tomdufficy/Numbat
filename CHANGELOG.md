@@ -5,25 +5,26 @@ This file records notable changes to Numbat. The format follows [Keep a Changelo
 ## [Unreleased]
 
 ### Added
-- nbGFAAssign, nbGFACheck, nbGFAHelp and nbGFADemo: assign uses from the command line, check volumes for problems, open the nbGFA how-to guide, and add example blocks to try it on. They work when typed in full but don't appear in autocomplete.
+- nbGFA helper commands, for macros and keyboard users: nbGFAAssign (assign a use on the command line), nbGFACheck (check volumes), nbGFAHelp (open the guide) and nbGFADemo (example blocks to try nbGFA on). They work when typed in full but don't appear as you type.
 
 ### Changed
-- nbTextureShuffle now works and opens a small window. Select objects and click Shuffle as many times as you like: each click gives them a box texture mapping moved by a new random amount (one undo step per click). Straighten puts it back at its starting position and Remove mapping takes it off. Changing the repeat size resizes the mapping straight away.
-- nbGFA has been rewritten as a live GFA tracker. Instead of selecting solids and getting one total, it now opens a floating window that updates as you model. Give each storey volume a use, see each use's GFA and share of the total, set minimum and maximum limits per use as a share (%) or an area (m²), and set a minimum and maximum total GFA. Broken limits are flagged; an off-target total shows a small warning icon that explains on hover. Volumes whose use isn't decided yet can go in the default Unassigned use, so they still count toward the total. Uses can be tracked per object or by `nbGFA::<use>` sublayers, and are saved in the document. See the how-to guide (`nbGFAHelp`).
-- Numbat now requires Rhino 8.21 or later. It targets .NET 8 (Rhino's default runtime since 8.20) and .NET Framework 4.8, as McNeel recommends.
-- Package Manager listing: improved description and search keywords.
-- Numbat is now officially Windows-only. Package Manager no longer offers new versions on Mac.
-- New Package Manager icon: the Numbat logo redrawn in five colours on a cream tile, so it reads on both light and dark themes.
+- nbGFA is now a live GFA tracker. Instead of selecting solids and getting one total, it opens a floating window that updates as you model:
+  - Each storey is one closed box; GFA is the area of its flat bottom, and floors split into several faces count in full.
+  - Give volumes a use and see each use's GFA and share of the total, as bars or a pie chart. Unassigned is a default use for volumes that count but whose use isn't decided yet.
+  - Limit each use by share (%) or area (m²), and set a minimum and maximum total GFA. Anything off is flagged, with details on hover.
+  - Open, tilted or flat-bottom-less volumes are flagged instead of being skipped silently.
+  - Track uses on each object or by `nbGFA::<use>` sublayers. All settings are saved in the file. The guide is behind the window's ? button.
+- nbTextureShuffle now works. It opens a small window: select objects and click Shuffle as often as you like to move their box texture mapping by a new random amount (one undo step per click). Straighten puts the mapping back at its start; Remove mapping takes it off.
+- Numbat now requires Rhino 8.21 or later, and is officially Windows-only.
+- New Package Manager icon, description and search keywords.
 
 ### Removed
-- nbProgramBlocks and nbTemplate have been removed. They were too rough to keep in Numbat; replacements may be built from scratch later.
-- nbStair, nbStairStraight, nbStairSpiral and nbPV are temporarily withdrawn while they are rebuilt. They will return in a later release.
+- nbProgramBlocks and nbTemplate.
+- nbStair, nbStairStraight, nbStairSpiral and nbPV, temporarily, while they are rebuilt. They will return in a later release.
 
 ### Fixed
-- nbHandrail: the panel frame options were labelled the wrong way round. Choosing "Chamfered" built a single solid frame, and "Single Solid" built a mitred one. The options are now "Single Solid" and "Mitred", and each builds what it says. Your saved choice keeps producing the same frame as before, but the dialog now names it correctly.
-- nbGFA: a floor split into several flat faces is now counted in full. Previously only one of the faces was counted.
-- nbGFA: open polysurfaces and volumes without a flat bottom are now flagged in the window instead of being skipped silently.
-- The package now includes the .NET Framework build, so Numbat also loads when Rhino 8 is started with `/netfx`. Previously only the .NET Core build was shipped.
+- nbHandrail: the panel frame options were labelled the wrong way round. They now read "Single Solid" and "Mitred" and each builds what it says. Saved choices keep producing the same frame as before.
+- Numbat now also loads when Rhino 8 is started with `/netfx`.
 
 ## [0.3.0-beta.2] - 2026-08-20
 

@@ -18,16 +18,9 @@ Publishing is irreversible: a Yak version can never be overwritten or re-pushed.
 
 ## 2. Choose the version
 
-Read the current `<Version>` in `src/Numbat/Numbat/Numbat.csproj` and the `[Unreleased]` entries. Apply SemVer:
+Read the current `<Version>` in `src/Numbat/Numbat/Numbat.csproj` and the `[Unreleased]` entries, and apply the rules in CLAUDE.md → Versioning (the single place they are written down).
 
-| Unreleased contains | Before 1.0 | From 1.0 |
-|---|---|---|
-| Removed command or breaking option/behaviour change | minor | major |
-| New command or feature (`Added`) | minor | minor |
-| Only fixes or small changes | patch | patch |
-
-- Pre-releases: continuing the same base version increments `-beta.N`. A new base version starts at `-beta.1`. A stable release drops the suffix.
-- If the user passed a version in `$ARGUMENTS`, use it, but warn if it contradicts the table.
+- If the user passed a version in `$ARGUMENTS`, use it, but warn if it contradicts those rules.
 - The tag `v<version>` must not already exist locally or on origin (`git ls-remote --tags origin v<version>`).
 
 Present the proposed version with a one-line justification and the changelog entries. Wait for confirmation.
@@ -39,7 +32,7 @@ Present the proposed version with a one-line justification and the changelog ent
    - Rename `## [Unreleased]` to `## [<version>] - <YYYY-MM-DD>` and add a fresh empty `## [Unreleased]` above it.
    - Update the compare links at the bottom: `[Unreleased]` compares `v<version>...main`, and add `[<version>]` comparing the previous tag with `v<version>`.
 3. Set `<Version>` in `Numbat.csproj`.
-4. Make sure the README reflects every command change in this release.
+4. Make sure the README and the Package Manager listing (`description` and `keywords` in `src/Numbat/Numbat/manifest.yml`) reflect every command added, changed, withdrawn or removed in this release.
 5. Commit `chore(release): v<version>`, push, and open a PR. When CI is green and the maintainer approves, merge it (squash).
 
 ## 4. Tag (only after an explicit go-ahead)
