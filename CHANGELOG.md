@@ -5,10 +5,10 @@ This file records notable changes to Numbat. The format follows [Keep a Changelo
 ## [Unreleased]
 
 ### Removed
-- nbProgramBlocks has been removed. It was too rough to keep in Numbat; a replacement may be built from scratch later.
+- nbProgramBlocks and nbTemplate have been removed. They were too rough to keep in Numbat; replacements may be built from scratch later.
+- nbStair, nbStairStraight, nbStairSpiral and nbPV are temporarily withdrawn while they are rebuilt. They will return in a later release.
 
 ### Changed
-- nbTemplate: pressing Enter at the placement prompt now uses the origin (0,0,0).
 - Numbat now requires Rhino 8.21 or later. It targets .NET 8 (Rhino's default runtime since 8.20) and .NET Framework 4.8, as McNeel recommends.
 - Package Manager listing: improved description and search keywords.
 - Numbat is now officially Windows-only. Package Manager no longer offers new versions on Mac.

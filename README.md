@@ -49,33 +49,9 @@ Generates configurable architectural handrails from selected curves. Available c
   <img src="assets/demos/nbHandrail.gif" width="900" alt="nbHandrail demonstration">
 </p>
 
-### nbPV
+## Commands in rework
 
-Places photovoltaic panel arrays on selected roof geometry. The command provides controls for panel and frame dimensions, stand height, tilt, gaps, parapet margin, rotation and fit mode.
-
-### nbStair
-
-Starts the stair generator and provides a choice between the straight and spiral stair commands.
-
-### nbStairStraight
-
-Generates straight stairs with configurable construction, landings, switchbacks and stringers using a preview-and-bake workflow.
-
-<p align="center">
-  <img src="assets/demos/nbStairStraight.gif" width="900" alt="nbStairStraight demonstration">
-</p>
-
-### nbStairSpiral
-
-Generates spiral stairs with configurable stair construction, central column, treads, balusters, handrail, skin and soffit options.
-
-<p align="center">
-  <img src="assets/demos/nbStairSpiral.gif" width="900" alt="nbStairSpiral demonstration">
-</p>
-
-### nbTemplate
-
-Recreates the Numbat template layer structure and places reference geometry and layer-path labels for the generated layers.
+nbStair, nbStairStraight, nbStairSpiral and nbPV have been withdrawn from the package for now while they are rebuilt to a more professional standard. They will come back in a later release. nbProgramBlocks and nbTemplate have been retired.
 
 ## Building from source
 
@@ -86,7 +62,7 @@ dotnet build src/Numbat/Numbat/Numbat.csproj -c Release   # build net48 + net8.0
 ./scripts/Build-YakPackage.ps1                            # build and package into dist/*.yak
 ```
 
-To debug, use the `Rhino 8 - netcore` launch profile, or drag `Numbat.rhp` from `bin/` into Rhino. Every push and pull request is built by CI, and the resulting `.yak` can be downloaded from the workflow run. Pushing a `v*` tag starts a release. The package first goes to McNeel's test Yak server for a final check, and it is published to Yak and GitHub Releases only after the maintainer approves.
+To debug, use the `Rhino 8 - netcore` launch profile, or drag `Numbat.rhp` from `bin/` into Rhino. Debug builds also include the commands that are in rework; release builds and the published package do not. Every push and pull request is built by CI, and the resulting `.yak` can be downloaded from the workflow run. Pushing a `v*` tag starts a release. The package first goes to McNeel's test Yak server for a final check, and it is published to Yak and GitHub Releases only after the maintainer approves.
 
 ## License
 
