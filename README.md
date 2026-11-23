@@ -21,7 +21,19 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each release.
 
 ### nbGFA
 
-Calculates gross floor area from selected closed polysurfaces. The command identifies the lowest face of each selected solid, validates that the face is horizontal and planar, rejects contained volumes, and reports the combined area in square metres.
+Tracks gross floor area live while you model. Model each storey as one closed box, give each box a use (Residential, Office, Retail, ..., or Unassigned while you decide), and a floating window shows the GFA of each use, its share of the total, and the selected volumes. You can limit each use by share (%) or area (m²), and set a target for the total GFA; the window flags anything outside its limits. Uses are tracked either on each object or by a `nbGFA::<use>` sublayer, and are saved in the document. GFA is always reported in m² in metric models.
+
+Volumes are checked as you work: open polysurfaces, bottoms that are slightly tilted, and boxes with no flat bottom are flagged, and `nbGFACheck` also finds overlapping volumes and can level tilted ones.
+
+Everything is done from the window. For macros and keyboard users there are three helper commands; they don't appear in Rhino's autocomplete (so typing `nb` only offers `nbGFA`), but they work when typed in full:
+
+| Command | What it does |
+|---|---|
+| `nbGFA` | Opens the GFA window, or brings it to the front. |
+| `nbGFAAssign` | Select volumes, then pick a use (or Exclude) on the command line. |
+| `nbGFACheck` | Checks assigned volumes: open, tilted, no flat bottom, overlapping. |
+| `nbGFAHelp` | Shows the how-to guide ([docs/nbGFA.md](docs/nbGFA.md)). |
+| `nbGFADemo` | Adds three example blocks (2, 4 and 6 storeys) on an "nbGFA demo" layer to try nbGFA on. |
 
 ## Modelling commands
 

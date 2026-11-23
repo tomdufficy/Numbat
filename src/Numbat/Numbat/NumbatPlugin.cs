@@ -1,5 +1,5 @@
-﻿using Rhino;
-using System;
+using Numbat.Commands.Analysis.NumbatGfa;
+using Rhino.PlugIns;
 
 namespace Numbat
 {
@@ -21,8 +21,20 @@ namespace Numbat
         ///<summary>Gets the only instance of the NumbatPlugin plug-in.</summary>
         public static NumbatPlugin Instance { get; private set; }
 
-        // You can override methods here to change the plug-in behavior on
-        // loading and shut down, add options pages to the Rhino _Option command
-        // and maintain plug-in wide options in a document.
+        /// <summary>Live GFA state for the active document, shared by the nbGFA window and commands.</summary>
+        internal GfaModel GfaModel { get; private set; }
+
+        protected override LoadReturnCode OnLoad(ref string errorMessage)
+        {
+            GfaModel = new GfaModel();
+            GfaModel.Attach();
+            return LoadReturnCode.Success;
+        }
+
+        protected override void OnShutdown()
+        {
+            GfaModel?.Detach();
+            base.OnShutdown();
+        }
     }
 }

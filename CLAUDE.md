@@ -8,8 +8,9 @@ Numbat is a Rhino 8 plugin (RhinoCommon, C#) of architectural modelling and anal
 src/Numbat/Numbat.slnx               solution
 src/Numbat/Numbat/Numbat.csproj      single project: net48 + net8.0 -> Numbat.rhp. <Version> lives here.
 src/Numbat/Numbat/manifest.yml       Yak manifest (version injected at build time)
+src/Numbat/Numbat/UI/               Numbat's shared Eto UI kit (Kit*, Display): colours, fonts, icons, buttons, dialogs
 src/Numbat/Numbat/Commands/
-  Analysis/                          nbGFA
+  Analysis/                          nbGFA (live GFA window + nbGFAAssign/Check/Help)
   Modelling/                         nbHandrail, nbPavementPlacer, nbRandomColour, nbTextureShuffle
   Preview/                           in rework, Debug builds only: nbStair*, nbPV (see "Preview commands")
 scripts/Build-YakPackage.ps1         build + package into dist/*.yak (used by CI and locally)
@@ -19,6 +20,7 @@ scripts/Build-YakPackage.ps1         build + package into dist/*.yak (used by CI
 .github/dependabot.yml               monthly GitHub Actions updates (NuGet deliberately excluded)
 .claude/skills/release/              /release: the release procedure
 docs/audit-2026-11.md                audit backlog of known issues per command
+docs/nbGFA.md                        nbGFA user guide, embedded in the plugin and shown by nbGFAHelp
 CHANGELOG.md                         Keep a Changelog; [Unreleased] is always current
 ```
 
@@ -32,6 +34,23 @@ Larger commands each get a folder and follow this split:
 - `*Bake` adds objects, layers and blocks to the document.
 
 Keep new commands in this shape.
+
+Each tool has one discoverable command (`nbGFA`, `nbTextureShuffle`, ...). Helper commands that a window already covers (`nbGFAAssign`, `nbGFACheck`, `nbGFAHelp`) get `[CommandStyle(Style.Hidden)]`: they work when typed in full but stay out of autocomplete, so typing `nb` only lists the main tools.
+
+**Demo commands are optional.** When developing or reworking a tool, suggest (don't add unasked) a hidden `<command>Demo` (for example `nbGFADemo`) if a ready-made test case would help users try it. When the maintainer wants one, it ships in every build, is `[CommandStyle(Style.Hidden)]`, builds simple example geometry on a layer named `<command> demo`, replaces only that layer's contents when run again, works in any metric unit, zooms to the result and prints which command to run next. Mention it in the tool's README section and user guide.
+
+## Shared UI kit (`src/Numbat/Numbat/UI/`)
+
+New and reworked windows and dialogs use the kit so all of Numbat looks and behaves the same. nbGFA is the first command on it; the others move over as they are reworked.
+- Take colours from `Kit.Colours` at paint time (never cache them), so Rhino's light/dark mode and the display options apply live. Don't hard-code colours or fonts in commands.
+- Fonts come from `KitFonts`, icons from `KitIcons`, buttons and cards from `KitPaint` / `KitControls`, dialogs from `KitDialog`. Sizes are in design px; `KitCanvas` applies `Kit.Scale`.
+- `Display.Load()` applies the saved interface size and outline options; call it before showing a kit window.
+- No mark, logo or icon in window headers: pass `null` as the letters to `KitPaint.Header`. Revisit only when commands get their own icons.
+- No how-to or instruction text in window footers. A footer holds status (for example limits met / broken) and the copyright only. Explain how things work in hover tips, the empty state of a list, or the user guide.
+- Keep kit types `internal` and free of command-specific code.
+- The accent comes from the Numbat logo palette (ink #2D2B28, tan #C79C69, cream #FFFBEA, brown #6C4B33, rust #A9714B): brown in light mode, tan in dark mode. Tan and rust are too light for text on light backgrounds. Keep every text/background pair at 4.5:1 contrast or better.
+
+nbGFA keeps its user guide in `docs/nbGFA.md`. Update it in the same change as any change to nbGFA's commands, window, menus, units or GFA rules, written for architects (plain steps, no code).
 
 ## Preview commands (`Commands/Preview/`)
 

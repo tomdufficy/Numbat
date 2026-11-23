@@ -23,6 +23,11 @@
     <PackageReference Include="RhinoCommon" Version="8.21.25188.17001" ExcludeAssets="runtime" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The nbGFA how-to lives in docs/ (readable on GitHub) and is shown in Rhino by nbGFAHelp and the window's ? button. -->
+    <EmbeddedResource Include="..\..\..\docs\nbGFA.md" LogicalName="Numbat.Docs.nbGFA.md" />
+  </ItemGroup>
+
   <!--
     Preview commands (Commands/Preview/) are being reworked. They are compiled into Debug builds only, so they can be
     developed and tested in Rhino but never reach a Release build, the Yak package or users. To release a command,
