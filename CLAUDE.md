@@ -42,7 +42,7 @@ New and reworked windows and dialogs use the kit so all of Numbat looks and beha
 - Fonts come from `KitFonts`, icons from `KitIcons`, buttons and cards from `KitPaint` / `KitControls`, dialogs from `KitDialog`. Sizes are in design px; `KitCanvas` applies `Kit.Scale`.
 - `Display.Load()` applies the saved interface size and outline options; call it before showing a kit window.
 - Keep kit types `internal` and free of command-specific code.
-- The accent colour is still a placeholder green. It will change to a tan/brown from the new Numbat logo.
+- The accent comes from the Numbat logo palette (ink #2D2B28, tan #C79C69, cream #FFFBEA, brown #6C4B33, rust #A9714B): brown in light mode, tan in dark mode. Tan and rust are too light for text on light backgrounds. Keep every text/background pair at 4.5:1 contrast or better.
 
 nbGFA keeps its user guide in `docs/nbGFA.md`. Update it in the same change as any change to nbGFA's commands, window, menus, units or GFA rules, written for architects (plain steps, no code).
 

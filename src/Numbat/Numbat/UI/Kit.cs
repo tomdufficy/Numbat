@@ -75,7 +75,8 @@ namespace Numbat.UI
             Border = strong ? Hex(0x8A8A87) : Hex(0xDADAD8),
             Outline = strong ? Hex(0x5E5E5B) : Hex(0x8A8A87),
             Text = Hex(0x1A1A1A), Text2 = Hex(0x545454), Text3 = Hex(0x6A6A6A),
-            Accent = Hex(0x536E4C), AccentWeak = Hex(0xECF1E8), OnAccent = Hex(0xFFFFFF),
+            // Accent = logo Brown; AccentWeak = a pale tint of logo Tan. Brown on Surface/AccentWeak is 6.6:1 or better.
+            Accent = Hex(0x6C4B33), AccentWeak = Hex(0xF3EBDF), OnAccent = Hex(0xFFFFFF),
             Ok = Hex(0x15803D), Warn = Hex(0x8A5A06), Err = Hex(0xC2410C),
         };
 
@@ -86,7 +87,8 @@ namespace Numbat.UI
             Border = strong ? Hex(0x5A5A5A) : Hex(0x3A3A3A),
             Outline = strong ? Hex(0xA0A0A0) : Hex(0x7A7A7A),
             Text = Hex(0xEDEDED), Text2 = Hex(0xB5B5B5), Text3 = Hex(0x9A9A9A),
-            Accent = Hex(0xA3BC9A), AccentWeak = Hex(0x2F3A2C), OnAccent = Hex(0x1A1A1A),
+            // Accent = logo Tan; AccentWeak = a dark brown. Tan on Surface/AccentWeak is 5.2:1 or better.
+            Accent = Hex(0xC79C69), AccentWeak = Hex(0x3A2E24), OnAccent = Hex(0x1A1A1A),
             Ok = Hex(0x4ADE80), Warn = Hex(0xFACC15), Err = Hex(0xFB923C),
         };
 
@@ -94,7 +96,7 @@ namespace Numbat.UI
 
         /// <summary>Sequential ramp for magnitude (density, thickness, length), low to high.</summary>
         public static readonly Color[] Sequential =
-            { Hex(0xEEF3EB), Hex(0xC5D6BE), Hex(0x93AE8A), Hex(0x536E4C), Hex(0x2F4330) };
+            { Hex(0xF6EEDF), Hex(0xE2C8A3), Hex(0xC79C69), Hex(0x8F6142), Hex(0x4E3524) }; // cream to brown, from the logo
 
         /// <summary>Diverging ramp for deviation, negative to positive. Follows <see cref="BlueOrange"/>.</summary>
         public static Color[] Diverging => BlueOrange
