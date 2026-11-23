@@ -10,9 +10,9 @@ src/Numbat/Numbat/Numbat.csproj      single project: net48 + net8.0 -> Numbat.rh
 src/Numbat/Numbat/manifest.yml       Yak manifest (version injected at build time)
 src/Numbat/Numbat/UI/               Numbat's shared Eto UI kit (Kit*, Display): colours, fonts, icons, buttons, dialogs
 src/Numbat/Numbat/Commands/
-  Analysis/                          nbGFA (live GFA window + nbGFAAssign/Check/Help), nbProgramBlocks
-  Modelling/                         nbHandrail, nbPV, nbStair*, nbPavementPlacer, nbRandomColour,
-                                     nbTextureShuffle, nbTemplate
+  Analysis/                          nbGFA (live GFA window + nbGFAAssign/Check/Help)
+  Modelling/                         nbHandrail, nbPavementPlacer, nbRandomColour, nbTextureShuffle
+  Preview/                           in rework, Debug builds only: nbStair*, nbPV (see "Preview commands")
 scripts/Build-YakPackage.ps1         build + package into dist/*.yak (used by CI and locally)
 .github/workflows/ci.yml             build + package on push to main and on every PR; .yak uploaded as an artifact
 .github/workflows/release.yml        on tag v*: verify -> test Yak server -> approval -> Yak + GitHub Release
@@ -50,6 +50,14 @@ New and reworked windows and dialogs use the kit so all of Numbat looks and beha
 - The accent comes from the Numbat logo palette (ink #2D2B28, tan #C79C69, cream #FFFBEA, brown #6C4B33, rust #A9714B): brown in light mode, tan in dark mode. Tan and rust are too light for text on light backgrounds. Keep every text/background pair at 4.5:1 contrast or better.
 
 nbGFA keeps its user guide in `docs/nbGFA.md`. Update it in the same change as any change to nbGFA's commands, window, menus, units or GFA rules, written for architects (plain steps, no code).
+
+## Preview commands (`Commands/Preview/`)
+
+Commands being reworked live in `src/Numbat/Numbat/Commands/Preview/`. The csproj compiles that folder only in Debug builds, so they can be developed and tested in Rhino (Debug build, launch profile or dragged-in `bin/Debug/.../Numbat.rhp`) but are absent from Release builds and the Yak package. CI builds Debug too, so they keep compiling.
+- Don't list preview commands in the README command list. The README's "Commands in rework" section names them.
+- No CHANGELOG entry for work on a preview command, except when it is withdrawn or returns.
+- To release one: `git mv` its folder back under `Commands/Modelling` or `Commands/Analysis`, add its README section and demo, and add an "Added" (or "Changed") CHANGELOG entry saying it is back. Before 1.0 that is a minor bump.
+- Their demo GIFs stay in `assets/demos/` meanwhile.
 
 ## Build and package
 

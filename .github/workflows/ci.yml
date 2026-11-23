@@ -27,6 +27,12 @@ jobs:
 
       - uses: ./.github/actions/setup-yak
 
+      # Debug includes the preview commands (Commands/Preview/), which Release leaves out. Building it keeps them
+      # compiling while they are reworked.
+      - name: Build Debug (preview commands)
+        shell: pwsh
+        run: dotnet build src/Numbat/Numbat/Numbat.csproj -c Debug
+
       - name: Build and package
         id: package
         shell: pwsh

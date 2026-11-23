@@ -130,7 +130,8 @@ namespace Numbat.Commands.Modelling.NumbatHandrail
             PanelBottomGapStepper = CreateStepper(0, 1000, 1, settings.PanelBottomGap);
             PanelFrameConstructionDropDown = new DropDown
             {
-                DataStore = new[] { "Chamfered", "Single Solid" },
+                // Order must match HandrailGenerator: 0 = PanelFrameSolid, 1 = PanelFrameMitred.
+                DataStore = new[] { "Single Solid", "Mitred" },
                 SelectedIndex = settings.PanelFrameConstructionIndex
             };
 
