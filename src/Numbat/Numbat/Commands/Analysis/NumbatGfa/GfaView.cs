@@ -57,44 +57,43 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             Kit.Pad + 2 * KitPaint.LineHeight(KitFonts.Caption) + 4 + Kit.Pad;
 
         /// <summary>Extra status lines: units warning, volume issues.</summary>
-        private List<(CalloutKind kind, string text, string link, Action click)> Callouts(Tally t)
+        private List<(CalloutKind kind, string text, string link, Action click, string tip)> Callouts(Tally t)
         {
-            var lines = new List<(CalloutKind, string, string, Action)>();
-            if (t.UnitWarning != null) lines.Add((CalloutKind.Warning, t.UnitWarning, null, null));
+            var lines = new List<(CalloutKind, string, string, Action, string)>();
+            if (t.UnitWarning != null) lines.Add((CalloutKind.Warning, t.UnitWarning, null, null, null));
             if (t.Issues.Count > 0)
             {
                 string notCounted = t.NotCountedCount > 0 ? $", {t.NotCountedCount} not counted" : string.Empty;
                 lines.Add((CalloutKind.Warning, $"{t.Issues.Count} volume issue(s){notCounted}.", "Review",
-                    () => IssuesDialog.Show(ParentWindow, _model, RhinoDoc.ActiveDoc)));
+                    () => IssuesDialog.Show(ParentWindow, _model, RhinoDoc.ActiveDoc), IssuesTip(t)));
             }
             return lines;
         }
 
-        private static float TilesH => Math.Max(KitPaint.TileHeight(true, false), KitPaint.TileHeight(false, true));
-
-        /// <summary>Top of the uses (bars or pie) at a width.</summary>
-        private float BodyTop(float w)
+        /// <summary>What the volume issues are, with counts, for the callout's hover tip.</summary>
+        private static string IssuesTip(Tally t)
         {
-            float y = Kit.HeaderH + Kit.Pad + TilesH + Kit.Pad;
-            var callouts = Callouts(_model.Current);
-            foreach (var c in callouts) y += KitPaint.CalloutHeight(w - 2 * Kit.Pad, c.text, c.link != null) + Kit.Gap;
-            if (callouts.Count > 0) y += 4;
-            return y + Kit.ControlH + Kit.Gap; // section header row
+            var parts = new List<string>();
+            void Add(VolumeStatus status, string text)
+            {
+                int n = t.Issues.Count(i => i.Status == status);
+                if (n > 0) parts.Add($"{n} {text}");
+            }
+            Add(VolumeStatus.NotClosed, "open (not closed), not counted");
+            Add(VolumeStatus.NoFlatBottom, $"without a level bottom face (within {Volumes.MaxTiltDegrees:0}°), not counted");
+            Add(VolumeStatus.NotSupported, "not a closed volume (mesh, curve and so on), not counted");
+            var tilted = t.Issues.Where(i => i.Status == VolumeStatus.Tilted).ToList();
+            if (tilted.Count > 0)
+                parts.Add($"{tilted.Count} with a bottom face up to {tilted.Max(i => i.TiltDegrees):0.#}° off level, still counted");
+            return string.Join("; ", parts) + ". Review selects them or marks them as checked.";
         }
+
+        private static float TilesH => Math.Max(KitPaint.TileHeight(true, false), KitPaint.TileHeight(false, true));
 
         private readonly KitSections _sections = new KitSections("gfa.closed");
 
-        private bool UsesOpen => _sections.IsOpen("uses");
-
-        private float BodyHeight(float w)
-        {
-            if (!UsesOpen) return -Kit.Gap;
-            if (_model.Categories.Count == 0) return KitPaint.LineHeight(KitFonts.Body) + Kit.Gap;
-            return Pie ? LayoutPie(_model.Current, BodyTop(w), w).Height : _model.Categories.Count * (RowH + RowGap);
-        }
-
         /// <summary>Height the content needs at a width, in design px. The window scrolls when it is taller.</summary>
-        public float ContentHeight(float w) => BodyTop(w) + BodyHeight(w) + Kit.Pad + FooterH;
+        public float ContentHeight(float w) => Measure(g => Body(g, _model.Current, w)) + Kit.Pad + FooterH;
 
         /// <summary>Makes the drawable tall enough for its content and repaints.</summary>
         public void UpdateHeight()
@@ -117,7 +116,13 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         {
             Tally t = _model.Current;
             float w = W;
+            float bottom = Body(g, t, w);
+            DrawFooter(g, t, w, bottom);
+        }
 
+        /// <summary>Lays out and paints everything above the footer. Returns where the content ends.</summary>
+        private float Body(Graphics g, Tally t, float w)
+        {
             DrawHeader(g, w);
             float y = Kit.HeaderH + Kit.Pad;
             DrawTiles(g, t, w, y);
@@ -129,15 +134,17 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                 var c = callouts[i];
                 float h = KitPaint.CalloutHeight(w - 2 * Kit.Pad, c.text, c.link != null);
                 string id = "callout" + i;
-                KitPaint.Callout(g, new RectangleF(Kit.Pad, y, w - 2 * Kit.Pad, h), c.kind, c.text, c.link,
-                    StateOf(id), out RectangleF link);
-                if (c.click != null) AddTarget(id, link, c.click, null, "Open the volume check");
+                var box = new RectangleF(Kit.Pad, y, w - 2 * Kit.Pad, h);
+                // The box explains itself on hover; its link (added after, so it wins the hit test) opens the dialog.
+                if (c.tip != null) AddTarget(id + ":box", box, null, null, c.tip);
+                KitPaint.Callout(g, box, c.kind, c.text, c.link, StateOf(id), out RectangleF link);
+                if (c.click != null) AddTarget(id, link, c.click, null, c.tip ?? "Open the volume check");
                 y += h + Kit.Gap;
             }
             if (callouts.Count > 0) y += 4;
 
             // Section header (opens and closes the list) with Add use on the right.
-            bool open = UsesOpen;
+            bool open = _sections.IsOpen("uses");
             RectangleF toggle = KitPaint.SectionToggle(g, Kit.Pad, y, "Uses", open, StateOf("s:uses"), _model.Categories.Count.ToString());
             AddTarget("s:uses", toggle, () =>
             {
@@ -150,15 +157,17 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             AddTarget("add", add, () => AddUse(RhinoDoc.ActiveDoc), null, "Add a new use");
             y += Kit.ControlH + Kit.Gap;
 
-            if (!open) _pieLayout = null; // no slices to hit while closed
-            else if (_model.Categories.Count == 0)
+            if (!open)
+            {
+                _pieLayout = null; // no slices to hit while closed
+                return y - Kit.Gap;
+            }
+            if (_model.Categories.Count == 0)
             {
                 g.DrawText(KitFonts.Body, C.Text3, Kit.Pad, y, "No uses yet. Click Add use to make one.");
+                return y + KitPaint.LineHeight(KitFonts.Body) + Kit.Gap;
             }
-            else if (Pie) DrawPie(g, t, y, w);
-            else DrawBars(g, t, y, w);
-
-            DrawFooter(g, t, w);
+            return Pie ? DrawPie(g, t, y, w) : DrawBars(g, t, y, w);
         }
 
         private void DrawHeader(Graphics g, float w)
@@ -207,10 +216,10 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                 KitPaint.Tile(g, r2, "Selected", "–", "Nothing selected");
         }
 
-        private void DrawFooter(Graphics g, Tally t, float w)
+        private void DrawFooter(Graphics g, Tally t, float w, float bottom)
         {
             float viewport = ViewportHeight() / S;
-            float top = Math.Max(BodyTop(w) + BodyHeight(w) + Kit.Pad, viewport - FooterH);
+            float top = Math.Max(bottom + Kit.Pad, viewport - FooterH);
             KitPaint.HLine(g, 0, w, top, C.Border);
 
             float y = top + Kit.Pad;
@@ -219,6 +228,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             bool anyLimits = _model.Categories.Any(u => u.HasLimits);
             string miss = t.TargetMiss();
             float statusW = w - 2 * Kit.Pad;
+            AddTarget("status", new RectangleF(Kit.Pad, y, statusW, lh), null, null, StatusTip(t));
             if (broken > 0 && miss != null)
                 KitPaint.StatusLine(g, Kit.Pad, y, C.Warn, $"{broken} use(s) outside their limits · total off target", statusW);
             else if (broken > 0)
@@ -234,9 +244,62 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             g.DrawText(KitFonts.Caption, C.Text3, Kit.Pad, y, GfaInfo.Copyright);
         }
 
+        /// <summary>Every broken limit and the target, with the numbers, for the footer status's hover tip.</summary>
+        private string StatusTip(Tally t)
+        {
+            var lines = new List<string>();
+            foreach (UseCategory use in _model.Categories)
+            {
+                string why = LimitWhy(use, t);
+                if (why != null) lines.Add($"{use.Name}: {why}");
+            }
+            string miss = t.TargetMiss();
+            if (miss != null) lines.Add($"Total GFA {t.AreaText(t.Total)} is {miss}.");
+            else if (t.HasTarget) lines.Add($"Total GFA {t.AreaText(t.Total)} is within its target ({t.TargetText()}).");
+            if (lines.Count > 0) return string.Join("\n", lines);
+            return _model.Categories.Any(u => u.HasLimits)
+                ? "Every use is within its limits."
+                : "Right-click a use to set limits, or the total GFA to set a target.";
+        }
+
+        /// <summary>
+        /// A broken limit with the numbers behind it ("1,224 m² is 34% of 3,600 m², 4% (144 m²) over the max of 30%."),
+        /// or null when the use is within its limits. Only explains <see cref="Tally.Violation"/>; it decides nothing.
+        /// </summary>
+        private static string LimitWhy(UseCategory use, Tally t, bool figures = true)
+        {
+            string violation = t.Violation(use);
+            if (violation == null) return null;
+            double area = t.Area(use), share = t.Share(use), total = t.Total;
+            bool over = violation.StartsWith("over", StringComparison.Ordinal);
+            bool isShare = violation.EndsWith("%", StringComparison.Ordinal);
+            string has = figures ? $"{t.AreaText(area)} is {Tally.Pct(share)} of {t.AreaText(total)}, " : string.Empty;
+            string areaIs = figures ? $"{t.AreaText(area)} is " : string.Empty;
+            if (isShare && over && use.MaxShare.HasValue)
+                return $"{has}{Tally.Pct(share - use.MaxShare.Value)} ({t.AreaText(area - use.MaxShare.Value * total)}) over the max of {Tally.Pct(use.MaxShare.Value)}.";
+            if (isShare && !over && use.MinShare.HasValue)
+                return $"{has}{Tally.Pct(use.MinShare.Value - share)} ({t.AreaText(use.MinShare.Value * total - area)}) under the min of {Tally.Pct(use.MinShare.Value)}.";
+            if (!isShare && over && use.MaxArea.HasValue)
+                return $"{areaIs}{t.AreaText(area - use.MaxArea.Value)} over the max of {t.AreaText(use.MaxArea.Value)}.";
+            if (!isShare && !over && use.MinArea.HasValue)
+                return $"{areaIs}{t.AreaText(use.MinArea.Value - area)} under the min of {t.AreaText(use.MinArea.Value)}.";
+            return violation + ".";
+        }
+
+        /// <summary>A use's hover tip: its figures, its limits or the broken one with the numbers, then what clicks do.</summary>
+        private static string UseTip(UseCategory use, Tally t)
+        {
+            string tip = $"{use.Name}: {t.AreaText(t.Area(use))}, {Tally.Pct(t.Share(use))} of {t.AreaText(t.Total)}, {t.Count(use)} volume(s).";
+            string why = LimitWhy(use, t, figures: false);
+            string limits = LimitText(use, t.Unit);
+            if (why != null) tip += $" Outside its limits: {why}";
+            else if (limits != null) tip += $" Within its limits ({limits}).";
+            return tip + " Click to assign the selected volumes, right-click for options.";
+        }
+
         // ---- bars view -----------------------------------------------------------------------
 
-        private void DrawBars(Graphics g, Tally t, float y, float w)
+        private float DrawBars(Graphics g, Tally t, float y, float w)
         {
             foreach (UseCategory use in _model.Categories)
             {
@@ -246,6 +309,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                 AddUseTarget(id, rect, use);
                 y += RowH + RowGap;
             }
+            return y;
         }
 
         private static void DrawRow(Graphics g, RectangleF rect, UseCategory use, Tally t, PartState st)
@@ -411,7 +475,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             return layout;
         }
 
-        private void DrawPie(Graphics g, Tally t, float top, float w)
+        private float DrawPie(Graphics g, Tally t, float top, float w)
         {
             KitPalette c = C;
             PieLayout layout = _pieLayout = LayoutPie(t, top, w);
@@ -478,6 +542,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                 KitPaint.Chip(g, chip.rect, Kit.ToEto(chip.use.Color), chip.use.Name, StateOf(id));
                 AddUseTarget(id, chip.rect, chip.use);
             }
+            return top + layout.Height;
         }
 
         private static IGraphicsPath SlicePath(PointF centre, RectangleF circle, float start, float sweep)
@@ -525,7 +590,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             AddTarget(id, rect,
                 () => Assign(RhinoDoc.ActiveDoc, use, SelectedVolumes(RhinoDoc.ActiveDoc)),
                 p => ShowMenu(RhinoDoc.ActiveDoc, use, p),
-                $"{use.Name}: click to assign the selected volumes, right-click for options");
+                UseTip(use, _model.Current));
 
         private static List<RhinoObject> SelectedVolumes(RhinoDoc doc) =>
             doc == null ? new List<RhinoObject>()

@@ -50,7 +50,8 @@ In By layer mode you can work either way, and both count the same:
 - The Total GFA box also shows the tracking mode: by object or by layer.
 - The Selected box shows the GFA of whatever volumes you have selected right now, assigned or not.
 - Each use card shows its colour, GFA, share of the total, and how many volumes it has. The bar along the bottom of the card fills up with its share.
-- The line at the bottom of the window tells you whether all uses, and the total, are within their limits.
+- The line at the bottom of the window tells you whether all uses, and the total, are within their limits. Hover over it to see every broken limit with its numbers, for example "1,416 m² is 45.4% of 3,120 m², 15.4% (480 m²) over the max of 30%".
+- Hover over a use to see its GFA, share and number of volumes, its limits, and by how much it is over or under a broken one.
 
 ## 6. Bars or pie chart
 
@@ -92,7 +93,7 @@ Right-click a use for these options:
 
 ## 10. Fix problem volumes
 
-nbGFA checks every assigned volume as you work. When something is wrong, a box with a warning sign and "volume issue(s)" appears in the window. Click Review in that box, or run nbGFACheck, to see what's wrong and fix it.
+nbGFA checks every assigned volume as you work. When something is wrong, a box with a warning sign and "volume issue(s)" appears in the window. Hover over the box to see how many volumes have which problem. Click Review in that box, or run nbGFACheck, to see what's wrong and fix it.
 
 - Bottom slightly tilted: the bottom face is up to 5° off level. It is still counted. Flatten rotates the volume level about the centre of its bottom face. Ignore accepts it as it is and stops flagging it.
 - Not closed: an open polysurface has no volume and is not counted. Cap or join it.

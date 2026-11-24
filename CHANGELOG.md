@@ -10,12 +10,12 @@ This file records notable changes to Numbat. The format follows [Keep a Changelo
 - nbGFA helper commands, for macros and keyboard users: nbGFAAssign (assign a use on the command line), nbGFACheck (check volumes), nbGFAHelp (open the guide) and nbGFADemo (example blocks to try nbGFA on). They work when typed in full but don't appear as you type.
 
 ### Changed
-- The sections of the nbGFA and nbAF windows open and close with an arrow before each heading, and stay as you left them.
+- The sections of the nbGFA, nbAF and nbAnon windows open and close with an arrow before each heading, and stay as you left them. nbAnon also gets the same header as the other windows, with ? (guide) and ⋯ (menu).
 - Numbat windows and dialogs show Numbat's "nb" mark and the tool's full name in their title bar, for example "nbGFA – Gross Floor Area". This applies to nbGFA, nbAF, nbTextureShuffle, the guides and every dialog.
 - nbGFA is now a live GFA tracker. Instead of selecting solids and getting one total, it opens a floating window that updates as you model:
   - Each storey is one closed box; GFA is the area of its flat bottom, and floors split into several faces count in full.
   - Give volumes a use and see each use's GFA and share of the total, as bars or a pie chart. Unassigned is a default use for volumes that count but whose use isn't decided yet.
-  - Limit each use by share (%) or area (m²), and set a minimum and maximum total GFA. Anything off is flagged, with details on hover.
+  - Limit each use by share (%) or area (m²), and set a minimum and maximum total GFA. Anything off is flagged. Hovering a use, the status line or the volume issues box gives the numbers: how far over or under a limit, in % and m², and how many volumes have which problem.
   - Open, tilted or flat-bottom-less volumes are flagged instead of being skipped silently.
   - Track uses on each object or by `nbGFA::<use>` sublayers. All settings are saved in the file. The guide is behind the window's ? button.
 - nbTextureShuffle now works. It opens a small window: select objects and click Shuffle as often as you like to move their box texture mapping by a new random amount (one undo step per click). Straighten puts the mapping back at its start; Remove mapping takes it off.

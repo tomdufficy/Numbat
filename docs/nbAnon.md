@@ -5,6 +5,8 @@ nbAnon finds a word or phrase, such as your company's or a client's name, everyw
 ## 1. Find
 
 - Type nbAnon on the command line to open the window.
+- The window has four sections: Find, Look in, Found and Replace with. Click a heading (or the arrow before it) to close or open that section; nbAnon remembers which ones you closed. A closed section still shows its count, for example how many places were found, and Tick all and Tick none still work while Found is closed.
+- Top right, in the window's header: ? opens this guide, ⋯ opens the menu (this guide and Save report…).
 - Type the phrase to look for, for example ACME. Upper and lower case are treated the same unless you turn on Match case.
 - Whole words only finds ACME but not ACMEBAU. Leave it off to catch the name inside longer words too.
 - Choose where to look (all places are on by default), then click Scan or press Enter.
@@ -33,7 +35,7 @@ nbAnon finds a word or phrase, such as your company's or a client's name, everyw
 
 - Random code: a code such as QX7KMR.
 - Random word: a neutral word such as Heron. Click New for another one.
-- My text: type the replacement yourself, for example Client.
+- My text: type the replacement yourself, for example Client. The text box appears only in this mode.
 - Remove: the phrase is taken out. A name that would end up empty gets a random code instead.
 - The same replacement is used everywhere, so the layer, the block and the note all say the same thing afterwards.
 - Click Anonymise. All changes together are one step: Ctrl+Z puts them back, except group names, named CPlanes and the document notes, which Rhino can't undo. Save the report first if you may need the old names.
