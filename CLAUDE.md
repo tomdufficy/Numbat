@@ -12,6 +12,7 @@ src/Numbat/Numbat/UI/               Numbat's shared Eto UI kit (Kit*, Display): 
 src/Numbat/Numbat/Commands/
   Analysis/                          nbGFA (live GFA window + nbGFAAssign/Check/Help), nbAF (Abstandsflächen window + helpers)
   Modelling/                         nbHandrail, nbPavementPlacer, nbRandomColour, nbTextureShuffle
+  Utilities/                         nbAnon (find and anonymise a phrase everywhere in the file)
   Preview/                           in rework, Debug builds only: nbStair*, nbPV (see "Preview commands")
 scripts/Build-YakPackage.ps1         build + package into dist/*.yak (used by CI and locally)
 .github/workflows/ci.yml             build + package on push to main and on every PR; .yak uploaded as an artifact
@@ -22,6 +23,7 @@ scripts/Build-YakPackage.ps1         build + package into dist/*.yak (used by CI
 docs/audit-2026-11.md                audit backlog of known issues per command
 docs/nbGFA.md                        nbGFA user guide, embedded in the plugin and shown by nbGFAHelp
 docs/nbAF.md                         nbAF user guide, embedded in the plugin and shown by nbAFHelp
+docs/nbAnon.md                       nbAnon user guide, embedded in the plugin and shown by nbAnonHelp
 docs/sources/                        legal texts behind nbAF's rules (PDFs ship with the plugin) and the rules table
 CHANGELOG.md                         Keep a Changelog; [Unreleased] is always current
 ```
@@ -43,7 +45,7 @@ Each tool has one discoverable command (`nbGFA`, `nbTextureShuffle`, ...). Helpe
 
 ## Shared UI kit (`src/Numbat/Numbat/UI/`)
 
-New and reworked windows and dialogs use the kit so all of Numbat looks and behaves the same. nbGFA, nbAF and nbTextureShuffle are on it; the others move over as they are reworked, and new commands start on it.
+New and reworked windows and dialogs use the kit so all of Numbat looks and behaves the same. nbGFA, nbAF, nbAnon and nbTextureShuffle are on it; the others move over as they are reworked, and new commands start on it.
 - Take colours from `Kit.Colours` at paint time (never cache them), so Rhino's light/dark mode and the display options apply live. Don't hard-code colours or fonts in commands.
 - Fonts come from `KitFonts`, icons from `KitIcons`, buttons and cards from `KitPaint` / `KitControls`, dialogs from `KitDialog`. Sizes are in design px; `KitCanvas` applies `Kit.Scale`.
 - `Display.Load()` applies the saved interface size and outline options; call it before showing a kit window.

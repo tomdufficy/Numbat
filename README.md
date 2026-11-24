@@ -13,6 +13,7 @@ Architectural modelling and analysis tools for Rhino 8. Every command starts wit
 |---|---|
 | [`nbGFA`](#nbgfa) | Live gross floor area tracking by use, with limits and a total target. |
 | [`nbAF`](#nbaf) | Live Abstandsflächen (setback areas, HBauO § 6) with clash checks against neighbours and plots. |
+| [`nbAnon`](#nbanon) | Finds a name (your company's, a client's) everywhere in a file and anonymises it. |
 | [`nbTextureShuffle`](#nbtextureshuffle) | Breaks up repeating textures by shuffling their mapping. |
 | [`nbHandrail`](#nbhandrail) | Configurable handrails with rails, posts, infill and panels. |
 | [`nbPavementPlacer`](#nbpavementplacer) | Arrays a paving module along curves. |
@@ -63,6 +64,12 @@ Everything is done from the window. These helper commands are for macros and key
 | `nbAFSources` | List the legal texts and open the saved copy or the live page. |
 | `nbAFHelp` | Opens the guide. |
 | `nbAFDemo` | Adds an example district (some 450 storey volumes) to try nbAF on. Add them in the window like your own volumes. |
+
+## nbAnon
+
+Finds a word or phrase, such as your company's or a client's name, everywhere a Rhino file keeps text, and replaces it before you share the file. It looks in layer names, blocks (including everything inside nested blocks), object names, hyperlinks and user text, text and dimensions, groups, document user text and notes, named views, CPlanes, positions, layer states and layouts, linetypes, hatch and dimension styles, materials, and reports file paths. You review every place it was found, untick what should stay, and choose a random code, a random word, your own text or nothing as the replacement. All changes are one undo step, and the list can be saved as a report.
+
+The guide is in [docs/nbAnon.md](docs/nbAnon.md), and in Rhino behind the window's **?** button (or `nbAnonHelp`).
 
 ## nbTextureShuffle
 
