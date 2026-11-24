@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Eto.Drawing;
 using Eto.Forms;
@@ -64,12 +65,17 @@ namespace Numbat.Commands.Analysis.NumbatGfa
 
 
             _model.Changed += OnModelChanged;
+            KitPreview.Changed += OnPreviewChanged;
             Closing += (s, e) => SaveBounds();
             Closed += (s, e) =>
             {
                 _model.Changed -= OnModelChanged;
+                KitPreview.Changed -= OnPreviewChanged;
                 _instance = null;
+                KitPreview.Closed(GfaPreviewConduit.Tool);
+                GfaPreviewConduit.Sync(false);
             };
+            GfaPreviewConduit.Instance.Update(_model.Painted);
 
             RestoreSize();
             _view.UpdateHeight();
@@ -85,6 +91,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             if (_instance != null)
             {
                 _instance.BringToFront();
+                KitPreview.Opened(GfaPreviewConduit.Tool); // brought back: its colours are shown again
                 return;
             }
 
@@ -93,6 +100,15 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             _instance.RestoreLocation();
             _instance.Show();
             _instance.BringToFront();
+            KitPreview.Opened(GfaPreviewConduit.Tool);
+            GfaPreviewConduit.Sync(true);
+        }
+
+        /// <summary>Another tool's colours were shown, or this window's eye was clicked.</summary>
+        private void OnPreviewChanged(object sender, EventArgs e)
+        {
+            GfaPreviewConduit.Sync(true);
+            _view.Invalidate();
         }
 
         private void RestoreLocation()
@@ -141,7 +157,27 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             _view.UpdateHeight();
         }
 
-        private void OnModelChanged(object sender, EventArgs e) => _view.UpdateHeight();
+        private void OnModelChanged(object sender, EventArgs e)
+        {
+            _view.UpdateHeight();
+            // Redraw the viewports only when the colours changed (a use recoloured, a volume assigned).
+            var before = _painted;
+            _painted = _model.Painted;
+            GfaPreviewConduit.Instance.Update(_painted);
+            if (GfaPreviewConduit.Instance.Enabled && !Same(before, _painted)) Rhino.RhinoDoc.ActiveDoc?.Views.Redraw();
+        }
+
+        private IReadOnlyList<(Guid id, System.Drawing.Color colour)> _painted = new List<(Guid, System.Drawing.Color)>();
+
+        private static bool Same(IReadOnlyList<(Guid id, System.Drawing.Color colour)> a, IReadOnlyList<(Guid id, System.Drawing.Color colour)> b)
+        {
+            if (a.Count != b.Count) return false;
+            for (int i = 0; i < a.Count; i++)
+            {
+                if (a[i].id != b[i].id || a[i].colour.ToArgb() != b[i].colour.ToArgb()) return false;
+            }
+            return true;
+        }
 
         /// <summary>Interface size changed: scale the window with it so the layout stays the same.</summary>
         private void OnDisplayChanged()

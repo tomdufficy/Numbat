@@ -12,7 +12,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
     /// <summary>How a volume's use is decided. Stored per document.</summary>
     public enum TrackingMode
     {
-        /// <summary>Use stored on the object (user string); object colour shows the use.</summary>
+        /// <summary>Use stored on the object (user string); the window draws it in its use's colour.</summary>
         ByObject,
         /// <summary>Use = the nbGFA sublayer the object is on. Moving objects between layers reassigns them.</summary>
         ByLayer,
@@ -290,8 +290,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                 }
                 else
                 {
-                    attr.ObjectColor = use.Color;
-                    attr.ColorSource = ObjectColorSource.ColorFromObject;
+                    ClearUseColour(attr);
                 }
             });
             if (layer >= 0) SaveCategories(doc); // LayerId may be new
@@ -392,8 +391,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                         else
                         {
                             attr.SetUserString(GfaInfo.UseKey, use.Name);
-                            attr.ObjectColor = use.Color;
-                            attr.ColorSource = ObjectColorSource.ColorFromObject;
+                            attr.ColorSource = ObjectColorSource.ColorFromLayer;
                         }
                         // Back to the layer it was on before By layer mode moved it, if that layer still exists.
                         if (LayerSync.IsOnTree(doc, attr.LayerIndex))
@@ -483,18 +481,27 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             return true;
         }
 
-        /// <summary>Changes a use's colour (and its layer colour) and recolours its volumes.</summary>
+        /// <summary>
+        /// Changes a use's colour (and its layer colour). The volumes aren't changed: the window draws them in their
+        /// use's colour (<see cref="GfaPreviewConduit"/>).
+        /// </summary>
         public void RecolorCategory(RhinoDoc doc, UseCategory use, SdColor color)
         {
             use.Color = color;
             Layer layer = LayerSync.FindUseLayer(doc, use);
             if (layer != null) LayerSync.SetLayerColor(doc, layer, color);
-            if (Mode == TrackingMode.ByObject)
-            {
-                ModifyEach(doc, ObjectsWithUse(doc, use), $"{GfaInfo.Name}: recolour {use.Name}",
-                    (o, attr) => attr.ObjectColor = color);
-            }
             SaveCategories(doc);
+        }
+
+        /// <summary>
+        /// Earlier versions of nbGFA gave each volume its use colour as object colour. When such a volume is assigned
+        /// again, that colour goes, so it shows its layer colour like the rest; a colour the user chose stays.
+        /// </summary>
+        private void ClearUseColour(ObjectAttributes attr)
+        {
+            if (attr.ColorSource != ObjectColorSource.ColorFromObject) return;
+            int argb = attr.ObjectColor.ToArgb();
+            if (_categories.Any(c => c.Color.ToArgb() == argb)) attr.ColorSource = ObjectColorSource.ColorFromLayer;
         }
 
         /// <summary>Saves edited limits/colours into the document and refreshes the window.</summary>
@@ -687,6 +694,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
 
             Resolver r = MakeResolver(doc);
             var seen = new HashSet<Guid>();
+            var painted = new List<(Guid, SdColor)>();
 
             foreach (RhinoObject obj in AllObjects(doc))
             {
@@ -706,6 +714,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                 }
 
                 if (use == null) continue;
+                painted.Add((obj.Id, use.Color));
 
                 bool flagged = !info.Counted ||
                                (info.Status == VolumeStatus.Tilted && obj.Attributes.GetUserString(IgnoreKey) != IgnoreTiltValue);
@@ -725,8 +734,12 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             foreach (Guid id in _cache.Keys.Where(id => !seen.Contains(id)).ToList()) _cache.Remove(id);
 
             Current = tally;
+            Painted = painted;
             Changed?.Invoke(this, EventArgs.Empty);
         }
+
+        /// <summary>Every volume with a use and its use's colour, as of the last update (drawn by <see cref="GfaPreviewConduit"/>).</summary>
+        public IReadOnlyList<(Guid id, SdColor colour)> Painted { get; private set; } = new List<(Guid, SdColor)>();
 
         private VolumeInfo Analyze(RhinoObject obj, double tol)
         {

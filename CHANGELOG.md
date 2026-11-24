@@ -4,6 +4,11 @@ This file records notable changes to Numbat. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
+### Changed
+- nbGFA draws each volume in its use's colour while its window is open, in every display mode (Arctic and Rendered too), instead of changing the volumes' object colours. Volumes coloured by an earlier version keep that colour until they are assigned again.
+- nbGFA and nbAF each have an eye in their window header. When both are open, only one shows its colours in the viewports, so they don't mix: the one opened last. Click a closed eye to switch, or the open eye to hide them.
+- nbAF's depth dimensions are white with a thin dark edge, so they read on the blue areas and on any background.
+
 ## [0.4.0-beta.1] - 2026-11-24
 
 ### Added

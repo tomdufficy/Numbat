@@ -184,6 +184,11 @@ namespace Numbat.Commands.Analysis.NumbatAf
 
             RectangleF more = KitPaint.HeaderButton(w, 0);
             RectangleF help = KitPaint.HeaderButton(w, 1);
+            RectangleF eye = KitPaint.HeaderButton(w, 2);
+
+            bool shown = KitPreview.IsShown(AfPreviewConduit.Tool);
+            KitPaint.Button(g, eye, null, ButtonKind.Ghost, StateOf("eye"), shown ? KitIcon.Eye : KitIcon.EyeClosed);
+            AddTarget("eye", eye, () => KitPreview.Toggle(AfPreviewConduit.Tool), null, KitPreview.Tip(AfPreviewConduit.Tool, AfInfo.Name));
 
             KitPaint.Button(g, help, null, ButtonKind.Ghost, StateOf("help"), KitIcon.Help);
             AddTarget("help", help, AfHelp.Show, null, "How to use nbAF (F1)");

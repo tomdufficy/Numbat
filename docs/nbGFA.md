@@ -14,7 +14,7 @@ nbGFA tracks the gross floor area (GFA) of your massing as you design. You give 
 
 - Type nbGFA on the command line.
 - The window stays on top. If you close it, type nbGFA again and it reopens where you left it.
-- Top right, in the window's header: the chart button switches between bars and a pie chart, ? opens this guide, and ⋯ opens the menu. The menu has this guide (How to use nbGFA), the tracking mode, the chart view, Check volumes, Add use, and the display options (see 11).
+- Top right, in the window's header: the chart button switches between bars and a pie chart, the eye shows or hides the use colours in the viewports (see 11), ? opens this guide, and ⋯ opens the menu. The menu has this guide (How to use nbGFA), the tracking mode, the chart view, Check volumes, Add use, and the display options (see 11).
 - The Add use button beside the USES heading adds a new use.
 - Drag the window edges to resize it. nbGFA remembers its size and position, and switching between bars and pie never changes the size. If the content doesn't fit, the window scrolls.
 
@@ -22,7 +22,7 @@ nbGFA tracks the gross floor area (GFA) of your massing as you design. You give 
 
 Click ⋯ and pick one. Each document remembers its choice. You can switch at any time and your assignments carry across.
 
-- By object (default): the use is stored on each volume and shown by its colour. Your own layers are left alone.
+- By object (default): the use is stored on each volume. Your own layers and object colours are left alone.
 - By layer: nbGFA makes an "nbGFA" layer with one sublayer per use (nbGFA::Residential, nbGFA::Office, nbGFA::Unassigned, ...). The layer a volume sits on is its use. Volumes on any other layer are not counted.
 
 In By layer mode you can work either way, and both count the same:
@@ -37,7 +37,7 @@ In By layer mode you can work either way, and both count the same:
 ## 4. Assign uses
 
 - Select one or more volumes, then click a use in the window (for example Residential).
-- The volumes take on the use's colour, and the window updates straight away.
+- The volumes are drawn in the use's colour, and the window updates straight away.
 - Assigning a volume that already has a use moves it to the new use.
 - You can also use the nbGFAAssign command: select volumes, then pick a use on the command line.
 - Assignments are saved in the .3dm file and kept when you copy, move or mirror.
@@ -106,6 +106,9 @@ Use Select in the check window to select the problem volumes in Rhino.
 ## 11. Look, size and keyboard
 
 - The window follows Rhino: light when Rhino is light, dark when Rhino is in dark mode.
+- While the window is open, every volume with a use is drawn in its use's colour, in every display mode (Shaded, Arctic, Rendered, Pen and so on). nbGFA doesn't change the volumes' own colours, and selected volumes show as usual. Closing the window hides the use colours.
+- When nbGFA and nbAF are both open, only one of them shows its colours in the viewports, so they don't mix: the one you opened (or brought back with its command) last. The eye in each window's header shows whose colours you see: open in the tool that is shown, closed in the others. Click a closed eye to show that tool's colours instead; click the open eye to hide them.
+- Volumes coloured by an earlier version of nbGFA keep that colour as their object colour until you assign them again.
 - In the ⋯ menu, Interface size makes the window and its text 100%, 115% or 130% of normal. Stronger outlines makes borders around cards, buttons and fields darker. nbGFA remembers both.
 - You can use the window without a mouse. Click in it (or press Tab until it is active), then use Tab or the arrow keys to move between buttons and uses. Enter or Space clicks. Shift+F10 opens a use's right-click options. F1 opens this guide.
 - In nbGFA's small windows (Add use, Set max %, Check volumes), Enter is OK and Esc cancels.
