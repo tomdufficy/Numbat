@@ -9,9 +9,9 @@ namespace Numbat.Commands.Analysis.NumbatGfa
 {
     /// <summary>
     /// The small floating GFA window: a scroller around <see cref="GfaView"/>, which draws everything with the
-    /// Rhino UI kit. This class only handles opening, position, size and the saved view.
+    /// Numbat UI kit. This class only handles opening, position, size and the saved view.
     /// </summary>
-    public sealed class GfaWindow : FloatingForm
+    internal sealed class GfaWindow : KitWindow
     {
         // One width for both views so switching never resizes the window. The user can resize it; the size is
         // remembered. Content taller than the window scrolls.
@@ -35,19 +35,12 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         private readonly GfaView _view;
         private readonly Scrollable _scroll;
 
-        private GfaWindow(GfaModel model)
+        private GfaWindow(GfaModel model) : base(GfaInfo.Title)
         {
             _model = model;
             bool pie = NumbatPlugin.Instance.Settings.GetString(KeyView, "bars") == "pie";
 
-            Title = GfaInfo.Name;
-            WindowStyle = WindowStyle.Utility;
             Resizable = true;
-            Minimizable = false;
-            Maximizable = false;
-            ShowInTaskbar = false;
-            Topmost = true;
-            BackgroundColor = Kit.Colours.Surface;
             MinimumSize = new Size((int)(MinWidth * Kit.Scale), (int)(MinHeight * Kit.Scale));
 
             _view = new GfaView(model, pie);
@@ -62,9 +55,13 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             _view.ViewportHeight = () => _scroll.ClientSize.Height;
             _view.SizeChanged += (s, e) => _view.UpdateHeight();
             _scroll.SizeChanged += (s, e) => FitViewWidth();
-            _view.ViewChanged += (s, e) => NumbatPlugin.Instance.Settings.SetString(KeyView, _view.Pie ? "pie" : "bars");
+            _view.ViewChanged += (s, e) =>
+            {
+                NumbatPlugin.Instance.Settings.SetString(KeyView, _view.Pie ? "pie" : "bars");
+            };
             _view.DisplayChanged += (s, e) => OnDisplayChanged();
-            Content = _scroll;
+            Body = _scroll;
+
 
             _model.Changed += OnModelChanged;
             Closing += (s, e) => SaveBounds();

@@ -6,7 +6,8 @@ authors:
 - Tom Dufficy
 description: >
   Architectural modelling and analysis tools for Rhino 8: live gross floor
-  area tracking, handrails, paving, texture shuffling and layer utilities.
+  area tracking, Abstandsflaechen (setback areas), handrails, paving,
+  texture shuffling and layer utilities.
 url: https://github.com/tomdufficy/Numbat
 icon: numbat-icon-512.png
 keywords:
@@ -15,4 +16,6 @@ keywords:
 - railing
 - paving
 - gfa
+- abstandsflaechen
+- setback
 - layers

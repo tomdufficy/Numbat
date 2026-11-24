@@ -9,6 +9,9 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         /// <summary>Name used in command-line messages and window titles.</summary>
         public const string Name = "nbGFA";
 
+        /// <summary>Title bar text: command name and what it does.</summary>
+        public const string Title = "nbGFA – Gross Floor Area";
+
         public const string Copyright = "© 2026 Tom Dufficy";
 
         /// <summary>Top-level layer used in By layer mode (nbGFA::Residential, nbGFA::Unassigned, ...).</summary>

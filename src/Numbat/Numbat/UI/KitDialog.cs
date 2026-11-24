@@ -5,15 +5,17 @@ using Eto.Forms;
 namespace Numbat.UI
 {
     /// <summary>
-    /// Modal dialog in the kit's layout: surface background, 16 px body padding, a divider, and a footer with
-    /// optional ghost buttons on the left and Cancel / OK on the right (primary rightmost).
-    /// Enter presses <see cref="AcceptButton"/>, Esc presses <see cref="CancelButton"/>.
+    /// Modal dialog in the kit's layout: the Windows title bar with Numbat's mark (as <see cref="KitWindow"/>),
+    /// surface background, 16 px body padding, a divider, and a footer with optional ghost buttons on the left and
+    /// Cancel / OK on the right (primary rightmost). Enter presses <see cref="AcceptButton"/>, Esc presses
+    /// <see cref="CancelButton"/>.
     /// </summary>
     internal class KitDialog<T> : Dialog<T>
     {
         public KitDialog(string title)
         {
             Title = title;
+            KitMark.ApplyTo(this);
             Resizable = false;
             Padding = 0;
             BackgroundColor = Kit.Colours.Surface;

@@ -98,6 +98,22 @@ namespace Numbat.UI
 
         // ---- targets ----------------------------------------------------------------------------
 
+        /// <summary>
+        /// Runs a layout pass on an offscreen surface and returns what it reports (usually the content height), so a
+        /// view can size itself from the same code that paints it. Targets added during the pass are discarded.
+        /// </summary>
+        protected float Measure(Func<Graphics, float> layout)
+        {
+            using (var bmp = new Bitmap(1, 1, PixelFormat.Format32bppRgba))
+            using (var g = new Graphics(bmp))
+            {
+                int before = _targets.Count;
+                float result = layout(g);
+                if (_targets.Count > before) _targets.RemoveRange(before, _targets.Count - before);
+                return result;
+            }
+        }
+
         /// <summary>Registers a clickable target for this frame. Call while painting, in reading order.</summary>
         protected void AddTarget(string id, RectangleF rect, Action click, Action<PointF> context = null,
             string tip = null, bool enabled = true)

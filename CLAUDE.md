@@ -10,7 +10,7 @@ src/Numbat/Numbat/Numbat.csproj      single project: net48 + net8.0 -> Numbat.rh
 src/Numbat/Numbat/manifest.yml       Yak manifest (version injected at build time)
 src/Numbat/Numbat/UI/               Numbat's shared Eto UI kit (Kit*, Display): colours, fonts, icons, buttons, dialogs
 src/Numbat/Numbat/Commands/
-  Analysis/                          nbGFA (live GFA window + nbGFAAssign/Check/Help)
+  Analysis/                          nbGFA (live GFA window + nbGFAAssign/Check/Help), nbAF (Abstandsflächen window + helpers)
   Modelling/                         nbHandrail, nbPavementPlacer, nbRandomColour, nbTextureShuffle
   Preview/                           in rework, Debug builds only: nbStair*, nbPV (see "Preview commands")
 scripts/Build-YakPackage.ps1         build + package into dist/*.yak (used by CI and locally)
@@ -21,6 +21,8 @@ scripts/Build-YakPackage.ps1         build + package into dist/*.yak (used by CI
 .claude/skills/release/              /release: the release procedure
 docs/audit-2026-11.md                audit backlog of known issues per command
 docs/nbGFA.md                        nbGFA user guide, embedded in the plugin and shown by nbGFAHelp
+docs/nbAF.md                         nbAF user guide, embedded in the plugin and shown by nbAFHelp
+docs/sources/                        legal texts behind nbAF's rules (PDFs ship with the plugin) and the rules table
 CHANGELOG.md                         Keep a Changelog; [Unreleased] is always current
 ```
 
@@ -37,20 +39,36 @@ Keep new commands in this shape.
 
 Each tool has one discoverable command (`nbGFA`, `nbTextureShuffle`, ...). Helper commands that a window already covers (`nbGFAAssign`, `nbGFACheck`, `nbGFAHelp`) get `[CommandStyle(Style.Hidden)]`: they work when typed in full but stay out of autocomplete, so typing `nb` only lists the main tools.
 
-**Demo commands are optional.** When developing or reworking a tool, suggest (don't add unasked) a hidden `<command>Demo` (for example `nbGFADemo`) if a ready-made test case would help users try it. When the maintainer wants one, it ships in every build, is `[CommandStyle(Style.Hidden)]`, builds simple example geometry on a layer named `<command> demo`, replaces only that layer's contents when run again, works in any metric unit, zooms to the result and prints which command to run next. Mention it in the tool's README section and user guide.
+**Demo commands are optional.** When developing or reworking a tool, suggest (don't add unasked) a hidden `<command>Demo` (for example `nbGFADemo`) if a ready-made test case would help users try it. When the maintainer wants one, it ships in every build, is `[CommandStyle(Style.Hidden)]`, has no options, builds plain example geometry (not registered with the tool, which starts empty as it would for a user) on a layer named `<command> demo`, replaces only that layer's contents when run again, works in any metric unit, zooms to the result and prints which command to run next. Mention it in the tool's README section and user guide.
 
 ## Shared UI kit (`src/Numbat/Numbat/UI/`)
 
-New and reworked windows and dialogs use the kit so all of Numbat looks and behaves the same. nbGFA is the first command on it; the others move over as they are reworked.
+New and reworked windows and dialogs use the kit so all of Numbat looks and behaves the same. nbGFA, nbAF and nbTextureShuffle are on it; the others move over as they are reworked, and new commands start on it.
 - Take colours from `Kit.Colours` at paint time (never cache them), so Rhino's light/dark mode and the display options apply live. Don't hard-code colours or fonts in commands.
 - Fonts come from `KitFonts`, icons from `KitIcons`, buttons and cards from `KitPaint` / `KitControls`, dialogs from `KitDialog`. Sizes are in design px; `KitCanvas` applies `Kit.Scale`.
 - `Display.Load()` applies the saved interface size and outline options; call it before showing a kit window.
-- No mark, logo or icon in window headers: pass `null` as the letters to `KitPaint.Header`. Revisit only when commands get their own icons.
+- Every window derives from `KitWindow` and every dialog from `KitDialog`. They keep the normal Windows title bar (a custom-drawn one looked worse) with Numbat's mark as the window icon (`KitMark`: logo-brown rounded square, white lower-case "nb", drawn in code). The title is always `<command> – <full name>`, for example `nbGFA – Gross Floor Area` or `nbAF – Abstandsflächen` (German names keep their umlauts). Guides are `<that title> · Guide`; dialogs are `<command> – <what it edits>`.
+- Every section of a kit window opens and closes: draw its heading with `KitPaint.SectionToggle` (chevron right when closed, down when open, optional count badge) and keep the state in a `KitSections` (one settings key per window, e.g. `af.closed`, `gfa.closed`). Section-level buttons (Add, Reset) stay visible on a closed section. Size the content by measuring the same layout code that paints it (`KitCanvas.Measure`), not by a separate height sum.
+- Inside the window, a `KitPaint.Header` band shows the command name with the window-level buttons on the right, in this order from the right: ⋯ (menu), ? (guide), then view toggles. Pass `null` as the letters: the mark is already in the title bar.
 - No how-to or instruction text in window footers. A footer holds status (for example limits met / broken) and the copyright only. Explain how things work in hover tips, the empty state of a list, or the user guide.
 - Keep kit types `internal` and free of command-specific code.
 - The accent comes from the Numbat logo palette (ink #2D2B28, tan #C79C69, cream #FFFBEA, brown #6C4B33, rust #A9714B): brown in light mode, tan in dark mode. Tan and rust are too light for text on light backgrounds. Keep every text/background pair at 4.5:1 contrast or better.
 
 nbGFA keeps its user guide in `docs/nbGFA.md`. Update it in the same change as any change to nbGFA's commands, window, menus, units or GFA rules, written for architects (plain steps, no code).
+
+Guides are shown in Rhino by `KitHelpWindow`, which renders a small Markdown subset (`#`, `##`, `- ` bullets, paragraphs). Keep guides to that subset; tables belong in other docs. Prefix every per-user plugin setting of a command with its own prefix (`af.` for nbAF) so commands don't share window positions or colours.
+
+## nbAF (`Commands/Analysis/NumbatAf/`)
+
+Abstandsflächen to HBauO § 6 (Hamburg, 2025 text). nbAF and nbGFA expect the same geometry: stacked closed volumes, one per storey or part; roofs may be separate volumes.
+- `AfModel` holds the live state. The truth lives on the objects: tracked volumes carry `numbat.af.role` (any value marks them; nbAF writes `tracked`, older files may say target/context) and `numbat.af.plot` user strings. Rule values are doc strings (section `numbat.af`), colours are per-user settings. There is no target building: every building is checked against every other. Plots are optional.
+- Recalculation runs only while the window is open, and only reads the document. `AfPreviewConduit` draws the result; `nbAFBake` writes it to `nbAF::` layers (one undo step), `nbAFClear` deletes it. Don't write output from idle or window events.
+- Output is one closed curve per building face (`AfFace`: all walls of a building facing the same way, areas unioned and clipped to outside the own footprint), never per wall or as surfaces. The checks run on these face regions. Clashes are numbered markers plus the window's list; depth labels are opt-in (`AfColours.ShowLabels`), drawn as plan text sized to fit each wall's area (`AfSolver.Labels`: deepest first, colliding or covered ones dropped, hidden on screen below 8 px).
+- `AfBuildings` (volumes to buildings, no boolean union), `AfWalls` (façades, H, area outlines per wall), `AfSolver` (faces, checks), `AfExporter` (DXF R12 / SVG / JPG), `AfRules`, `AfSources`, `AfColours`.
+- Rule values vary between Landesbauordnungen: keep them settings in `AfRules`, never constants, and name where a default comes from. Keep the rules table in `docs/sources/README.md` and the guide `docs/nbAF.md` up to date in the same change as any change to the rules, checks, window or export. Every source has a saved copy (where it may be redistributed) and its date in both `docs/sources/README.md` and `AfSources.cs`.
+- Model check (`AfBuildings`, `AfModel`): volumes closer than the join gap (`AfRules.JoinGapMm`, default 10 mm, a doc setting outside HBauO) are one building; pairs of buildings closer than `AfRules.NearMissM` (20 cm) are `NearMisses`, reviewed in `NearMissDialog` (Join = Rhino group of the two closest volumes, Keep apart = `numbat.af.apart` user string). Open objects and leaning walls (2–15°) are counted, flags between near-miss buildings get a `Note`. Every `Flag` has a `Why` (rule and numbers, shown on hover and in bakes/exports); `IsCheck` flags (amber, e.g. near a road centre) aren't clashes and aren't baked or exported. Road centre lines are curves with the `numbat.af.road` user string. Building colours come from `AfModel.AssignColours` (buildings within 40 m never share one). Walls are flat within 5 mm and face the same way within 1°. Never change the user's geometry to fix these.
+- `nbAFDemo` is the only demo: `AfDemoSite.txt` (embedded), plain coordinates of a hand-made district mass model, only moved to the origin by whole metres and stored at micrometre precision. Rounding or rotating it creates slivers and off-parallel walls, so don't. Its real modelling artifacts are kept on purpose: 5 gaps of 0.1 mm and 7 overlaps of 1–2 cm². Never put names, layers or other data from a source file into it. The demo adds plain geometry and doesn't register it: nbAF always starts empty, and the user adds volumes in the window. It has flat roofs only and no plots, so it doesn't exercise roofs, gables or the plot check.
+- Expected with the HBauO defaults, in a mm model, after adding all demo volumes: 445 volumes; join gap 10 mm: 23 buildings, 2 clashes (Overlap B1/B10 11.7 m², Overlap B19 23.3 m²), 0 near-misses; join gap 0: 24 buildings, 6 clashes (4 of them noted as a 0.13 mm gap), 1 near-miss; 0 skipped faces; about 1 s per recalculation.
 
 ## Preview commands (`Commands/Preview/`)
 

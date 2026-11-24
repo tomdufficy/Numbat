@@ -14,7 +14,7 @@ namespace Numbat.Commands.Modelling.NumbatTextureShuffle
     /// Small floating window: select objects in Rhino, then click Shuffle as often as you like until the textures
     /// look right. Every click is one undo step. Settings are remembered between sessions.
     /// </summary>
-    internal sealed class TextureShuffleWindow : FloatingForm
+    internal sealed class TextureShuffleWindow : KitWindow
     {
         private const int ContentWidth = 300;
         private const string KeyX = "textureShuffle.window.x";
@@ -30,17 +30,10 @@ namespace Numbat.Commands.Modelling.NumbatTextureShuffle
         private double _mmToModel = 1;
         private bool _loading;
 
-        private TextureShuffleWindow()
+        private TextureShuffleWindow() : base("nbTextureShuffle – Texture Shuffle")
         {
-            Title = "nbTextureShuffle";
-            WindowStyle = WindowStyle.Utility;
             Resizable = false;
-            Minimizable = false;
-            Maximizable = false;
-            ShowInTaskbar = false;
-            Topmost = true;
             KitPalette c = Kit.Colours;
-            BackgroundColor = c.Surface;
             int width = (int)(ContentWidth * Kit.Scale);
 
             _status = KitForm.Body(string.Empty, width, secondary: true);
@@ -88,7 +81,7 @@ namespace Numbat.Commands.Modelling.NumbatTextureShuffle
             KitButton ay = AxisToggle("Y", () => _settings.OffsetY, v => _settings.OffsetY = v);
             KitButton az = AxisToggle("Z", () => _settings.OffsetZ, v => _settings.OffsetZ = v);
 
-            Content = new StackLayout
+            Body = new StackLayout
             {
                 Padding = new Padding(16, 16, 16, 24),
                 Spacing = 12,

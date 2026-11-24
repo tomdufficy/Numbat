@@ -316,6 +316,30 @@ namespace Numbat.UI
             return Kit.ControlH;
         }
 
+        /// <summary>
+        /// A section header that opens and closes its section: a chevron (pointing right when closed, down when open)
+        /// before the UPPERCASE title. Returns the clickable rectangle (chevron and title). An optional count is
+        /// shown after the title in a badge, so a closed section still says what's in it.
+        /// </summary>
+        public static RectangleF SectionToggle(Graphics g, float x, float y, string text, bool open, PartState state, string count = null)
+        {
+            KitPalette c = C;
+            string title = (text ?? string.Empty).ToUpperInvariant();
+            float w = Kit.IconSize + 4 + Measure(KitFonts.Section, title).Width + 6;
+            if (!string.IsNullOrEmpty(count)) w += 4 + BadgeWidthFor(count);
+            var hit = new RectangleF(x - 4, y + 2, w + 8, Kit.ControlH - 4);
+            if (state.Hover || state.Pressed) Fill(g, hit, Kit.RadiusControl, state.Pressed ? c.Border : c.Surface2);
+            KitIcons.Draw(g, open ? KitIcon.ChevronDown : KitIcon.ChevronRight,
+                new RectangleF(x, y + (Kit.ControlH - Kit.IconSize) / 2, Kit.IconSize, Kit.IconSize), c.Text2);
+            float tx = x + Kit.IconSize + 4;
+            TextMiddle(g, KitFonts.Section, c.Text2, tx, y, Kit.ControlH, title);
+            if (!string.IsNullOrEmpty(count)) Badge(g, new PointF(tx + Measure(KitFonts.Section, title).Width + 6, y + Kit.ControlH / 2), count);
+            if (state.Focused) FocusRing(g, hit, Kit.RadiusControl);
+            return hit;
+        }
+
+        private static float BadgeWidthFor(string badge) => Measure(KitFonts.Get(11, Weight.Semibold), badge).Width + 12;
+
         /// <summary>Summary tile: caption over a value, on surface-2. Optional third line under the value.</summary>
         public static void Tile(Graphics g, RectangleF r, string caption, string value, string sub = null,
             bool big = false, Color? subColor = null)
