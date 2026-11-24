@@ -73,10 +73,10 @@ namespace Numbat.Commands.Analysis.NumbatAf
             }
 
             // Clashes: the conflict zone as a closed curve, and a numbered marker that names it on hover.
-            foreach (Flag f in a.Flags)
+            foreach (Flag f in a.Flags.Where(x => !x.IsCheck))
             {
-                Count(doc.Objects.AddCurve(f.Region, Named(clashes, $"Clash {f.Number}: {f.Describe()}")));
-                Count(doc.Objects.AddTextDot(new TextDot(f.Number.ToString(), f.DotAt) { FontHeight = 13, SecondaryText = f.Describe() }, clashes));
+                Count(doc.Objects.AddCurve(f.Region, Named(clashes, $"Clash {f.Number}: {f.Describe()}. {f.Why}")));
+                Count(doc.Objects.AddTextDot(new TextDot(f.Number.ToString(), f.DotAt) { FontHeight = 13, SecondaryText = $"{f.Describe()}. {f.Why}" }, clashes));
             }
 
             if (AfColours.ShowLabels)

@@ -84,6 +84,28 @@ namespace Numbat.Commands.Analysis.NumbatAf
         }
     }
 
+    /// <summary>Picks curves to use as road centre lines. Used by the window's road Add button when nothing is selected.</summary>
+    // Hidden: works when typed in full, but doesn't appear in autocomplete, so typing "nb" only offers nbAF.
+    [CommandStyle(Style.Hidden)]
+    public class NumbatAfAddRoadCommand : Command
+    {
+        public override string EnglishName => "nbAFAddRoad";
+
+        protected override Result RunCommand(RhinoDoc doc, RunMode mode)
+        {
+            var go = new GetObject();
+            go.SetCommandPrompt("Select road centre lines (Abstandsflächen may reach a road only up to its middle)");
+            go.GeometryFilter = ObjectType.Curve;
+            go.SubObjectSelect = false;
+            if (go.GetMultiple(1, 0) != GetResult.Object) return go.CommandResult();
+
+            AfModel model = NumbatPlugin.Instance.AfModel;
+            int n = model.AddRoads(doc, go.Objects().Select(o => o.Object()).Where(o => o != null));
+            RhinoApp.WriteLine($"{AfInfo.Name}: {n} road centre line(s) added.");
+            return Result.Success;
+        }
+    }
+
     /// <summary>
     /// Adds the current Abstandsflächen, footprints, plots, labels and clashes to the nbAF sublayers, replacing what
     /// was baked before. One undo step. Used by the window's Bake button.

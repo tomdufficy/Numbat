@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Rhino.Geometry;
@@ -5,29 +6,47 @@ using Rhino.Geometry.Intersect;
 
 namespace Numbat.Commands.Analysis.NumbatAf
 {
+    /// <summary>Two volumes in different buildings that almost touch: probably meant as one building, or not.</summary>
+    internal sealed class VolumePair
+    {
+        public int A, B;      // volume indices
+        public double Gap;    // model units
+    }
+
     /// <summary>
-    /// Sorts volumes into buildings. Models are stacked volumes, one closed box (or roof shape) per storey or part,
-    /// as Numbat's nbGFA expects them. Volumes that touch (stacked, or side by side) belong to the same building, and so do
-    /// volumes in the same Rhino group, which lets users join parts that don't touch.
+    /// Sorts volumes into buildings. Models are stacked volumes, one closed box (or roof shape) per storey or part.
+    /// Volumes that touch, overlap or are closer than the join gap belong to the same building, and so do volumes in
+    /// the same Rhino group (which lets users join parts that are further apart). Pairs the user marked "keep apart"
+    /// are never joined by distance. Volumes of different buildings that are closer than the near-miss limit are
+    /// reported, so the user can decide whether they are one building.
     /// </summary>
     internal static class AfBuildings
     {
+        /// <param name="joinGap">Volumes closer than this (model units) touch.</param>
+        /// <param name="nearLimit">Report pairs of different buildings closer than this (model units).</param>
+        /// <param name="keepApart">Volume index pairs the user said are separate.</param>
         /// <returns>Lists of volume indices, one list per building.</returns>
-        public static List<List<int>> Group(IList<Brep> volumes, IList<int[]> groups, double tol)
+        public static List<List<int>> Group(IList<Brep> volumes, IList<int[]> groups, double joinGap, double nearLimit,
+            double tol, ICollection<(int, int)> keepApart, out List<VolumePair> nearMisses)
         {
             int n = volumes.Count;
             var parent = Enumerable.Range(0, n).ToArray();
             int Root(int i) => parent[i] == i ? i : parent[i] = Root(parent[i]);
             void Join(int a, int b) => parent[Root(a)] = Root(b);
 
-            var boxes = volumes.Select(v => { var b = v.GetBoundingBox(true); b.Inflate(tol * 2); return b; }).ToList();
+            double reach = Math.Max(joinGap, nearLimit);
+            var boxes = volumes.Select(v => { BoundingBox b = v.GetBoundingBox(true); b.Inflate(reach + tol * 2); return b; }).ToList();
+            var close = new List<VolumePair>();
             for (int i = 0; i < n; i++)
             {
                 for (int j = i + 1; j < n; j++)
                 {
-                    if (Root(i) == Root(j)) continue;
                     if (!Overlap(boxes[i], boxes[j])) continue;
-                    if (Touch(volumes[i], volumes[j], tol)) Join(i, j);
+                    double gap = Gap(volumes[i], volumes[j], tol, reach);
+                    if (gap > reach) continue;
+                    bool apart = keepApart != null && (keepApart.Contains((i, j)) || keepApart.Contains((j, i)));
+                    if (gap <= joinGap && !apart) Join(i, j);
+                    else if (!apart) close.Add(new VolumePair { A = i, B = j, Gap = gap });
                 }
             }
 
@@ -44,27 +63,33 @@ namespace Numbat.Commands.Analysis.NumbatAf
                 }
             }
 
+            // Near-misses between what ended up as different buildings: the closest pair per pair of buildings.
+            nearMisses = close
+                .Where(p => Root(p.A) != Root(p.B))
+                .GroupBy(p => (Math.Min(Root(p.A), Root(p.B)), Math.Max(Root(p.A), Root(p.B))))
+                .Select(g => g.OrderBy(p => p.Gap).First())
+                .ToList();
+
             return Enumerable.Range(0, n).GroupBy(Root).Select(g => g.ToList()).ToList();
         }
 
         /// <summary>
-        /// True if two volumes touch or overlap: a corner of one lies on the other (stacked storeys, a smaller
-        /// storey on a bigger one or the other way round), or failing that, their surfaces intersect.
+        /// The gap between two volumes, or 0 when they touch or overlap. Measured from the corners of each to the
+        /// other's surface, which is exact for the box-like volumes of a massing model. Stops early (returns more than
+        /// <paramref name="reach"/>) when they are clearly apart.
         /// </summary>
-        private static bool Touch(Brep a, Brep b, double tol)
+        public static double Gap(Brep a, Brep b, double tol, double reach)
         {
-            if (CornerOn(a, b, tol) || CornerOn(b, a, tol)) return true;
-            return Intersection.BrepBrep(a, b, tol, out Curve[] curves, out Point3d[] points) &&
-                   ((curves?.Length ?? 0) > 0 || (points?.Length ?? 0) > 0);
-        }
-
-        private static bool CornerOn(Brep a, Brep b, double tol)
-        {
-            foreach (BrepVertex v in a.Vertices)
-            {
-                if (b.ClosestPoint(v.Location).DistanceTo(v.Location) <= tol * 2) return true;
-            }
-            return false;
+            double best = double.MaxValue;
+            foreach (BrepVertex v in a.Vertices) best = Math.Min(best, b.ClosestPoint(v.Location).DistanceTo(v.Location));
+            foreach (BrepVertex v in b.Vertices) best = Math.Min(best, a.ClosestPoint(v.Location).DistanceTo(v.Location));
+            if (best <= tol * 2) return 0;
+            if (a.Vertices.Any(v => b.IsPointInside(v.Location, tol, false)) || b.Vertices.Any(v => a.IsPointInside(v.Location, tol, false))) return 0;
+            if (best > reach && !Overlap(a.GetBoundingBox(true), b.GetBoundingBox(true))) return best;
+            // Crossing without a corner inside the other (e.g. two bars in a plus shape).
+            if (Intersection.BrepBrep(a, b, tol, out Curve[] curves, out Point3d[] points) &&
+                ((curves?.Length ?? 0) > 0 || (points?.Length ?? 0) > 0)) return 0;
+            return best;
         }
 
         private static bool Overlap(BoundingBox a, BoundingBox b) =>

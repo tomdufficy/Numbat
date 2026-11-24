@@ -134,7 +134,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
             }
             if (o.Clashes)
             {
-                foreach (Flag f in a.Flags) Add(ExportKind.Clashes, f.Region);
+                foreach (Flag f in a.Flags.Where(x => !x.IsCheck)) Add(ExportKind.Clashes, f.Region);
             }
             for (int i = 0; i < a.Buildings.Count; i++)
             {
@@ -172,7 +172,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
 
             if (o.Clashes)
             {
-                foreach (Flag f in a.Flags)
+                foreach (Flag f in a.Flags.Where(x => !x.IsCheck))
                 {
                     Point2d at = P(f.DotAt);
                     if (o.Numbers) d.Markers.Add(new Marker2d { At = at, Number = f.Number.ToString() });
@@ -189,7 +189,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
             }
 
             d.Legend.Add((ExportKind.Areas, "Abstandsflächen"));
-            if (o.Clashes) d.Legend.Add((ExportKind.Clashes, $"Clashes ({a.Flags.Count})"));
+            if (o.Clashes) d.Legend.Add((ExportKind.Clashes, $"Clashes ({a.ClashCount})"));
             d.Legend.Add((ExportKind.Plots, "Plot lines"));
             d.Legend.Add((ExportKind.Footprints, "Building footprints"));
 
@@ -200,7 +200,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
                         "checked; the half-road rule and Baulasten are not considered.");
             if (o.Clashes && o.Numbers)
             {
-                foreach (Flag f in a.Flags) d.Notes.Add($"Clash {f.Number}: {f.Describe()}");
+                foreach (Flag f in a.Flags.Where(x => !x.IsCheck)) d.Notes.Add($"Clash {f.Number}: {f.Describe()}. {f.Why}");
             }
             d.Notes.Add($"Made with Numbat {AfInfo.Name}, {DateTime.Now:yyyy-MM-dd}. {AfInfo.Copyright}");
             return d;

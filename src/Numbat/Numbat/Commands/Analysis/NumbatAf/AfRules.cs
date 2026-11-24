@@ -49,6 +49,19 @@ namespace Numbat.Commands.Analysis.NumbatAf
         public double ShallowRoofShare { get; set; } = 1.0 / 3.0;
         public double OverlapExemptDeg { get; set; } = 75.0;
 
+        /// <summary>Volumes closer than this (mm) count as touching. A model setting, not part of HBauO.</summary>
+        public double JoinGapMm { get; set; } = 10;
+
+        /// <summary>Gaps between buildings under this (m) are reported as near-misses.</summary>
+        public const double NearMissM = 0.2;
+
+        /// <summary>The join gap as an editable value (shown in the window's MODEL section, not under RULE VALUES).</summary>
+        public static readonly RuleField JoinGapField = new RuleField
+        {
+            Key = "joinGap", Label = "Join gaps under", Paragraph = "volumes this close are one building", Default = 10, Min = 0, Max = 199,
+            Get = r => r.JoinGapMm, Set = (r, v) => r.JoinGapMm = v, Format = v => $"{N(v, "0.#")} mm",
+        };
+
         public const string RoofShareKey = "roofShare";
 
         public static readonly IReadOnlyList<RuleField> Fields = new[]
@@ -112,7 +125,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
         public static AfRules Load(RhinoDoc doc)
         {
             var r = new AfRules { Zone = Get(doc, "zone") == nameof(Zone.Commercial) ? Zone.Commercial : Zone.General };
-            foreach (RuleField f in Fields)
+            foreach (RuleField f in Fields.Concat(new[] { JoinGapField }))
             {
                 if (double.TryParse(Get(doc, f.Key), NumberStyles.Float, CultureInfo.InvariantCulture, out double v) &&
                     v >= f.Min && v <= f.Max)
@@ -126,7 +139,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
         public void Save(RhinoDoc doc)
         {
             doc.Strings.SetString(AfInfo.DocSection, "zone", Zone.ToString());
-            foreach (RuleField f in Fields)
+            foreach (RuleField f in Fields.Concat(new[] { JoinGapField }))
             {
                 doc.Strings.SetString(AfInfo.DocSection, f.Key, f.Get(this).ToString("R", CultureInfo.InvariantCulture));
             }

@@ -24,7 +24,7 @@ Linked only (web pages, not saved): the LGV Hamburg pages for the [3D-Stadtmodel
 | Abs. 3 | Abstandsflächen must not overlap, unless the walls are at more than 75° to each other. | Flagged "Overlap" for every pair of buildings, and between non-parallel faces of one building. |
 | Abs. 1 | Kept free of buildings. | Flagged wherever an Abstandsfläche reaches into another building. |
 | Abs. 2 | Must lie on the plot. | Each building can have its own plot. Flagged only where an Abstandsfläche reaches another building's plot ("on plot of"), for every building. Leaving the own plot towards a road or open land is not flagged. Plots are optional; without them this check is skipped. |
-| Abs. 2 | May lie on public roads, green and water areas up to their middle, or on other plots with a Baulast. | Not yet checked. In principle an Abstandsfläche should not cover more than half of a road. |
+| Abs. 2 | May lie on public roads, green and water areas up to their middle, or on other plots with a Baulast. | Done for roads (and green or water areas) where you add their centre lines: the part past a centre line is flagged, and one ending within 0.5 m before it is listed to check. Baulasten: not yet. |
 | Abs. 1 | No Abstandsfläche for walls built on the boundary where that is allowed. | Not yet. |
 | Abs. 6 | Projections ignored: cornices and roof overhangs up to 0.50 m; balconies and bays up to 1.50 m deep and 1/3 of the wall width; added insulation up to 0.25 m. | Not yet: model the main volume without them. |
 | Abs. 8 | Allowed inside Abstandsflächen: garages and sheds up to 3 m mean wall height and 9 m per boundary, etc. | Not yet. |

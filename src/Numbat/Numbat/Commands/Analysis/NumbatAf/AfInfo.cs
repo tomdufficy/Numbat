@@ -26,6 +26,12 @@ namespace Numbat.Commands.Analysis.NumbatAf
         /// <summary>Volume user string: id of the building's plot boundary curve.</summary>
         public const string PlotKey = "numbat.af.plot";
 
+        /// <summary>Curve user string marking it as a road centre line ("centre").</summary>
+        public const string RoadKey = "numbat.af.road";
+
+        /// <summary>Volume user string: ids of volumes (comma separated) the user said belong to another building.</summary>
+        public const string ApartKey = "numbat.af.apart";
+
         /// <summary>Prefix for nbAF's per-user plugin settings (window position, colours, export options).</summary>
         public const string SettingsPrefix = "af.";
     }

@@ -40,7 +40,11 @@ namespace Numbat.Commands.Analysis.NumbatAf
     {
         private static readonly double VerticalTol = Math.Sin(RhinoMath.ToRadians(2.0));
 
-        private static readonly double SameDirection = Math.Cos(RhinoMath.ToRadians(0.5));
+        // Walls of one façade drawn by hand are rarely exactly parallel: within 1° they count as facing the same way.
+        private static readonly double SameDirection = Math.Cos(RhinoMath.ToRadians(1.0));
+
+        // Faces tilted between 2° and 15° from vertical: meant as walls, but too far off to measure. Steeper roofs are rare.
+        private static readonly double LeaningLimit = Math.Sin(RhinoMath.ToRadians(15.0));
 
         /// <summary>
         /// Finds the outer walls of one building made of stacked volumes (one closed Brep per storey or part, the
@@ -51,9 +55,11 @@ namespace Numbat.Commands.Analysis.NumbatAf
         /// (back to back, facing each other) are inside the building and are left out.
         /// </summary>
         /// <param name="skipped">Vertical faces that are not flat (curved walls), not handled yet.</param>
-        public static List<Wall> Find(IList<Brep> volumes, int building, AfRules rules, double metre, double tol, out int skipped)
+        /// <param name="leaning">Faces that lean 2–15° off vertical: probably walls, but left out.</param>
+        public static List<Wall> Find(IList<Brep> volumes, int building, AfRules rules, double metre, double tol, out int skipped, out int leaning)
         {
             skipped = 0;
+            leaning = 0;
             double groundZ = volumes.Min(v => v.GetBoundingBox(true).Min.Z);
             // Walls count as flat within 5 mm (or 10 × the model tolerance, if larger): merging two almost-collinear
             // faces of a real model leaves a face that is a hair off flat, and 5 mm is nothing against depths of 2.50 m or more.
@@ -68,7 +74,11 @@ namespace Numbat.Commands.Analysis.NumbatAf
                 foreach (BrepFace face in brep.Faces)
                 {
                     Vector3d n = Normal(face, flip);
-                    if (Math.Abs(n.Z) > VerticalTol) continue; // roof, floor or sloped face
+                    if (Math.Abs(n.Z) > VerticalTol)
+                    {
+                        if (Math.Abs(n.Z) < LeaningLimit) leaning++;
+                        continue; // roof, floor or sloped face
+                    }
 
                     if (!face.TryGetPlane(out _, planeTol))
                     {

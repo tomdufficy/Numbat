@@ -82,8 +82,13 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             return y + Kit.ControlH + Kit.Gap; // section header row
         }
 
+        private readonly KitSections _sections = new KitSections("gfa.closed");
+
+        private bool UsesOpen => _sections.IsOpen("uses");
+
         private float BodyHeight(float w)
         {
+            if (!UsesOpen) return -Kit.Gap;
             if (_model.Categories.Count == 0) return KitPaint.LineHeight(KitFonts.Body) + Kit.Gap;
             return Pie ? LayoutPie(_model.Current, BodyTop(w), w).Height : _model.Categories.Count * (RowH + RowGap);
         }
@@ -131,15 +136,22 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             }
             if (callouts.Count > 0) y += 4;
 
-            // Section header with Add use on the right.
-            KitPaint.Section(g, Kit.Pad, y, "Uses");
+            // Section header (opens and closes the list) with Add use on the right.
+            bool open = UsesOpen;
+            RectangleF toggle = KitPaint.SectionToggle(g, Kit.Pad, y, "Uses", open, StateOf("s:uses"), _model.Categories.Count.ToString());
+            AddTarget("s:uses", toggle, () =>
+            {
+                _sections.Toggle("uses");
+                UpdateHeight();
+            }, null, open ? "Close the uses" : "Open the uses");
             float addW = KitPaint.ButtonWidth("Add use", KitIcon.Plus);
             var add = new RectangleF(w - Kit.Pad - addW, y, addW, Kit.ControlH);
             KitPaint.Button(g, add, "Add use", ButtonKind.Secondary, StateOf("add"), KitIcon.Plus);
             AddTarget("add", add, () => AddUse(RhinoDoc.ActiveDoc), null, "Add a new use");
             y += Kit.ControlH + Kit.Gap;
 
-            if (_model.Categories.Count == 0)
+            if (!open) _pieLayout = null; // no slices to hit while closed
+            else if (_model.Categories.Count == 0)
             {
                 g.DrawText(KitFonts.Body, C.Text3, Kit.Pad, y, "No uses yet. Click Add use to make one.");
             }

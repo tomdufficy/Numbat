@@ -22,8 +22,15 @@ namespace Numbat.Commands.Analysis.NumbatAf
         private readonly List<(Mesh mesh, Element element)> _fills = new List<(Mesh, Element)>();
         private readonly List<(Curve curve, Element element)> _curves = new List<(Curve, Element)>();
         private readonly List<AfLabel> _labels = new List<AfLabel>();
-        private readonly List<(Point3d at, string text)> _markers = new List<(Point3d, string)>();
+        private readonly List<(Point3d at, string text, bool check)> _markers = new List<(Point3d, string, bool)>();
+        private readonly List<Curve> _checks = new List<Curve>();
         private BoundingBox _box = BoundingBox.Empty;
+
+        // Colour by building: made on first use after each update, since it is usually off.
+        private AfResult _result;
+        private double _metre = 1;
+        private List<(Mesh mesh, int building)> _buildingMeshes;
+        private List<(Point3d at, string name, int building)> _buildingNames;
 
         private AfPreviewConduit() { }
 
@@ -34,9 +41,14 @@ namespace Numbat.Commands.Analysis.NumbatAf
             _curves.Clear();
             _labels.Clear();
             _markers.Clear();
+            _checks.Clear();
             _box = BoundingBox.Empty;
+            _result = a;
+            _buildingMeshes = null;
+            _buildingNames = null;
             if (a == null || doc == null) return;
             double metre = RhinoMath.UnitScale(UnitSystem.Meters, doc.ModelUnitSystem);
+            _metre = metre;
             double tol = doc.ModelAbsoluteTolerance;
 
             foreach (AfFace f in a.Faces)
@@ -62,8 +74,18 @@ namespace Numbat.Commands.Analysis.NumbatAf
 
             // Clash zones sit a hair above the areas so they never flicker against them.
             Transform lift = Transform.Translation(0, 0, 0.02 * metre);
+            foreach (Curve road in a.Roads) _curves.Add((road, Element.Roads));
             foreach (Flag f in a.Flags)
             {
+                if (f.IsCheck)
+                {
+                    // Something to check: an amber outline and marker, no fill.
+                    Curve check = f.Region.DuplicateCurve();
+                    check.Transform(lift);
+                    _checks.Add(check);
+                    _markers.Add((f.DotAt, f.Number.ToString(), true));
+                    continue;
+                }
                 foreach (Mesh m in Fill(f.Region, tol))
                 {
                     m.Transform(lift);
@@ -72,7 +94,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
                 Curve outline = f.Region.DuplicateCurve();
                 outline.Transform(lift);
                 _curves.Add((outline, Element.Clashes));
-                _markers.Add((f.DotAt, f.Number.ToString()));
+                _markers.Add((f.DotAt, f.Number.ToString(), false));
             }
         }
 
@@ -96,8 +118,42 @@ namespace Numbat.Commands.Analysis.NumbatAf
             if (_box.IsValid) e.IncludeBoundingBox(_box);
         }
 
+        /// <summary>Each building's volumes as one mesh, pushed out 3 cm so it draws over the volumes without flicker.</summary>
+        private void MakeBuildingMeshes()
+        {
+            _buildingMeshes = new List<(Mesh, int)>();
+            _buildingNames = new List<(Point3d, string, int)>();
+            if (_result == null) return;
+            for (int i = 0; i < _result.Buildings.Count; i++)
+            {
+                BoundingBox box = BoundingBox.Empty;
+                foreach (Brep v in _result.Buildings[i].Volumes)
+                {
+                    var mesh = new Mesh();
+                    foreach (Mesh m in Mesh.CreateFromBrep(v, MeshingParameters.FastRenderMesh) ?? Array.Empty<Mesh>()) mesh.Append(m);
+                    if (mesh.Vertices.Count == 0) continue;
+                    // Grown by 3 cm about its own centre, so it sits just outside the volume and draws over it without flicker.
+                    BoundingBox vb = v.GetBoundingBox(true);
+                    double size = Math.Max(vb.Diagonal.X, Math.Max(vb.Diagonal.Y, vb.Diagonal.Z));
+                    if (size > 0) mesh.Transform(Transform.Scale(vb.Center, 1 + 0.06 * _metre / size));
+                    _buildingMeshes.Add((mesh, i));
+                    box.Union(vb);
+                }
+                if (box.IsValid) _buildingNames.Add((new Point3d(box.Center.X, box.Center.Y, box.Max.Z), _result.Buildings[i].Name, i));
+            }
+        }
+
+        /// <summary>A building's colour, from the colour index AfModel gave it (neighbours never share one).</summary>
+        private Color BuildingColour(int building) =>
+            AfColours.BuildingColour(_result != null && building < _result.BuildingColours.Length ? _result.BuildingColours[building] : building);
+
         protected override void PostDrawObjects(DrawEventArgs e)
         {
+            if (AfColours.ColourByBuilding)
+            {
+                if (_buildingMeshes == null) MakeBuildingMeshes();
+                foreach (var b in _buildingMeshes) e.Display.DrawMeshShaded(b.mesh, new DisplayMaterial(BuildingColour(b.building), 0.25));
+            }
             // Colours are read per frame, so a change in the window shows straight away.
             var colours = AfColours.Elements.ToDictionary(x => x.element, x => AfColours.Get(x.element));
             foreach (var f in _fills)
@@ -109,6 +165,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
             {
                 e.Display.DrawCurve(c.curve, colours[c.element], c.element == Element.Clashes ? 3 : 2);
             }
+            foreach (Curve c in _checks) e.Display.DrawCurve(c, AfColours.CheckColour, 3);
 
             // Depth dimensions: a line from the wall to the edge of its area with oblique ticks at both ends, and the
             // depth beside it. They scale with the view; text too small to read on screen is skipped.
@@ -135,8 +192,12 @@ namespace Numbat.Commands.Analysis.NumbatAf
 
         protected override void DrawForeground(DrawEventArgs e)
         {
+            if (AfColours.ColourByBuilding && _buildingNames != null)
+            {
+                foreach (var n in _buildingNames) e.Display.DrawDot(n.at, n.name, BuildingColour(n.building), Color.White);
+            }
             Color clash = AfColours.Get(Element.Clashes);
-            foreach (var m in _markers) e.Display.DrawDot(m.at, m.text, clash, Color.White);
+            foreach (var m in _markers) e.Display.DrawDot(m.at, m.text, m.check ? AfColours.CheckColour : clash, Color.White);
         }
 
         /// <summary>Turns the preview on or off and redraws.</summary>

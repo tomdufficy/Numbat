@@ -8,7 +8,7 @@ using Rhino.Geometry.Intersect;
 
 namespace Numbat.Commands.Analysis.NumbatAf
 {
-    internal enum FlagKind { Overlap, InBuilding, InOtherPlot }
+    internal enum FlagKind { Overlap, InBuilding, InOtherPlot, PastRoadCentre, NearRoadCentre }
 
     /// <summary>A rule break found by the checks: the conflict region and where to put its marker.</summary>
     internal sealed class Flag
@@ -19,9 +19,14 @@ namespace Numbat.Commands.Analysis.NumbatAf
         public Point3d DotAt;
         public double Area;         // m²
         public string Text;         // e.g. "Overlap B3/B4"
+        public string Note;         // e.g. "0.1 mm gap: one building?"
+        public string Why;          // which rule, in plain words, with the numbers: shown on hover and in reports
+        public bool IsCheck;        // not a clash, something to look at (e.g. close to a road's centre)
         public int[] Buildings;     // the buildings involved
 
-        public string Describe() => $"{Text}, {Area.ToString("0.0", CultureInfo.InvariantCulture)} m²";
+        public string Describe() => IsCheck
+            ? $"{Text} (check){(Note == null ? "" : $" ({Note})")}"
+            : $"{Text}, {Area.ToString("0.0", CultureInfo.InvariantCulture)} m²{(Note == null ? "" : $" ({Note})")}";
     }
 
     /// <summary>
@@ -84,8 +89,14 @@ namespace Numbat.Commands.Analysis.NumbatAf
         public readonly List<List<Curve>> Footprints = new List<List<Curve>>();  // plan outline, per building
         public readonly List<Flag> Flags = new List<Flag>();
         public int SkippedFaces;
+        public int LeaningWalls;
+        public int[] BuildingColours = new int[0];   // colour index per building (set by AfModel)
+        public readonly List<Curve> Roads = new List<Curve>();   // road centre lines the checks used
 
-        public int FlagCount(int building) => Flags.Count(f => f.Buildings.Contains(building));
+        /// <summary>Real clashes, not things to check.</summary>
+        public int ClashCount => Flags.Count(f => !f.IsCheck);
+
+        public int FlagCount(int building) => Flags.Count(f => !f.IsCheck && f.Buildings.Contains(building));
     }
 
     /// <summary>
@@ -94,9 +105,10 @@ namespace Numbat.Commands.Analysis.NumbatAf
     /// </summary>
     internal static class AfSolver
     {
-        private static readonly double SameDirection = Math.Cos(RhinoMath.ToRadians(0.5));
+        private static readonly double SameDirection = Math.Cos(RhinoMath.ToRadians(1.0));
 
-        public static AfResult Run(IList<BuildingInput> buildings, AfRules rules, RhinoDoc doc)
+        /// <param name="roads">Road centre lines (may be empty).</param>
+        public static AfResult Run(IList<BuildingInput> buildings, AfRules rules, RhinoDoc doc, IList<Curve> roads = null)
         {
             double tol = doc.ModelAbsoluteTolerance;
             double metre = RhinoMath.UnitScale(UnitSystem.Meters, doc.ModelUnitSystem);
@@ -113,9 +125,10 @@ namespace Numbat.Commands.Analysis.NumbatAf
                     Volumes = b.Volumes.Select(v => Tidy(v, tol, doc.ModelAngleToleranceRadians)).ToList(),
                 };
                 r.Buildings.Add(tidy);
-                List<Wall> walls = AfWalls.Find(tidy.Volumes, i, rules, metre, tol, out int skipped);
+                List<Wall> walls = AfWalls.Find(tidy.Volumes, i, rules, metre, tol, out int skipped, out int leaning);
                 r.Walls.AddRange(walls);
                 r.SkippedFaces += skipped;
+                r.LeaningWalls += leaning;
 
                 List<Curve> footprint = Footprint(tidy.Volumes, tol);
                 r.Footprints.Add(footprint);
@@ -126,6 +139,12 @@ namespace Numbat.Commands.Analysis.NumbatAf
             CheckOverlaps(r, rules, tol, minArea, metre);
             CheckBuildings(r, tol, minArea, metre);
             CheckPlots(r, tol, minArea, metre);
+            if (roads != null) r.Roads.AddRange(roads);
+            CheckRoads(r, roads, tol, minArea, metre);
+            // Clashes first, then things to check; numbered in that order.
+            List<Flag> ordered = r.Flags.Where(f => !f.IsCheck).Concat(r.Flags.Where(f => f.IsCheck)).ToList();
+            r.Flags.Clear();
+            r.Flags.AddRange(ordered);
             for (int k = 0; k < r.Flags.Count; k++) r.Flags[k].Number = k + 1;
             return r;
         }
@@ -322,7 +341,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
                     AfFace a = r.Faces[i], b = r.Faces[j];
                     if (AngleBetween(a, b) > rules.OverlapExemptDeg) continue;
                     if (a.Building == b.Building && a.Outward * b.Outward > 0) continue;
-                    string who = a.Building == b.Building ? r.Buildings[a.Building].Name
+                    string who = a.Building == b.Building ? $"within {r.Buildings[a.Building].Name}"
                                                           : $"{r.Buildings[a.Building].Name}/{r.Buildings[b.Building].Name}";
                     foreach (Curve ra in a.Regions)
                     {
@@ -331,7 +350,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
                             if (!Overlaps(ra.GetBoundingBox(true), rb.GetBoundingBox(true))) continue;
                             foreach (Curve c in Curve.CreateBooleanIntersection(ra, rb, tol) ?? Array.Empty<Curve>())
                             {
-                                AddFlag(r, FlagKind.Overlap, c, minArea, metre, $"Overlap {who}", a.Building, b.Building);
+                                AddFlag(r, FlagKind.Overlap, c, minArea, metre, $"Overlap {who}", OverlapWhy(r, a, b, c, rules, metre), a.Building, b.Building);
                             }
                         }
                     }
@@ -357,7 +376,9 @@ namespace Numbat.Commands.Analysis.NumbatAf
                             foreach (Curve c in Curve.CreateBooleanIntersection(area, Flatten(fp, z), tol) ?? Array.Empty<Curve>())
                             {
                                 AddFlag(r, FlagKind.InBuilding, c, minArea, metre,
-                                    $"{r.Buildings[f.Building].Name} into {r.Buildings[b].Name}", f.Building, b);
+                                    $"{r.Buildings[f.Building].Name} into {r.Buildings[b].Name}",
+                                    $"§ 6 Abs. 1: the area in front of a wall must be kept free of buildings, but {r.Buildings[f.Building].Name}'s " +
+                                    $"Abstandsfläche (up to {M(f.DepthMax, metre)} m deep) reaches into {r.Buildings[b].Name}.", f.Building, b);
                             }
                         }
                     }
@@ -391,7 +412,9 @@ namespace Numbat.Commands.Analysis.NumbatAf
                         {
                             foreach (Curve c in Curve.CreateBooleanIntersection(piece, plot, tol) ?? Array.Empty<Curve>())
                             {
-                                AddFlag(r, FlagKind.InOtherPlot, c, minArea, metre, $"{own.Name} on plot of {r.Buildings[b].Name}", f.Building, b);
+                                AddFlag(r, FlagKind.InOtherPlot, c, minArea, metre, $"{own.Name} on plot of {r.Buildings[b].Name}",
+                                        $"§ 6 Abs. 2: Abstandsflächen must lie on the building's own plot, but part of {own.Name}'s lies on " +
+                                        $"{r.Buildings[b].Name}'s plot.", f.Building, b);
                             }
                         }
                         outside = Difference(outside, new List<Curve> { plot }, tol);
@@ -425,7 +448,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
             return cutter.Contains(mid, Plane.WorldXY, tol) == PointContainment.Inside ? Array.Empty<Curve>() : new[] { piece };
         }
 
-        private static void AddFlag(AfResult r, FlagKind kind, Curve region, double minArea, double metre, string label, params int[] buildings)
+        private static void AddFlag(AfResult r, FlagKind kind, Curve region, double minArea, double metre, string label, string why, params int[] buildings)
         {
             AreaMassProperties amp = AreaMassProperties.Compute(region);
             if (amp == null || amp.Area < minArea) return;
@@ -436,8 +459,125 @@ namespace Numbat.Commands.Analysis.NumbatAf
                 DotAt = amp.Centroid,
                 Area = amp.Area / (metre * metre),
                 Text = label,
+                Why = why,
                 Buildings = buildings.Distinct().ToArray(),
             });
+        }
+
+        private static string M(double v, double metre) => (v / metre).ToString("0.00", CultureInfo.InvariantCulture);
+
+        /// <summary>Why two faces' Abstandsflächen may not overlap, with the numbers (§ 6 Abs. 3).</summary>
+        private static string OverlapWhy(AfResult r, AfFace a, AfFace b, Curve overlap, AfRules rules, double metre)
+        {
+            double angle = AngleBetween(a, b);
+            string limit = rules.OverlapExemptDeg.ToString("0.#", CultureInfo.InvariantCulture);
+            if (angle < 5 && a.Outward * b.Outward < 0)
+            {
+                // Facing walls: the two walls whose areas make this overlap, how far apart they are and how deep.
+                Point3d at = AreaMassProperties.Compute(overlap)?.Centroid ?? overlap.PointAtStart;
+                Wall wa = WallAt(a, at), wb = WallAt(b, at);
+                double apart = Math.Abs((wa.Start - wb.Start) * wa.Outward);
+                string whose = a.Building == b.Building ? $"two walls of {r.Buildings[a.Building].Name}" : $"walls of {r.Buildings[a.Building].Name} and {r.Buildings[b.Building].Name}";
+                return $"§ 6 Abs. 3: Abstandsflächen must not overlap. Here {whose} face each other {M(apart, metre)} m apart, but their " +
+                       $"Abstandsflächen are {M(wa.Depth, metre)} m and {M(wb.Depth, metre)} m deep, {M(wa.Depth + wb.Depth, metre)} m together.";
+            }
+            return $"§ 6 Abs. 3: Abstandsflächen may only overlap where the walls stand at more than {limit}° to each other; these walls are at {angle:0}°.";
+        }
+
+        /// <summary>The wall of a face whose area holds a point (else the nearest one).</summary>
+        private static Wall WallAt(AfFace f, Point3d p)
+        {
+            Point3d flat = new Point3d(p.X, p.Y, f.Walls[0].Start.Z);
+            Wall inside = f.Walls.FirstOrDefault(w => w.Area.ToPolylineCurve().Contains(flat, Plane.WorldXY, 1e-6) != PointContainment.Outside);
+            return inside ?? f.Walls.OrderBy(w => new Line(w.Start, w.End).DistanceTo(flat, true)).First();
+        }
+
+        // ---- roads -------------------------------------------------------------------------
+
+        /// <summary>
+        /// HBauO § 6 Abs. 2: Abstandsflächen may lie on public roads, but only up to their middle. The part of an
+        /// Abstandsfläche past a road centre line (on the side away from its wall) is a clash. One that ends within
+        /// 0.5 m before the centre line is listed to check, since the line may be drawn roughly.
+        /// </summary>
+        private static void CheckRoads(AfResult r, IList<Curve> roads, double tol, double minArea, double metre)
+        {
+            if (roads == null || roads.Count == 0) return;
+            double near = 0.5 * metre;
+            foreach (AfFace f in r.Faces)
+            {
+                string name = r.Buildings[f.Building].Name;
+                Point3d wall = (f.Walls[0].Start + f.Walls[0].End) / 2;
+                foreach (Curve area in f.Regions)
+                {
+                    double z = area.PointAtStart.Z;
+                    BoundingBox abox = area.GetBoundingBox(true);
+                    var plane = new Plane(new Point3d(0, 0, z), Vector3d.ZAxis);
+                    foreach (Curve road0 in roads)
+                    {
+                        Curve road = Flatten(road0, z);
+                        BoundingBox rbox = road.GetBoundingBox(true);
+                        rbox.Inflate(near);
+                        if (!Overlaps(abox, rbox)) continue;
+
+                        CurveIntersections xs = Intersection.CurveCurve(area, road, tol, tol);
+                        if (xs != null && xs.Count > 0)
+                        {
+                            int wallSide = Side(road, wall);
+                            using (CurveBooleanRegions regions = Curve.CreateBooleanRegions(new[] { area, road }, plane, false, tol))
+                            {
+                                if (regions == null) continue;
+                                for (int i = 0; i < regions.RegionCount; i++)
+                                {
+                                    Curve[] boundary = regions.RegionCurves(i);
+                                    if (boundary == null || boundary.Length == 0) continue;
+                                    Curve piece = boundary[0];
+                                    AreaMassProperties amp = AreaMassProperties.Compute(piece);
+                                    if (amp == null || Side(road, amp.Centroid) == wallSide) continue;
+                                    double past = Far(piece, road);
+                                    AddFlag(r, FlagKind.PastRoadCentre, piece, minArea, metre, $"{name} past road centre",
+                                        $"§ 6 Abs. 2: an Abstandsfläche may cover a public road only up to its middle, but {name}'s goes " +
+                                        $"{M(past, metre)} m past this road's centre line.", f.Building);
+                                }
+                            }
+                        }
+                        else if (area.ClosestPoints(road, out Point3d pa, out Point3d pb) && pa.DistanceTo(pb) < near &&
+                                 Side(road, pa) == Side(road, wall))
+                        {
+                            r.Flags.Add(new Flag
+                            {
+                                Kind = FlagKind.NearRoadCentre,
+                                IsCheck = true,
+                                Region = area,
+                                DotAt = pa,
+                                Text = $"{name} close to road centre",
+                                Why = $"{name}'s Abstandsfläche ends {M(pa.DistanceTo(pb), metre)} m before a road's centre line. That is allowed " +
+                                      "(§ 6 Abs. 2), but close: check that the centre line is drawn accurately.",
+                                Buildings = new[] { f.Building },
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>Which side of a curve a point is on in plan: +1 left, -1 right.</summary>
+        private static int Side(Curve road, Point3d p)
+        {
+            road.ClosestPoint(p, out double t);
+            Vector3d tangent = road.TangentAt(t);
+            Vector3d to = p - road.PointAt(t);
+            return tangent.X * to.Y - tangent.Y * to.X >= 0 ? 1 : -1;
+        }
+
+        /// <summary>The largest distance from points of a curve to another curve.</summary>
+        private static double Far(Curve piece, Curve road)
+        {
+            double best = 0;
+            foreach (Point3d p in piece.DivideEquidistant(Math.Max(piece.GetLength() / 50, 1e-6)) ?? Array.Empty<Point3d>())
+            {
+                if (road.ClosestPoint(p, out double t)) best = Math.Max(best, p.DistanceTo(road.PointAt(t)));
+            }
+            return best;
         }
 
         /// <summary>

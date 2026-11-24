@@ -28,7 +28,9 @@ namespace Numbat.Commands.Analysis.NumbatAf
             dialog.SetContent(
                 KitForm.Rows(
                     KitForm.Row("Value", KitForm.HStack(box, KitForm.Caption(Unit(field)))),
-                    KitForm.Row(null, KitForm.Caption($"HBauO default: {field.Format(field.Default)} ({field.Paragraph})")),
+                    KitForm.Row(null, KitForm.Caption(field.Paragraph.StartsWith("§")
+                        ? $"HBauO default: {field.Format(field.Default)} ({field.Paragraph})"
+                        : $"Default: {field.Format(field.Default)}. {char.ToUpperInvariant(field.Paragraph[0])}{field.Paragraph.Substring(1)}.")),
                     KitForm.Row(null, error)),
                 new Control[] { cancel, ok });
 
@@ -40,6 +42,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
         {
             string shown = field.Format(field.Default);
             if (shown.EndsWith(" H")) return "× H";
+            if (shown.EndsWith(" mm")) return "mm";
             if (shown.EndsWith(" m")) return "m";
             if (shown.EndsWith("°")) return "°";
             return "of the roof height";
