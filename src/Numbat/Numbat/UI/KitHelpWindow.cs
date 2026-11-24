@@ -12,8 +12,10 @@ namespace Numbat.UI
 {
     /// <summary>
     /// A floating window that shows a Markdown guide embedded in the plugin, styled with the kit (surface background,
-    /// type scale, follows Rhino's dark mode). Understands a small subset: # title, ## heading, "- " bullets and
-    /// paragraphs. Optional extra controls go after the guide, then the copyright line. One window per guide.
+    /// type scale, follows Rhino's dark mode). Understands a small subset: # title, ## heading, "- " bullets,
+    /// paragraphs and images on a line of their own, ![caption](images/name.png). An image is drawn by the command
+    /// (see <see cref="Show"/>), so it follows the kit's colours; the file path is for viewers such as GitHub, which
+    /// show the PNG. Optional extra controls go after the guide, then the copyright line. One window per guide.
     /// </summary>
     internal sealed class KitHelpWindow : KitWindow
     {
@@ -23,30 +25,41 @@ namespace Numbat.UI
 
         private static KitPalette C => Kit.Colours;
 
-        private KitHelpWindow(string title, string markdown, Func<IEnumerable<Control>> extra, string copyright) : base(title)
+        private KitHelpWindow(string title, string markdown, Func<IEnumerable<Control>> extra, string copyright,
+            Func<string, Control> images) : base(title)
         {
             Color background = C.Surface;
             Resizable = true;
-            ClientSize = new Size((int)((TextWidth + 48) * Kit.Scale), (int)(560 * Kit.Scale));
+            // Text, 20 px padding each side and room for the vertical scrollbar, so the guide never scrolls sideways.
+            ClientSize = new Size((int)((TextWidth + 40) * Kit.Scale) + 20, (int)(560 * Kit.Scale));
 
             var stack = new StackLayout { Padding = new Padding(20), Spacing = 6, BackgroundColor = background };
-            foreach (Control c in Render(markdown)) stack.Items.Add(c);
+            foreach (Control c in Render(markdown, images)) stack.Items.Add(c);
             if (extra != null) foreach (Control c in extra()) stack.Items.Add(c);
             stack.Items.Add(new Panel { Height = 8 });
             stack.Items.Add(KitForm.Caption(copyright));
 
-            Body = new Scrollable { Content = stack, Border = BorderType.None, BackgroundColor = background };
+            var scroll = new Scrollable { Content = stack, Border = BorderType.None, BackgroundColor = background };
+            Body = scroll;
+            // Open at the top: the first button (for example in the sources after the guide) gets the focus, and the
+            // window would otherwise scroll down to it.
+            Shown += (s, e) => Application.Instance.AsyncInvoke(() => scroll.ScrollPosition = new Point(0, 0));
         }
 
         /// <summary>Opens the guide, or brings it to the front if it is already open.</summary>
         /// <param name="resourceSuffix">End of the embedded resource name, e.g. "nbGFA.md".</param>
         /// <param name="extra">Controls added after the guide (for example a list of sources), or null.</param>
-        public static void Show(string title, string resourceSuffix, string copyright, Func<IEnumerable<Control>> extra = null)
+        /// <param name="images">
+        /// Draws the guide's images: gets an image's file name without folder or extension ("nbAF-height") and returns
+        /// a control at most <see cref="TextWidth"/> wide, or null to show only the caption.
+        /// </param>
+        public static void Show(string title, string resourceSuffix, string copyright, Func<IEnumerable<Control>> extra = null,
+            Func<string, Control> images = null)
         {
             if (!Open.TryGetValue(resourceSuffix, out KitHelpWindow window))
             {
                 Display.Load();
-                window = new KitHelpWindow(title, LoadText(resourceSuffix), extra, copyright) { Owner = RhinoEtoApp.MainWindow };
+                window = new KitHelpWindow(title, LoadText(resourceSuffix), extra, copyright, images) { Owner = RhinoEtoApp.MainWindow };
                 window.Closed += (s, e) => Open.Remove(resourceSuffix);
                 Open[resourceSuffix] = window;
                 window.Show();
@@ -65,7 +78,10 @@ namespace Numbat.UI
             }
         }
 
-        private static IEnumerable<Control> Render(string markdown)
+        private static readonly System.Text.RegularExpressions.Regex ImageLine =
+            new System.Text.RegularExpressions.Regex(@"^!\[(?<caption>[^\]]*)\]\((?<path>[^)]+)\)$");
+
+        private static IEnumerable<Control> Render(string markdown, Func<string, Control> images)
         {
             var paragraph = new StringBuilder();
 
@@ -73,7 +89,8 @@ namespace Numbat.UI
             {
                 string line = raw.Trim();
 
-                if (line.Length == 0 || line.StartsWith("#") || line.StartsWith("- "))
+                System.Text.RegularExpressions.Match image = ImageLine.Match(line);
+                if (line.Length == 0 || line.StartsWith("#") || line.StartsWith("- ") || image.Success)
                 {
                     if (paragraph.Length > 0)
                     {
@@ -82,7 +99,14 @@ namespace Numbat.UI
                     }
                 }
 
-                if (line.StartsWith("## "))
+                if (image.Success)
+                {
+                    Control drawn = images?.Invoke(Path.GetFileNameWithoutExtension(image.Groups["path"].Value));
+                    if (drawn != null) yield return new Panel { Padding = new Padding(0, 6, 0, 0), Content = drawn };
+                    string caption = image.Groups["caption"].Value;
+                    if (caption.Length > 0) yield return Text(caption, KitFonts.Scaled(11, Weight.Regular), C.Text3);
+                }
+                else if (line.StartsWith("## "))
                 {
                     yield return Heading(line.Substring(3));
                 }

@@ -55,6 +55,9 @@ namespace Numbat.Commands.Analysis.NumbatAf
         /// <summary>Markers and outlines of things to check (not clashes), such as an area close to a road's centre.</summary>
         public static readonly Color CheckColour = Color.FromArgb(214, 140, 0);
 
+        /// <summary>Marker for something allowed, in the guide's diagrams: dark enough for white digits in light and dark mode.</summary>
+        public static readonly Color AllowedColour = Color.FromArgb(21, 128, 61);
+
         /// <summary>A building's colour by its colour index (see AfModel: neighbours never share one).</summary>
         public static Color BuildingColour(int index) => BuildingPalette[((index % BuildingPalette.Length) + BuildingPalette.Length) % BuildingPalette.Length];
 

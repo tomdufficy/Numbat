@@ -50,7 +50,7 @@ Draws the Abstandsflächen of a massing model: the areas in front of outer walls
 - **Bake** adds the result to `nbAF::` layers as closed curves, one per building face, in one undo step, with depth dimensions if you turned them on. **Export** saves a 2D top view as DXF, SVG (1:500) or JPG, in metres, with a legend: light blue Abstandsflächen, red clash zones, blue dashed plots, black footprints, and optional clash numbers, notes and dimensions.
 - Not covered yet: Baulasten, boundary walls, ignorable projections, dormers and sloping ground.
 
-The full guide is in [docs/nbAF.md](docs/nbAF.md), and in Rhino behind the window's **?** button. The legal texts, with saved copies, and which paragraphs are implemented are listed in [docs/sources/](docs/sources/README.md).
+The full guide, which starts with diagrams of the basic principles, is in [docs/nbAF.md](docs/nbAF.md), and in Rhino behind the window's **?** button. The legal texts, with saved copies, and which paragraphs are implemented are listed in [docs/sources/](docs/sources/README.md).
 
 Everything is done from the window. These helper commands are for macros and keyboard users. They don't appear as you type, but work when typed in full:
 
