@@ -2,6 +2,39 @@
 
 nbAF draws the Abstandsflächen of your massing model: the areas in front of outer walls that German building codes require to be kept free. It checks every building against every other one, against the plot lines and against road centre lines, and exports the result as a 2D drawing. The rules are the Hamburg building code, HBauO § 6 (2025 text), and every number can be changed.
 
+## The basics
+
+An Abstandsfläche is the area in front of an outer wall that has to be kept free. Its depth depends on how high the wall is. The numbers below are the HBauO defaults.
+
+![H, the height of the wall](images/nbAF-height.png)
+
+- H is measured from the lowest point of the building to the top of the wall, or to the eaves where a pitched roof starts.
+
+![Depth from H, and the minimum](images/nbAF-depth.png)
+
+- The depth is 0.4 H, but at least 2.50 m. A low wall gets the minimum. In Gewerbe- and Industriegebiete (GE/GI) it is 0.2 H, at least 2.50 m.
+
+![Roofs](images/nbAF-roof.png)
+
+- A roof flatter than 70° adds a third of its height to H. A roof of 70° or more adds all of it.
+
+![Gable walls](images/nbAF-gable.png)
+
+- A gable wall counts up to the ridge, so its Abstandsfläche is deepest in the middle and follows the shape of the gable.
+
+![Stepped walls](images/nbAF-steps.png)
+
+- Each wall gets its own depth, measured from that wall. A set-back upper storey often needs a deeper area than the storey below it.
+- The part of its area that lies over the building's own lower storeys is inside the building and is left out. Walls facing the same way are drawn as one outline.
+
+![Where an Abstandsfläche may lie](images/nbAF-where.png)
+
+- 1: Abstandsflächen must not overlap. Here two buildings are too close: a clash.
+- 2: They must stay off the neighbour's plot: a clash.
+- 3: They may reach into a public road, but only up to its middle: allowed.
+- 4: Past the road's middle: a clash.
+- Inside its own plot, an Abstandsfläche can lie anywhere, as long as no other building stands on it.
+
 ## 1. Model your buildings
 
 - Model each building as stacked volumes: one closed box per storey (or part of a storey), as for nbGFA. A pitched roof can be its own volume on the top storey.

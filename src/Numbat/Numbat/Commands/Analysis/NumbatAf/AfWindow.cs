@@ -153,7 +153,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
     internal static class AfHelp
     {
         public static void Show() =>
-            KitHelpWindow.Show($"{AfInfo.Title} · Guide", "nbAF.md", AfInfo.Copyright, SourceControls);
+            KitHelpWindow.Show($"{AfInfo.Title} · Guide", "nbAF.md", AfInfo.Copyright, SourceControls, AfDiagrams.Create);
 
         private static System.Collections.Generic.IEnumerable<Control> SourceControls()
         {
