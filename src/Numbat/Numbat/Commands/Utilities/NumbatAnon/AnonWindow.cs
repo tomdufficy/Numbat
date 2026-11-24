@@ -28,6 +28,11 @@ namespace Numbat.Commands.Utilities.NumbatAnon
         private const string KeyWhole = AnonInfo.SettingsPrefix + "wholeWord";
         private const string KeyMode = AnonInfo.SettingsPrefix + "mode";
         private const string KeyAreas = AnonInfo.SettingsPrefix + "areas";
+        private const string KeyLength = AnonInfo.SettingsPrefix + "codeLength";
+        private const string KeyPerPlace = AnonInfo.SettingsPrefix + "perPlace";
+
+        /// <summary>Code lengths offered, in characters.</summary>
+        private static readonly int[] Lengths = { 1, 2, 3, 4, 6, 8 };
 
         private static AnonWindow _instance;
 
@@ -35,7 +40,9 @@ namespace Numbat.Commands.Utilities.NumbatAnon
         private readonly KitSwitch _matchCase, _wholeWord;
         private readonly Dictionary<AnonArea, KitSwitch> _areas = new Dictionary<AnonArea, KitSwitch>();
         private readonly GridView _grid;
-        private readonly KitSegmented _mode;
+        private readonly KitSegmented _mode, _length;
+        private readonly KitSwitch _perPlace;
+        private readonly Control _lengthRow;
         private readonly TextBox _custom;
         private readonly Label _preview, _status;
         private readonly KitButton _apply, _report, _reroll;
@@ -46,7 +53,7 @@ namespace Numbat.Commands.Utilities.NumbatAnon
 
         private List<AnonHit> _hits = new List<AnonHit>();
         private AnonMatcher _matcher;
-        private string _replacement = string.Empty;
+        private AnonReplacements _plan;
 
         private AnonWindow() : base(AnonInfo.Title)
         {
@@ -55,11 +62,12 @@ namespace Numbat.Commands.Utilities.NumbatAnon
             int width = (int)(ContentWidth * Kit.Scale);
 
             // ---- find
-            _phrase = new TextBox { PlaceholderText = "Company or client name, e.g. ACME" };
+            _phrase = new TextBox { PlaceholderText = "Names to find, separated by commas, e.g. ACME, Hamburg" };
             _phrase.KeyDown += (o, e) => { if (e.Key == Keys.Enter) { e.Handled = true; Scan(); } };
+            _phrase.TextChanged += (o, e) => UpdateCounts();
             _matchCase = new KitSwitch("Match case", s.GetBool(KeyCase, false));
             _wholeWord = new KitSwitch("Whole words only", s.GetBool(KeyWhole, false));
-            var scan = new KitButton("Scan", ButtonKind.Secondary, KitIcon.Pick) { Tip = "Look for the phrase in the places ticked below" };
+            var scan = new KitButton("Scan", ButtonKind.Secondary, KitIcon.Pick) { Tip = "Look for every name (separate them with commas) in the places ticked below" };
             scan.Click += (o, e) => Scan();
 
             // ---- where
@@ -125,16 +133,33 @@ namespace Numbat.Commands.Utilities.NumbatAnon
                 ShowModeControls();
                 NewReplacement();
             };
+            _length = new KitSegmented(Lengths.Select(n => n.ToString()), Math.Max(0, Array.IndexOf(Lengths, s.GetInteger(KeyLength, 6))));
+            _length.SelectedIndexChanged += (o, e) =>
+            {
+                NumbatPlugin.Instance.Settings.SetInteger(KeyLength, Length);
+                NewReplacement();
+            };
+            _lengthRow = KitForm.HStack(KitForm.Label("Length"), _length, KitForm.Caption("characters"));
+            _perPlace = new KitSwitch("A different one in every place", s.GetBool(KeyPerPlace, false))
+            {
+                ToolTip = "Like code words: every place gets its own random code or word, so places can't be matched up afterwards. " +
+                          "Off: each name becomes the same code or word everywhere, so the layer, the block and the note still match.",
+            };
+            _perPlace.CheckedChanged += (o, e) =>
+            {
+                NumbatPlugin.Instance.Settings.SetBool(KeyPerPlace, _perPlace.Checked);
+                NewReplacement();
+            };
             _custom = new TextBox { PlaceholderText = "Replacement text" };
             _custom.TextChanged += (o, e) => { if (Mode == ReplaceMode.Text) NewReplacement(); };
-            _reroll = new KitButton("New", ButtonKind.Ghost, KitIcon.Reset) { Tip = "Pick another random code or word" };
+            _reroll = new KitButton("New", ButtonKind.Ghost, KitIcon.Reset) { Tip = "Pick other random codes or words" };
             _reroll.Click += (o, e) => NewReplacement();
             _preview = KitForm.Caption(string.Empty, width - (int)(40 * Kit.Scale)); // wraps, so a long phrase can't widen the window
 
             _status = KitForm.Body("Type a phrase, choose where to look and click Scan.", width - (int)(40 * Kit.Scale), secondary: true);
             _report = new KitButton("Save report…", ButtonKind.Ghost, KitIcon.Folder) { Tip = "Save the list as a text file", Enabled = false };
             _report.Click += (o, e) => SaveReport();
-            _apply = new KitButton("Anonymise", ButtonKind.Primary) { Tip = "Replace the phrase in every ticked place (one undo step)", Enabled = false };
+            _apply = new KitButton("Anonymise", ButtonKind.Primary) { Tip = "Replace the names in every ticked place (one undo step)", Enabled = false };
             _apply.Click += (o, e) => Apply();
 
             var footer = new StackLayout
@@ -153,7 +178,7 @@ namespace Numbat.Commands.Utilities.NumbatAnon
             }, KitForm.HStack(_matchCase, _wholeWord)));
             _lookIn = new KitSection(_sections, "lookin", "Look in", areaTable);
             _found = new KitSection(_sections, "found", "Found", KitForm.VStack(8, _grid, _status), all, none);
-            _replaceWith = new KitSection(_sections, "replace", "Replace with", KitForm.VStack(8, KitForm.HStack(_mode, _reroll), _custom, _preview));
+            _replaceWith = new KitSection(_sections, "replace", "Replace with", KitForm.VStack(8, KitForm.HStack(_mode, _reroll), _lengthRow, _custom, _perPlace, _preview));
             foreach (KitSwitch sw in _areas.Values) sw.CheckedChanged += (o, e) => UpdateCounts();
 
             _header = new KitHeaderBar(AnonInfo.Name)
@@ -197,16 +222,26 @@ namespace Numbat.Commands.Utilities.NumbatAnon
             UpdateCounts();
         }
 
-        /// <summary>The text box only for My text; New only for the random modes.</summary>
+        /// <summary>Length only for codes, the text box only for My text; New and per place only for the random modes.</summary>
         private void ShowModeControls()
         {
+            bool random = Mode == ReplaceMode.RandomLetters || Mode == ReplaceMode.RandomWord;
+            _lengthRow.Visible = Mode == ReplaceMode.RandomLetters;
             _custom.Visible = Mode == ReplaceMode.Text;
-            _reroll.Enabled = Mode == ReplaceMode.RandomLetters || Mode == ReplaceMode.RandomWord;
+            _perPlace.Visible = random;
+            _reroll.Enabled = random;
         }
+
+        private int Length => Lengths[Math.Max(0, Math.Min(Lengths.Length - 1, _length.SelectedIndex))];
+
+        /// <summary>The names in the box now (the scanned ones may differ until Scan is clicked again).</summary>
+        private List<string> TypedPhrases => AnonMatcher.Split(_phrase.Text);
 
         /// <summary>Badges on the section headings, so a closed section still says what's in it.</summary>
         private void UpdateCounts()
         {
+            int phrases = TypedPhrases.Count;
+            _find.Count = phrases > 1 ? phrases.ToString() : null;
             _lookIn.Count = $"{_areas.Values.Count(a => a.Checked)}/{_areas.Count}";
             _found.Count = _matcher == null ? null : _hits.Count.ToString();
         }
@@ -247,10 +282,10 @@ namespace Numbat.Commands.Utilities.NumbatAnon
         private void Scan()
         {
             RhinoDoc doc = RhinoDoc.ActiveDoc;
-            string phrase = (_phrase.Text ?? string.Empty).Trim();
-            if (doc == null || phrase.Length == 0)
+            List<string> phrases = TypedPhrases;
+            if (doc == null || phrases.Count == 0)
             {
-                _status.Text = "Type the phrase to look for first.";
+                _status.Text = "Type the names to look for first.";
                 return;
             }
             var areas = _areas.Where(a => a.Value.Checked).Select(a => a.Key).ToList();
@@ -259,33 +294,60 @@ namespace Numbat.Commands.Utilities.NumbatAnon
             s.SetBool(KeyWhole, _wholeWord.Checked);
             s.SetString(KeyAreas, string.Join(",", areas));
 
-            _matcher = new AnonMatcher(phrase, _matchCase.Checked, _wholeWord.Checked);
+            _matcher = new AnonMatcher(phrases, _matchCase.Checked, _wholeWord.Checked);
             _hits = AnonScanner.Scan(doc, _matcher, areas);
-            Preview();
+            // Keep the replacements unless the number of names changed.
+            if (_plan == null || _plan.Shared.Count != _matcher.Phrases.Count) NewReplacement();
+            else Preview();
         }
 
+        /// <summary>Draws new replacements for the current mode and names, then refreshes the preview.</summary>
         private void NewReplacement()
         {
-            _replacement = AnonWords.For(Mode, _custom.Text);
+            int count = _matcher?.Phrases.Count ?? Math.Max(1, TypedPhrases.Count);
+            _plan = new AnonReplacements(Mode, Length, _perPlace.Checked, _custom.Text, count);
             Preview();
         }
 
         /// <summary>Works out every "After" and refreshes the list and the buttons.</summary>
         private void Preview()
         {
-            string phrase = _matcher?.Phrase ?? (_phrase.Text ?? "").Trim();
-            _preview.Text = phrase.Length == 0 ? string.Empty
-                : Mode == ReplaceMode.Remove ? $"\"{phrase}\" is taken out. Names that would be empty get a random code."
-                : $"\"{phrase}\" becomes \"{_replacement}\" everywhere.";
-            foreach (AnonHit h in _hits) h.After = h.Editable ? Rewrite(h.Text, h.IsName) : null;
+            _preview.Text = PlanText();
+            foreach (AnonHit h in _hits)
+            {
+                // Each place keeps the replacements it is previewed with, so Anonymise writes exactly what the list shows.
+                h.With = h.Editable ? _plan.ForPlace() : null;
+                h.Fallback = _plan.Fallback();
+                h.After = h.Editable ? Rewrite(h, h.Text, h.IsName) : null;
+            }
             _grid.DataStore = _hits.ToList();
             UpdateStatus();
         }
 
-        private string Rewrite(string text, bool isName)
+        /// <summary>What the names become, in words, under Replace with.</summary>
+        private string PlanText()
         {
-            string result = _matcher.Replace(text, _replacement);
-            return isName && string.IsNullOrWhiteSpace(result) ? AnonWords.Letters() : result;
+            IReadOnlyList<string> names = _matcher?.Phrases ?? TypedPhrases;
+            if (names.Count == 0 || _plan == null) return string.Empty;
+            string label = string.Join(", ", names.Select(n => $"\"{n}\""));
+            bool one = names.Count == 1;
+            switch (Mode)
+            {
+                case ReplaceMode.Remove:
+                    return $"{label} {(one ? "is" : "are")} taken out. Names that would be empty get a random code.";
+                case ReplaceMode.Text:
+                    return $"{label} {(one ? "becomes" : "all become")} \"{_plan.Text}\" everywhere.";
+            }
+            string kind = Mode == ReplaceMode.RandomWord ? "word" : "code";
+            if (_plan.PerPlace)
+                return $"Every place gets its own random {kind} for {label}: see After in the list.";
+            return string.Join(", ", names.Select((n, i) => $"\"{n}\" becomes \"{(i < _plan.Shared.Count ? _plan.Shared[i] : "")}\"")) + " everywhere.";
+        }
+
+        private string Rewrite(AnonHit hit, string text, bool isName)
+        {
+            string result = _matcher.Replace(text, hit.With ?? _plan.Shared);
+            return isName && string.IsNullOrWhiteSpace(result) ? hit.Fallback ?? _plan.Fallback() : result;
         }
 
         private void UpdateStatus()
@@ -295,7 +357,7 @@ namespace Numbat.Commands.Utilities.NumbatAnon
             int reportOnly = _hits.Count - editable;
             if (_matcher == null) return;
             _status.Text = _hits.Count == 0
-                ? $"\"{_matcher.Phrase}\" was not found in the places ticked above."
+                ? $"{_matcher.Label} {(_matcher.Phrases.Count == 1 ? "was" : "were")} not found in the places ticked above."
                 : $"Found in {_hits.Count} place(s): {ticked} of {editable} ticked to change" +
                   (reportOnly > 0 ? $", {reportOnly} report only (file paths and snapshots: rename those yourself)." : ".");
             _apply.Enabled = ticked > 0;
@@ -316,8 +378,7 @@ namespace Numbat.Commands.Utilities.NumbatAnon
             RhinoDoc doc = RhinoDoc.ActiveDoc;
             List<AnonHit> chosen = _hits.Where(h => h.Editable && h.Include).ToList();
             if (doc == null || chosen.Count == 0) return;
-            string with = Mode == ReplaceMode.Remove ? "nothing" : $"\"{_replacement}\"";
-            if (MessageBox.Show(this, $"Replace \"{_matcher.Phrase}\" with {with} in {chosen.Count} place(s)?\n\n" +
+            if (MessageBox.Show(this, $"{ConfirmText(chosen.Count)}\n\n" +
                     "Undo (Ctrl+Z) reverses it, except for group names, named CPlanes and the document notes: Rhino can't " +
                     "undo those. Save the report first if you may need the old names.",
                     AnonInfo.Title, MessageBoxButtons.OKCancel, MessageBoxType.Question) != DialogResult.Ok)
@@ -326,14 +387,15 @@ namespace Numbat.Commands.Utilities.NumbatAnon
             }
 
             int failed = 0;
-            uint undo = doc.BeginUndoRecord($"{AnonInfo.Name}: replace \"{_matcher.Phrase}\"");
+            uint undo = doc.BeginUndoRecord($"{AnonInfo.Name}: replace {_matcher.Label}");
             try
             {
                 foreach (AnonHit h in chosen)
                 {
                     try
                     {
-                        h.Apply(doc, Rewrite);
+                        AnonHit hit = h;
+                        h.Apply(doc, (text, isName) => Rewrite(hit, text, isName));
                     }
                     catch (Exception ex)
                     {
@@ -349,10 +411,25 @@ namespace Numbat.Commands.Utilities.NumbatAnon
             doc.Views.Redraw();
 
             // Look again, so the list shows what is left.
-            string phrase = _matcher.Phrase;
+            string label = _matcher.Label;
             Scan();
-            RhinoApp.WriteLine($"{AnonInfo.Name}: changed {chosen.Count - failed} place(s); \"{phrase}\" is still found in {_hits.Count}." +
+            RhinoApp.WriteLine($"{AnonInfo.Name}: changed {chosen.Count - failed} place(s); {label} still found in {_hits.Count}." +
                                (failed > 0 ? $" {failed} could not be changed (see above)." : ""));
+        }
+
+        /// <summary>The question before anonymising.</summary>
+        private string ConfirmText(int places)
+        {
+            string label = _matcher.Label;
+            string kind = Mode == ReplaceMode.RandomWord ? "word" : "code";
+            switch (Mode)
+            {
+                case ReplaceMode.Remove: return $"Take {label} out in {places} place(s)?";
+                case ReplaceMode.Text: return $"Replace {label} with \"{_plan.Text}\" in {places} place(s)?";
+            }
+            if (_plan.PerPlace) return $"Replace {label} with a different random {kind} in each of {places} place(s)?";
+            string pairs = string.Join(", ", _matcher.Phrases.Select((n, i) => $"\"{n}\" with \"{_plan.Shared[i]}\""));
+            return $"Replace {pairs} in {places} place(s)?";
         }
 
         private void SaveReport()
@@ -364,7 +441,8 @@ namespace Numbat.Commands.Utilities.NumbatAnon
 
             var sb = new StringBuilder();
             sb.AppendLine($"{AnonInfo.Title} report, {DateTime.Now:yyyy-MM-dd HH:mm}");
-            sb.AppendLine($"Phrase: \"{_matcher?.Phrase}\"{(_matchCase.Checked ? ", match case" : "")}{(_wholeWord.Checked ? ", whole words" : "")}");
+            sb.AppendLine($"Looked for: {_matcher?.Label}{(_matchCase.Checked ? ", match case" : "")}{(_wholeWord.Checked ? ", whole words" : "")}");
+            sb.AppendLine($"Replacement: {PlanText()}");
             sb.AppendLine($"Looked in: {string.Join(", ", _areas.Where(a => a.Value.Checked).Select(a => a.Key))}");
             sb.AppendLine($"Found: {_hits.Count}");
             sb.AppendLine();

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -7,7 +9,7 @@ namespace Numbat.Commands.Utilities.NumbatAnon
     /// <summary>What a found phrase is replaced with.</summary>
     internal enum ReplaceMode
     {
-        /// <summary>A random code such as "QX7KMR".</summary>
+        /// <summary>Random characters such as "QX7KMR", of a chosen length (one character upwards).</summary>
         RandomLetters,
         /// <summary>A random neutral word such as "Heron".</summary>
         RandomWord,
@@ -18,30 +20,120 @@ namespace Numbat.Commands.Utilities.NumbatAnon
     }
 
     /// <summary>
-    /// Finds a phrase in text (ignoring case unless asked, optionally whole words only) and replaces it. The same
-    /// replacement is used everywhere in one run, so "ACME" becomes the same word in every layer, block and note.
+    /// Finds one or more phrases in text (ignoring case unless asked, optionally whole words only) and replaces each
+    /// with its own replacement. Longer phrases win where they overlap, so "ACME Architects" is replaced as a whole
+    /// before "ACME" on its own.
     /// </summary>
     internal sealed class AnonMatcher
     {
         private readonly Regex _regex;
 
-        public AnonMatcher(string phrase, bool matchCase, bool wholeWord)
+        public AnonMatcher(IEnumerable<string> phrases, bool matchCase, bool wholeWord)
         {
-            string pattern = Regex.Escape(phrase ?? string.Empty);
+            StringComparer same = matchCase ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
+            Phrases = (phrases ?? Enumerable.Empty<string>())
+                .Select(p => (p ?? string.Empty).Trim())
+                .Where(p => p.Length > 0)
+                .Distinct(same)
+                .ToList();
+            // One named group per phrase, longest first, so the regex prefers the longest phrase at each position.
+            string pattern = string.Join("|", Phrases
+                .Select((p, i) => (p, i))
+                .OrderByDescending(x => x.p.Length)
+                .Select(x => $"(?<p{x.i}>{Regex.Escape(x.p)})"));
+            if (pattern.Length == 0) pattern = "(?!)"; // matches nothing
             // Word boundaries that also work next to umlauts and digits, and with phrases that start or end in
             // punctuation: "not preceded / followed by a letter or digit".
-            if (wholeWord) pattern = $@"(?<![\p{{L}}\p{{N}}]){pattern}(?![\p{{L}}\p{{N}}])";
+            else if (wholeWord) pattern = $@"(?<![\p{{L}}\p{{N}}])(?:{pattern})(?![\p{{L}}\p{{N}}])";
             _regex = new Regex(pattern, (matchCase ? RegexOptions.None : RegexOptions.IgnoreCase) | RegexOptions.CultureInvariant);
-            Phrase = phrase;
         }
 
-        public string Phrase { get; }
+        /// <summary>
+        /// Splits what the user typed into phrases: separated by commas (or new lines), trimmed, empty ones dropped.
+        /// </summary>
+        public static List<string> Split(string typed) =>
+            (typed ?? string.Empty).Split(new[] { ',', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => p.Trim()).Where(p => p.Length > 0).ToList();
 
-        public bool IsMatch(string text) => !string.IsNullOrEmpty(text) && !string.IsNullOrEmpty(Phrase) && _regex.IsMatch(text);
+        public IReadOnlyList<string> Phrases { get; }
 
-        public int Count(string text) => IsMatch(text) ? _regex.Matches(text).Count : 0;
+        /// <summary>The phrases quoted and listed, for messages: "ACME", "Hamburg".</summary>
+        public string Label => string.Join(", ", Phrases.Select(p => $"\"{p}\""));
 
-        public string Replace(string text, string with) => IsMatch(text) ? _regex.Replace(text, with ?? string.Empty) : text;
+        public bool IsMatch(string text) => !string.IsNullOrEmpty(text) && Phrases.Count > 0 && _regex.IsMatch(text);
+
+        /// <summary>Replaces every phrase with <paramref name="with"/>[its index in <see cref="Phrases"/>].</summary>
+        public string Replace(string text, IReadOnlyList<string> with)
+        {
+            if (!IsMatch(text)) return text;
+            return _regex.Replace(text, m =>
+            {
+                for (int i = 0; i < Phrases.Count; i++)
+                {
+                    if (m.Groups["p" + i].Success) return i < with.Count ? with[i] ?? string.Empty : string.Empty;
+                }
+                return m.Value;
+            });
+        }
+    }
+
+    /// <summary>
+    /// The replacements for one run. Each phrase gets its own (two phrases never get the same random word or code).
+    /// With <see cref="PerPlace"/>, every place gets its own set as well, like code words; otherwise a phrase becomes
+    /// the same thing everywhere, so the layer, the block and the note still match afterwards.
+    /// </summary>
+    internal sealed class AnonReplacements
+    {
+        private readonly HashSet<string> _used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        public AnonReplacements(ReplaceMode mode, int length, bool perPlace, string text, int phraseCount)
+        {
+            Mode = mode;
+            Length = Math.Max(1, length);
+            PerPlace = perPlace && IsRandom;
+            Text = text ?? string.Empty;
+            Shared = NewSet(phraseCount);
+        }
+
+        public ReplaceMode Mode { get; }
+        public int Length { get; }
+        public bool PerPlace { get; }
+        public string Text { get; }
+
+        public bool IsRandom => Mode == ReplaceMode.RandomLetters || Mode == ReplaceMode.RandomWord;
+
+        /// <summary>The replacement of each phrase, when every place uses the same ones.</summary>
+        public IReadOnlyList<string> Shared { get; }
+
+        /// <summary>The replacements for one place: its own new set with <see cref="PerPlace"/>, else <see cref="Shared"/>.</summary>
+        public IReadOnlyList<string> ForPlace() => PerPlace ? NewSet(Shared.Count) : Shared;
+
+        /// <summary>A random code of <see cref="Length"/> characters, for names that would end up empty.</summary>
+        public string Fallback() => AnonWords.Letters(Length);
+
+        private string[] NewSet(int count)
+        {
+            var set = new string[count];
+            for (int i = 0; i < count; i++) set[i] = One();
+            return set;
+        }
+
+        private string One()
+        {
+            switch (Mode)
+            {
+                case ReplaceMode.Text: return Text;
+                case ReplaceMode.Remove: return string.Empty;
+            }
+            // Avoid repeats while there are fresh ones to take: one-character codes run out after 32, words after 75.
+            string next = null;
+            for (int attempt = 0; attempt < 50; attempt++)
+            {
+                next = Mode == ReplaceMode.RandomWord ? AnonWords.Word() : AnonWords.Letters(Length);
+                if (_used.Add(next)) return next;
+            }
+            return next;
+        }
     }
 
     /// <summary>Random replacements: codes and neutral words.</summary>
@@ -71,17 +163,5 @@ namespace Numbat.Commands.Utilities.NumbatAnon
         }
 
         public static string Word() => Words[Rng.Next(Words.Length)];
-
-        /// <summary>A replacement for the chosen mode. <paramref name="text"/> is used for <see cref="ReplaceMode.Text"/>.</summary>
-        public static string For(ReplaceMode mode, string text)
-        {
-            switch (mode)
-            {
-                case ReplaceMode.RandomLetters: return Letters();
-                case ReplaceMode.RandomWord: return Word();
-                case ReplaceMode.Text: return text ?? string.Empty;
-                default: return string.Empty;
-            }
-        }
     }
 }
