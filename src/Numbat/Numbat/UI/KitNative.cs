@@ -79,6 +79,8 @@ namespace Numbat.UI
         public KitGridText(GridView grid)
         {
             _grid = grid;
+            grid.BackgroundColor = Kit.Colours.Surface; // the empty rows below the list, to match the cells
+            grid.GridLines = GridLines.None; // native lines keep the native colours; the cells' own backgrounds join up
             grid.MouseMove += (s, e) => ShowTip(e.Location);
             grid.MouseLeave += (s, e) => _tip.Hide();
             grid.MouseDown += (s, e) => _tip.Hide();
@@ -98,8 +100,11 @@ namespace Numbat.UI
             {
                 if (!(e.Item is T item)) return;
                 KitPalette c = Kit.Colours;
-                Color ink = e.IsSelected ? SystemColors.HighlightText : secondary != null && secondary(item) ? c.Text3 : c.Text;
                 RectangleF r = e.ClipRectangle;
+                // The cell paints its own kit background, so its text reads in light and dark mode whatever colours
+                // the native grid uses. A selected row gets the accent tint, like the kit's toggled buttons.
+                e.Graphics.FillRectangle(e.IsSelected ? c.AccentWeak : c.Surface, r);
+                Color ink = secondary != null && secondary(item) ? c.Text3 : c.Text;
                 string shown = KitPaint.Fit(CellFont, OneLine(text(item)), r.Width - 2 * CellPad);
                 KitPaint.TextMiddle(e.Graphics, CellFont, ink, r.X + CellPad, r.Y, r.Height, shown);
             };
