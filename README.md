@@ -13,7 +13,7 @@ Architectural modelling and analysis tools for Rhino 8. Every command starts wit
 |---|---|
 | [`nbGFA`](#nbgfa) | Live gross floor area tracking by use, with limits and a total target. |
 | [`nbAF`](#nbaf) | Live Abstandsflächen (setback areas, HBauO § 6) with clash checks against neighbours and plots. |
-| [`nbAnon`](#nbanon) | Finds a name (your company's, a client's) everywhere in a file and anonymises it. |
+| [`nbAnon`](#nbanon) | Finds names (your company's, a client's) everywhere in a file and anonymises them. |
 | [`nbTextureShuffle`](#nbtextureshuffle) | Breaks up repeating textures by shuffling their mapping. |
 | [`nbHandrail`](#nbhandrail) | Configurable handrails with rails, posts, infill and panels. |
 | [`nbPavementPlacer`](#nbpavementplacer) | Arrays a paving module along curves. |
