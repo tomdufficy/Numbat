@@ -4,6 +4,8 @@ This file records notable changes to Numbat. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
+## [0.4.0-beta.1] - 2026-11-24
+
 ### Added
 - nbAnon: finds words or phrases (your company's or a client's name and city, several at once separated by commas) everywhere in a Rhino file, including layers, nested blocks, object names and user text, text, groups, document notes, named views, styles and materials, and replaces them with a random code (1 to 8 characters), a random word, your own text or nothing. Each name gets its own code or word, the same everywhere or, like code words, a different one in every place. Review and untick every place first; all changes are one undo step, and the list can be saved as a report.
 - nbAF: live Abstandsflächen (setback areas) for massing models, to the Hamburg building code (HBauO § 6, 2025 text). Add stacked storey volumes in a floating window and, optionally, give buildings their plots. Each building face gets one Abstandsfläche, stepped walls included, drawn as a live preview. Every building is checked against every other (overlaps, areas reaching into another building, areas reaching another plot, and areas past a road centre line once you add them), filled in the clash colour, numbered in the viewports and listed in the window, where hovering one says which rule it breaks, with the numbers. Depth dimensions can be turned on. A model check runs with every update: volumes closer than 10 mm count as one building, buildings that almost touch are listed for you to join or keep apart, open objects and leaning walls are reported, and Colour by building shows what nbAF counts as one building. Every rule value (depth factor, minimum depth, roof pitch, GE/GI zone) can be changed and is saved in the file. Bake adds the result to `nbAF::` layers as closed curves; Export saves a 2D top view as DXF, SVG or JPG in a fixed drawing style, with optional clash numbers, notes and dimensions. The guide starts with diagrams of the basic principles (wall height, depth and minimum, roofs, gables, stepped walls, and where an Abstandsfläche may lie); it and saved copies of the legal texts are behind the window's ? button. Helper commands for macros: nbAFAdd, nbAFSetPlot, nbAFAddRoad, nbAFBake, nbAFClear, nbAFSources, nbAFHelp and nbAFDemo (an example district from a real hand-made model).
@@ -73,7 +75,8 @@ This file records notable changes to Numbat. The format follows [Keep a Changelo
 - nbRandomColour: randomises layer colours.
 - Yak package metadata and automated packaging workflow.
 
-[Unreleased]: https://github.com/tomdufficy/Numbat/compare/v0.3.0-beta.2...main
+[Unreleased]: https://github.com/tomdufficy/Numbat/compare/v0.4.0-beta.1...main
+[0.4.0-beta.1]: https://github.com/tomdufficy/Numbat/compare/v0.3.0-beta.2...v0.4.0-beta.1
 [0.3.0-beta.2]: https://github.com/tomdufficy/Numbat/compare/v0.3.0-beta.1...v0.3.0-beta.2
 [0.3.0-beta.1]: https://github.com/tomdufficy/Numbat/compare/v0.2.0-beta.1...v0.3.0-beta.1
 [0.2.0-beta.1]: https://github.com/tomdufficy/Numbat/compare/v0.1.0-beta.3...v0.2.0-beta.1
