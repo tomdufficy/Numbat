@@ -15,8 +15,8 @@ using SdColor = System.Drawing.Color;
 namespace Numbat.Commands.Analysis.NumbatAf
 {
     /// <summary>
-    /// The content of the nbAF window, drawn with the Numbat UI kit below the window's title bar, in the same layout
-    /// as nbGFA: summary tiles, status callouts, then the buildings, the rule values and the colours, the
+    /// The content of the nbAF window, drawn with the Numbat UI kit, in the same layout as nbGFA: header with title
+    /// and icon buttons, summary tiles, status callouts, then the buildings, the rule values and the colours, the
     /// Export and Bake buttons, and a footer with the status and copyright. Right-click (or Shift+F10) on a building
     /// opens its options. Everything is keyboard reachable.
     /// </summary>
@@ -60,12 +60,13 @@ namespace Numbat.Commands.Analysis.NumbatAf
         private const string EmptyText =
             "No buildings yet. Select storey volumes and click Add. Volumes that touch, or are in one Rhino group, form one building.";
 
-        /// <summary>Status lines: missing target, skipped faces, deleted plots, changed values.</summary>
+        /// <summary>Status lines: no plots, deleted plots, skipped faces, changed values.</summary>
         private List<(CalloutKind kind, string text, string link, Action click, string tip)> Callouts()
         {
             var lines = new List<(CalloutKind, string, string, Action, string)>();
-            if (_model.Buildings.Count > 0 && _model.Target == null)
-                lines.Add((CalloutKind.Warning, "No target building, so nothing is checked for clashes.", null, null, null));
+            if (_model.Buildings.Count > 0 && _model.Buildings.All(b => b.Plot == Guid.Empty))
+                lines.Add((CalloutKind.Info, "No plots drawn, so plots aren't checked: only overlapping Abstandsflächen and areas reaching into buildings are flagged.",
+                    null, null, null));
             foreach (Building b in _model.Buildings.Where(b => b.PlotMissing))
             {
                 Building building = b;
@@ -127,7 +128,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
         }
 
         private float BodyBottom(float w) =>
-            Kit.Pad + TilesH + Kit.Pad + CalloutsHeight(w)
+            Kit.HeaderH + Kit.Pad + TilesH + Kit.Pad + CalloutsHeight(w)
             + Kit.ControlH + Kit.Gap + BuildingsHeight(w)
             + ClashesHeight()
             + Kit.Pad + Kit.ControlH + ValueRows * ValueH
@@ -150,7 +151,8 @@ namespace Numbat.Commands.Analysis.NumbatAf
         protected override void PaintContent(Graphics g)
         {
             float w = W;
-            float y = Kit.Pad;
+            DrawHeader(g, w);
+            float y = Kit.HeaderH + Kit.Pad;
             DrawTiles(g, w, y);
             y += TilesH + Kit.Pad;
 
@@ -174,23 +176,35 @@ namespace Numbat.Commands.Analysis.NumbatAf
             DrawFooter(g, w);
         }
 
+        private void DrawHeader(Graphics g, float w)
+        {
+            KitPaint.Header(g, w, null, AfInfo.Name);
+
+            RectangleF more = KitPaint.HeaderButton(w, 0);
+            RectangleF help = KitPaint.HeaderButton(w, 1);
+
+            KitPaint.Button(g, help, null, ButtonKind.Ghost, StateOf("help"), KitIcon.Help);
+            AddTarget("help", help, AfHelp.Show, null, "How to use nbAF (F1)");
+
+            KitPaint.Button(g, more, null, ButtonKind.Ghost, StateOf("more"), KitIcon.More);
+            AddTarget("more", more, () => ShowMainMenu(this, ToControl(new PointF(more.X, more.Bottom + 2))), null, "More options");
+        }
+
         private void DrawTiles(Graphics g, float w, float y)
         {
             float inner = w - 2 * Kit.Pad - Kit.Gap;
             float w1 = (float)Math.Floor(inner * 0.58f);
-            Building target = _model.Target;
             int flags = _model.Current?.Flags.Count ?? 0;
 
             var r1 = new RectangleF(Kit.Pad, y, w1, TilesH);
-            if (target == null)
-                KitPaint.Tile(g, r1, "Clashes", "–", _model.Buildings.Count == 0 ? "No buildings" : "No target", big: true);
+            if (_model.Buildings.Count == 0)
+                KitPaint.Tile(g, r1, "Clashes", "–", "No buildings", big: true);
             else
-                KitPaint.Tile(g, r1, $"Clashes · target {target.Name}", flags == 0 ? "None" : flags.ToString(),
+                KitPaint.Tile(g, r1, "Clashes", flags == 0 ? "None" : flags.ToString(),
                     flags == 0 ? "All checks pass" : "Numbered in the model", big: true, subColor: flags == 0 ? C.Ok : C.Err);
             if (flags > 0) KitIcons.Draw(g, KitIcon.Warning, new RectangleF(r1.Right - 8 - 14, r1.Y + 8, 14, 14), C.Err);
-            AddTarget("clashes", r1, null, null, target == null
-                ? "Clashes are checked where the target building is involved. Make a building the target to check it."
-                : "Overlapping Abstandsflächen, areas reaching into a building, and areas off their plot, wherever the target is involved.");
+            AddTarget("clashes", r1, null, null,
+                "Every building is checked against every other: overlapping Abstandsflächen, areas reaching into a building, and areas reaching another building's plot.");
 
             var r2 = new RectangleF(Kit.Pad + w1 + Kit.Gap, y, inner - w1, TilesH);
             string zone = _model.Rules.Zone == Zone.Commercial ? "GE/GI zone" : "General zone";
@@ -245,24 +259,15 @@ namespace Numbat.Commands.Analysis.NumbatAf
             if (st.Focused) KitPaint.FocusRing(g, rect, Kit.RadiusCard);
 
             float left = rect.X + 12, right = rect.Right - 10;
-            Color role = Kit.ToEto(AfColours.Get(b.Target ? Element.Target : Element.Context));
-            KitPaint.Fill(g, new RectangleF(left, rect.Y + 14, 10, 10), 2, role);
+            Color areas = Kit.ToEto(AfColours.Get(Element.Areas));
+            KitPaint.Fill(g, new RectangleF(left, rect.Y + 14, 10, 10), 2, areas);
 
-            // Buttons on the right: plot, then role.
-            string roleText = b.Target ? "Target" : "Make target";
-            float roleW = KitPaint.ButtonWidth(roleText);
-            var roleRect = new RectangleF(right - roleW, rect.Y + (RowH - Kit.ControlH) / 2, roleW, Kit.ControlH);
-            PartState roleState = StateOf(id + ":role");
-            roleState.On = b.Target;
-            KitPaint.Button(g, roleRect, roleText, ButtonKind.Secondary, roleState);
-            AddTarget(id + ":role", roleRect, () => { if (!building.Target) _model.SetTarget(Doc, building); }, null,
-                b.Target ? $"{b.Name} is the target: its Abstandsflächen are checked" : $"Make {b.Name} the target building");
-
+            // The plot button on the right.
             string plotText = b.PlotMissing ? "Plot missing" : b.Plot != Guid.Empty ? "Plot" : "Set plot";
             KitIcon plotIcon = b.PlotMissing ? KitIcon.Warning : b.Plot != Guid.Empty ? KitIcon.Check : KitIcon.Pick;
             float plotW = KitPaint.ButtonWidth(plotText, plotIcon);
-            var plotRect = new RectangleF(roleRect.X - 6 - plotW, roleRect.Y, plotW, Kit.ControlH);
-            KitPaint.Button(g, plotRect, plotText, ButtonKind.Ghost, StateOf(id + ":plot"), plotIcon);
+            var plotRect = new RectangleF(right - plotW, rect.Y + (RowH - Kit.ControlH) / 2, plotW, Kit.ControlH);
+            KitPaint.Button(g, plotRect, plotText, ButtonKind.Secondary, StateOf(id + ":plot"), plotIcon);
             AddTarget(id + ":plot", plotRect, () => SetPlot(Doc, building), p => ShowBuildingMenu(Doc, building, p),
                 b.PlotMissing ? $"The plot curve of {b.Name} was deleted: click to pick a new one"
                 : b.Plot != Guid.Empty ? $"{b.Name} has a plot: click to pick another, right-click for options"
@@ -442,17 +447,14 @@ namespace Numbat.Commands.Analysis.NumbatAf
             float y = top + Kit.Pad;
             float lh = KitPaint.LineHeight(KitFonts.Caption);
             float statusW = w - 2 * Kit.Pad;
-            Building target = _model.Target;
             int flags = _model.Current?.Flags.Count ?? 0;
             string values = _model.Rules.IsDefault ? "" : " · values changed";
             if (_model.Buildings.Count == 0)
                 KitPaint.StatusLine(g, Kit.Pad, y, C.Outline, "No buildings tracked", statusW);
-            else if (target == null)
-                KitPaint.StatusLine(g, Kit.Pad, y, C.Warn, "No target building" + values, statusW);
             else if (flags > 0)
-                KitPaint.StatusLine(g, Kit.Pad, y, C.Err, $"{flags} clash{(flags == 1 ? "" : "es")} involving {target.Name}{values}", statusW);
+                KitPaint.StatusLine(g, Kit.Pad, y, C.Err, $"{flags} clash{(flags == 1 ? "" : "es")}{values}", statusW);
             else
-                KitPaint.StatusLine(g, Kit.Pad, y, C.Ok, $"No clashes for {target.Name}{values}", statusW);
+                KitPaint.StatusLine(g, Kit.Pad, y, C.Ok, $"No clashes{values}", statusW);
             y += lh + 4;
 
             g.DrawText(KitFonts.Caption, C.Text3, Kit.Pad, y, AfInfo.Copyright);
@@ -537,7 +539,6 @@ namespace Numbat.Commands.Analysis.NumbatAf
             if (doc == null) return;
             var menu = new ContextMenu();
             menu.Items.Add(Item($"Select {b.Name}'s volumes", true, () => SelectVolumes(doc, b)));
-            menu.Items.Add(Item($"Make {b.Name} the target", !b.Target, () => _model.SetTarget(doc, b)));
             menu.Items.Add(new SeparatorMenuItem());
             menu.Items.Add(Item("Set plot…", true, () => SetPlot(doc, b)));
             menu.Items.Add(Item("Select plot", b.Plot != Guid.Empty && !b.PlotMissing, () =>

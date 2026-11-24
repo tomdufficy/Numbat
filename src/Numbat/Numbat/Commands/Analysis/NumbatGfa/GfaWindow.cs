@@ -8,8 +8,8 @@ using Numbat.UI;
 namespace Numbat.Commands.Analysis.NumbatGfa
 {
     /// <summary>
-    /// The small floating GFA window: Numbat's title bar over a scroller around <see cref="GfaView"/>, which draws
-    /// everything with the Numbat UI kit. This class only handles opening, position, size and the saved view.
+    /// The small floating GFA window: a scroller around <see cref="GfaView"/>, which draws everything with the
+    /// Numbat UI kit. This class only handles opening, position, size and the saved view.
     /// </summary>
     internal sealed class GfaWindow : KitWindow
     {
@@ -58,25 +58,10 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             _view.ViewChanged += (s, e) =>
             {
                 NumbatPlugin.Instance.Settings.SetString(KeyView, _view.Pie ? "pie" : "bars");
-                TitleBar.Invalidate();
             };
             _view.DisplayChanged += (s, e) => OnDisplayChanged();
             Body = _scroll;
 
-            TitleBar.AddButton(new KitTitleButton
-            {
-                Id = "chart", Icon = () => _view.Pie ? KitIcon.Bars : KitIcon.Pie,
-                Tip = () => _view.Pie ? "Show as bars" : "Show as pie chart",
-                Click = p => _view.ToggleView(),
-            });
-            TitleBar.AddButton(new KitTitleButton
-            {
-                Id = "help", Icon = () => KitIcon.Help, Tip = () => "How to use nbGFA (F1)", Click = p => HelpWindow.ShowWindow(),
-            });
-            TitleBar.AddButton(new KitTitleButton
-            {
-                Id = "more", Icon = () => KitIcon.More, Tip = () => "More options", Click = p => _view.ShowMainMenu(TitleBar, p),
-            });
 
             _model.Changed += OnModelChanged;
             Closing += (s, e) => SaveBounds();
@@ -135,7 +120,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             if (w < MinimumSize.Width || h < MinimumSize.Height)
             {
                 w = (int)((DefaultWidth + ScrollbarGutter) * Kit.Scale);
-                h = (int)Math.Ceiling(_view.ContentHeight(DefaultWidth) * Kit.Scale) + ChromeHeight;
+                h = (int)Math.Ceiling(_view.ContentHeight(DefaultWidth) * Kit.Scale);
             }
             ClientSize = new Size(w, Math.Max(h, MinimumSize.Height));
         }
@@ -165,7 +150,6 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             float ratio = Kit.Scale / old;
             MinimumSize = new Size((int)(MinWidth * Kit.Scale), (int)(MinHeight * Kit.Scale));
             ClientSize = new Size((int)(ClientSize.Width * ratio), (int)(ClientSize.Height * ratio));
-            TitleBar.UpdateSize();
             _view.UpdateHeight();
         }
     }

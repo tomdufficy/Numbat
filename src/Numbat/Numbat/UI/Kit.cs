@@ -14,8 +14,6 @@ namespace Numbat.UI
         public Color Text, Text2, Text3;
         public Color Accent, AccentWeak, OnAccent;
         public Color Ok, Warn, Err;
-        /// <summary>Title bar: logo brown in both themes, with white text and icons (8.9:1).</summary>
-        public Color TitleBar, OnTitleBar;
     }
 
     /// <summary>
@@ -28,7 +26,6 @@ namespace Numbat.UI
         public const float Unit = 4;
         public const float ControlH = 28;
         public const float HeaderH = 44;
-        public const float TitleH = 36;
         public const float LabelColumn = 96;
         public const float Pad = 12;
         public const float Gap = 8;
@@ -81,7 +78,6 @@ namespace Numbat.UI
             // Accent = logo Brown; AccentWeak = a pale tint of logo Tan. Brown on Surface/AccentWeak is 6.6:1 or better.
             Accent = Hex(0x6C4B33), AccentWeak = Hex(0xF3EBDF), OnAccent = Hex(0xFFFFFF),
             Ok = Hex(0x15803D), Warn = Hex(0x8A5A06), Err = Hex(0xC2410C),
-            TitleBar = Hex(0x6C4B33), OnTitleBar = Hex(0xFFFFFF),
         };
 
         private static KitPalette MakeDark(bool strong) => new KitPalette
@@ -94,7 +90,6 @@ namespace Numbat.UI
             // Accent = logo Tan; AccentWeak = a dark brown. Tan on Surface/AccentWeak is 5.2:1 or better.
             Accent = Hex(0xC79C69), AccentWeak = Hex(0x3A2E24), OnAccent = Hex(0x1A1A1A),
             Ok = Hex(0x4ADE80), Warn = Hex(0xFACC15), Err = Hex(0xFB923C),
-            TitleBar = Hex(0x6C4B33), OnTitleBar = Hex(0xFFFFFF),
         };
 
         // ---- ramps --------------------------------------------------------------------------

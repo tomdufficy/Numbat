@@ -197,11 +197,7 @@ namespace Numbat.UI
             _keyboard = false;
             PointF p = ToLogical(e.Location);
             Target t = HitTest(p);
-            if (t == null || !t.Enabled)
-            {
-                if (t == null) OnEmptyMouseDown(e);
-                return;
-            }
+            if (t == null || !t.Enabled) return;
             e.Handled = true;
             _focus = t.Id;
             if (e.Buttons == MouseButtons.Primary)
@@ -228,9 +224,6 @@ namespace Numbat.UI
                 t.Click?.Invoke();
             }
         }
-
-        /// <summary>Mouse pressed where there is no target (the title bar uses this to move its window).</summary>
-        protected virtual void OnEmptyMouseDown(MouseEventArgs e) { }
 
         // ---- keyboard ---------------------------------------------------------------------------
 

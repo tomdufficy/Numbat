@@ -9,7 +9,7 @@ using Numbat.UI;
 namespace Numbat.Commands.Analysis.NumbatAf
 {
     /// <summary>
-    /// The small floating nbAF window: Numbat's title bar over a scroller around <see cref="AfView"/>, which draws everything with the
+    /// The small floating nbAF window: a scroller around <see cref="AfView"/>, which draws everything with the
     /// Numbat UI kit. This class handles opening, position and size, and switches the live preview on while the
     /// window is open.
     /// </summary>
@@ -52,14 +52,6 @@ namespace Numbat.Commands.Analysis.NumbatAf
             _view.DisplayChanged += (s, e) => OnDisplayChanged();
             Body = _scroll;
 
-            TitleBar.AddButton(new KitTitleButton
-            {
-                Id = "help", Icon = () => KitIcon.Help, Tip = () => "How to use nbAF (F1)", Click = p => AfHelp.Show(),
-            });
-            TitleBar.AddButton(new KitTitleButton
-            {
-                Id = "more", Icon = () => KitIcon.More, Tip = () => "More options", Click = p => _view.ShowMainMenu(TitleBar, p),
-            });
 
             _model.Changed += OnModelChanged;
             Closing += (s, e) => SaveBounds();
@@ -123,7 +115,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
             if (w < MinimumSize.Width || h < MinimumSize.Height)
             {
                 w = (int)((DefaultWidth + ScrollbarGutter) * Kit.Scale);
-                h = (int)Math.Ceiling(Math.Min(_view.ContentHeight(DefaultWidth), 760) * Kit.Scale) + ChromeHeight;
+                h = (int)Math.Ceiling(Math.Min(_view.ContentHeight(DefaultWidth), 760) * Kit.Scale);
             }
             ClientSize = new Size(w, Math.Max(h, MinimumSize.Height));
         }
@@ -153,7 +145,6 @@ namespace Numbat.Commands.Analysis.NumbatAf
             float ratio = Kit.Scale / old;
             MinimumSize = new Size((int)(MinWidth * Kit.Scale), (int)(MinHeight * Kit.Scale));
             ClientSize = new Size((int)(ClientSize.Width * ratio), (int)(ClientSize.Height * ratio));
-            TitleBar.UpdateSize();
             _view.UpdateHeight();
         }
     }

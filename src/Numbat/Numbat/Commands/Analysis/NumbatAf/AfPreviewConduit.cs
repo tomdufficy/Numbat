@@ -41,7 +41,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
 
             foreach (AfFace f in a.Faces)
             {
-                Element role = a.Buildings[f.Building].Target ? Element.Target : Element.Context;
+                const Element role = Element.Areas;
                 foreach (Curve c in f.Regions)
                 {
                     foreach (Mesh m in Fill(c, tol)) _fills.Add((m, role));

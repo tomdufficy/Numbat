@@ -152,7 +152,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
                 BuildingInput b = a.Buildings[i];
                 if (a.Footprints[i].Count == 0) continue;
                 Point3d centre = AreaMassProperties.Compute(a.Footprints[i][0])?.Centroid ?? Point3d.Origin;
-                d.Texts.Add(new Text2d { Kind = ExportKind.Notes, At = P(centre), Height = small, Text = b.Name + (b.Target ? " (target)" : "") });
+                d.Texts.Add(new Text2d { Kind = ExportKind.Notes, At = P(centre), Height = small, Text = b.Name });
             }
 
             if (o.Dimensions)
@@ -188,9 +188,8 @@ namespace Numbat.Commands.Analysis.NumbatAf
                 }
             }
 
-            BuildingInput target = a.Buildings.FirstOrDefault(b => b.Target);
             d.Legend.Add((ExportKind.Areas, "Abstandsflächen"));
-            if (o.Clashes) d.Legend.Add((ExportKind.Clashes, $"Clashes{(target != null ? $" of {target.Name}" : "")} ({a.Flags.Count})"));
+            if (o.Clashes) d.Legend.Add((ExportKind.Clashes, $"Clashes ({a.Flags.Count})"));
             d.Legend.Add((ExportKind.Plots, "Plot lines"));
             d.Legend.Add((ExportKind.Footprints, "Building footprints"));
 

@@ -40,13 +40,12 @@ namespace Numbat.Commands.Analysis.NumbatAf
         {
             double metre = RhinoMath.UnitScale(UnitSystem.Meters, doc.ModelUnitSystem);
 
-            ObjectAttributes target = Attr(doc, AfColours.Layer(Element.Target));
-            ObjectAttributes context = Attr(doc, AfColours.Layer(Element.Context));
+            ObjectAttributes areas = Attr(doc, AfColours.Layer(Element.Areas));
             ObjectAttributes labels = Attr(doc, Labels);
             ObjectAttributes clashes = Attr(doc, AfColours.Layer(Element.Clashes));
             ObjectAttributes plots = Attr(doc, AfColours.Layer(Element.Plots));
             ObjectAttributes footprints = Attr(doc, AfColours.Layer(Element.Footprints));
-            if (new[] { target, context, labels, clashes, plots, footprints }.Any(x => x == null)) return -1;
+            if (new[] { areas, labels, clashes, plots, footprints }.Any(x => x == null)) return -1;
             clashes.DisplayOrder = 1; // flags draw over labels
 
             int n = 0;
@@ -63,7 +62,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
             {
                 BuildingInput b = a.Buildings[f.Building];
                 string name = $"{b.Name} {f.Facing}, depth {Range(f.DepthMin, f.DepthMax, metre)} m";
-                foreach (Curve c in f.Regions) Count(doc.Objects.AddCurve(c, Named(b.Target ? target : context, name)));
+                foreach (Curve c in f.Regions) Count(doc.Objects.AddCurve(c, Named(areas, name)));
             }
 
             for (int i = 0; i < a.Buildings.Count; i++)

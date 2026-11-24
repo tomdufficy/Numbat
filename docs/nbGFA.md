@@ -13,8 +13,8 @@ nbGFA tracks the gross floor area (GFA) of your massing as you design. You give 
 ## 2. Open the window
 
 - Type nbGFA on the command line.
-- The window stays on top. Drag its brown title bar to move it. If you close it (× in the title bar), type nbGFA again and it reopens where you left it.
-- Top right, in the title bar: the chart button switches between bars and a pie chart, ? opens this guide, and ⋯ opens the menu. The menu has this guide (How to use nbGFA), the tracking mode, the chart view, Check volumes, Add use, and the display options (see 11).
+- The window stays on top. If you close it, type nbGFA again and it reopens where you left it.
+- Top right, in the window's header: the chart button switches between bars and a pie chart, ? opens this guide, and ⋯ opens the menu. The menu has this guide (How to use nbGFA), the tracking mode, the chart view, Check volumes, Add use, and the display options (see 11).
 - The Add use button beside the USES heading adds a new use.
 - Drag the window edges to resize it. nbGFA remembers its size and position, and switching between bars and pie never changes the size. If the content doesn't fit, the window scrolls.
 
@@ -54,7 +54,7 @@ In By layer mode you can work either way, and both count the same:
 
 ## 6. Bars or pie chart
 
-- Click the small pie chart button in the title bar to show the uses as a pie chart. Click it again (it now shows bars) to go back. nbGFA remembers your choice.
+- Click the small pie chart button in the window's header to show the uses as a pie chart. Click it again (it now shows bars) to go back. nbGFA remembers your choice.
 - Each slice has a label beside the pie with the use's name, share and GFA.
 - The pie works just like the bars: click a slice or its label to assign the selected volumes, and right-click either one for the options.
 - Uses that have no GFA yet appear as small chips under the pie, so you can still click them to assign volumes.

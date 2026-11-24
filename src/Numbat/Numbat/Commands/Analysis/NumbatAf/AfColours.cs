@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace Numbat.Commands.Analysis.NumbatAf
 {
-    internal enum Element { Target, Context, Clashes, Plots, Footprints }
+    internal enum Element { Areas, Clashes, Plots, Footprints }
 
     /// <summary>
     /// Colours of nbAF's preview, baked layers and exports, one per element. Saved per user (Numbat's plugin
@@ -15,8 +15,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
     {
         public static readonly IReadOnlyList<(Element element, string label, string layer, Color fallback)> Elements = new[]
         {
-            (Element.Target, "Target building", "Target", Color.FromArgb(255, 150, 60)),
-            (Element.Context, "Context buildings", "Context", Color.FromArgb(110, 160, 215)),
+            (Element.Areas, "Abstandsflächen", "Areas", Color.FromArgb(110, 160, 215)),
             (Element.Clashes, "Clashes", "Clashes", Color.FromArgb(225, 35, 35)),
             (Element.Plots, "Plot lines", "Plots", Color.FromArgb(60, 170, 90)),
             (Element.Footprints, "Footprints", "Footprints", Color.FromArgb(70, 70, 75)),

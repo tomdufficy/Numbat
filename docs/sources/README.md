@@ -21,9 +21,9 @@ Linked only (web pages, not saved): the LGV Hamburg pages for the [3D-Stadtmodel
 | Abs. 5 | Depth 0.4 H, at least 2.50 m. | Done (default). |
 | Abs. 5 | Gewerbe- and Industriegebiete: 0.2 H, at least 2.50 m. | Zone GE/GI in the window. |
 | Abs. 5 | A Bebauungsplan can set other depths. | Change the depth factor and minimum depth in the window. |
-| Abs. 3 | Abstandsflächen must not overlap, unless the walls are at more than 75° to each other. | Flagged "Overlap" where the target is involved (target with itself or with a context building). |
-| Abs. 1 | Kept free of buildings. | Flagged where a target area reaches into another building, or a context area into the target. |
-| Abs. 2 | Must lie on the plot. | Each building can have its own plot. Flagged only where an Abstandsfläche reaches another plot: target areas on another building's plot ("on plot of"), and context areas on the target's plot. Leaving the own plot towards a road or open land is not flagged. |
+| Abs. 3 | Abstandsflächen must not overlap, unless the walls are at more than 75° to each other. | Flagged "Overlap" for every pair of buildings, and between non-parallel faces of one building. |
+| Abs. 1 | Kept free of buildings. | Flagged wherever an Abstandsfläche reaches into another building. |
+| Abs. 2 | Must lie on the plot. | Each building can have its own plot. Flagged only where an Abstandsfläche reaches another building's plot ("on plot of"), for every building. Leaving the own plot towards a road or open land is not flagged. Plots are optional; without them this check is skipped. |
 | Abs. 2 | May lie on public roads, green and water areas up to their middle, or on other plots with a Baulast. | Not yet checked. In principle an Abstandsfläche should not cover more than half of a road. |
 | Abs. 1 | No Abstandsfläche for walls built on the boundary where that is allowed. | Not yet. |
 | Abs. 6 | Projections ignored: cornices and roof overhangs up to 0.50 m; balconies and bays up to 1.50 m deep and 1/3 of the wall width; added insulation up to 0.25 m. | Not yet: model the main volume without them. |

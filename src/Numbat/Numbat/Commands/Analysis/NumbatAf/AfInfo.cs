@@ -17,10 +17,10 @@ namespace Numbat.Commands.Analysis.NumbatAf
         /// <summary>Document string-table section for the rule values.</summary>
         public const string DocSection = "numbat.af";
 
-        /// <summary>Parent layer for baked output (nbAF::Target, nbAF::Context, ...).</summary>
+        /// <summary>Parent layer for baked output (nbAF::Areas, nbAF::Clashes, ...).</summary>
         public const string OutputLayer = "nbAF";
 
-        /// <summary>Volume user string: "target" or "context". Volumes with it are the ones nbAF tracks.</summary>
+        /// <summary>Volume user string marking the volumes nbAF tracks (any value; nbAF writes "tracked").</summary>
         public const string RoleKey = "numbat.af.role";
 
         /// <summary>Volume user string: id of the building's plot boundary curve.</summary>

@@ -72,7 +72,6 @@ namespace Numbat.Commands.Analysis.NumbatAf
     {
         public string Name;
         public List<Brep> Volumes = new List<Brep>();
-        public bool Target;
         public Curve Plot;
     }
 
@@ -91,7 +90,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
 
     /// <summary>
     /// Builds the Abstandsflächen of every building and checks them. All buildings get areas; flags are only raised
-    /// where the target building is involved (its own areas, or context areas reaching its plot or footprint).
+    /// between every pair of buildings: no building is treated differently.
     /// </summary>
     internal static class AfSolver
     {
@@ -110,7 +109,6 @@ namespace Numbat.Commands.Analysis.NumbatAf
                 var tidy = new BuildingInput
                 {
                     Name = b.Name,
-                    Target = b.Target,
                     Plot = b.Plot,
                     Volumes = b.Volumes.Select(v => Tidy(v, tol, doc.ModelAngleToleranceRadians)).ToList(),
                 };
@@ -306,8 +304,6 @@ namespace Numbat.Commands.Analysis.NumbatAf
 
         // ---- checks --------------------------------------------------------------------
 
-        private static bool IsTarget(AfResult r, int building) => r.Buildings[building].Target;
-
         /// <summary>Angle between two faces in plan, 0..90 degrees (0 = parallel, facing or back to back).</summary>
         private static double AngleBetween(AfFace a, AfFace b) =>
             RhinoMath.ToDegrees(Math.Acos(Math.Min(1.0, Math.Abs(a.Outward * b.Outward))));
@@ -315,7 +311,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
         /// <summary>
         /// HBauO § 6 Abs. 3: Abstandsflächen must not overlap unless the walls are at more than 75° to each other.
         /// Stepped walls of one building facing the same way are one face, so they never overlap each other.
-        /// Only pairs involving the target are checked.
+        /// Every pair of faces is checked; where three or more overlap, each pair is flagged.
         /// </summary>
         private static void CheckOverlaps(AfResult r, AfRules rules, double tol, double minArea, double metre)
         {
@@ -324,7 +320,6 @@ namespace Numbat.Commands.Analysis.NumbatAf
                 for (int j = i + 1; j < r.Faces.Count; j++)
                 {
                     AfFace a = r.Faces[i], b = r.Faces[j];
-                    if (!IsTarget(r, a.Building) && !IsTarget(r, b.Building)) continue;
                     if (AngleBetween(a, b) > rules.OverlapExemptDeg) continue;
                     if (a.Building == b.Building && a.Outward * b.Outward > 0) continue;
                     string who = a.Building == b.Building ? r.Buildings[a.Building].Name
@@ -356,7 +351,6 @@ namespace Numbat.Commands.Analysis.NumbatAf
                     for (int b = 0; b < r.Buildings.Count; b++)
                     {
                         if (b == f.Building) continue;
-                        if (!IsTarget(r, f.Building) && !IsTarget(r, b)) continue;
                         foreach (Curve fp in r.Footprints[b])
                         {
                             if (!Overlaps(box, fp.GetBoundingBox(true))) continue;
@@ -373,50 +367,38 @@ namespace Numbat.Commands.Analysis.NumbatAf
 
         /// <summary>
         /// HBauO § 6 Abs. 2: Abstandsflächen must lie on the building's own plot. Only the part that reaches another
-        /// plot is flagged: target areas on another building's plot, and context areas on the target's plot. Leaving
-        /// the own plot towards a road or open land is not flagged (the half-road rule is not checked yet).
+        /// building's plot is flagged, for every building. Leaving the own plot towards a road or open land is not
+        /// flagged (the half-road rule is not checked yet), and buildings without a plot are only checked against
+        /// the plots that exist.
         /// </summary>
         private static void CheckPlots(AfResult r, double tol, double minArea, double metre)
         {
-            int target = r.Buildings.FindIndex(b => b.Target);
-            if (target < 0) return;
-            BuildingInput t = r.Buildings[target];
-
+            if (!r.Buildings.Any(b => b.Plot != null)) return;
             foreach (AfFace f in r.Faces)
             {
+                BuildingInput own = r.Buildings[f.Building];
                 foreach (Curve area in f.Regions)
                 {
                     double z = area.PointAtStart.Z;
-                    if (f.Building == target)
+                    List<Curve> outside = own.Plot == null
+                        ? new List<Curve> { area }
+                        : Difference(new List<Curve> { area }, new List<Curve> { Flatten(own.Plot, z) }, tol);
+                    for (int b = 0; b < r.Buildings.Count; b++)
                     {
-                        List<Curve> outside = t.Plot == null
-                            ? new List<Curve> { area }
-                            : Difference(new List<Curve> { area }, new List<Curve> { Flatten(t.Plot, z) }, tol);
-                        for (int b = 0; b < r.Buildings.Count; b++)
+                        if (b == f.Building || r.Buildings[b].Plot == null) continue;
+                        Curve plot = Flatten(r.Buildings[b].Plot, z);
+                        foreach (Curve piece in outside)
                         {
-                            if (b == target || r.Buildings[b].Plot == null) continue;
-                            Curve plot = Flatten(r.Buildings[b].Plot, z);
-                            foreach (Curve piece in outside)
+                            foreach (Curve c in Curve.CreateBooleanIntersection(piece, plot, tol) ?? Array.Empty<Curve>())
                             {
-                                foreach (Curve c in Curve.CreateBooleanIntersection(piece, plot, tol) ?? Array.Empty<Curve>())
-                                {
-                                    AddFlag(r, FlagKind.InOtherPlot, c, minArea, metre, $"{t.Name} on plot of {r.Buildings[b].Name}", target, b);
-                                }
+                                AddFlag(r, FlagKind.InOtherPlot, c, minArea, metre, $"{own.Name} on plot of {r.Buildings[b].Name}", f.Building, b);
                             }
-                            outside = Difference(outside, new List<Curve> { plot }, tol);
                         }
-                        // What leaves the target's plot without reaching another plot (a road, open land, a plot
-                        // nobody drew) is not flagged. In principle it may cover a public road, green or water area
-                        // only up to its middle (Abs. 2); that rule is not checked yet.
+                        outside = Difference(outside, new List<Curve> { plot }, tol);
                     }
-                    else if (t.Plot != null)
-                    {
-                        foreach (Curve c in Curve.CreateBooleanIntersection(area, Flatten(t.Plot, z), tol) ?? Array.Empty<Curve>())
-                        {
-                            AddFlag(r, FlagKind.InOtherPlot, c, minArea, metre,
-                                $"{r.Buildings[f.Building].Name} on plot of {t.Name}", f.Building, target);
-                        }
-                    }
+                    // What leaves the own plot without reaching another plot (a road, open land, a plot nobody
+                    // drew) is not flagged. In principle it may cover a public road, green or water area only up to
+                    // its middle (Abs. 2); that rule is not checked yet.
                 }
             }
         }

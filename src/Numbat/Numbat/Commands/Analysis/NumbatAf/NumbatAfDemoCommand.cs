@@ -10,8 +10,8 @@ using Rhino.Geometry;
 namespace Numbat.Commands.Analysis.NumbatAf
 {
     /// <summary>
-    /// Demo: builds <see cref="AfDemoScene"/> on an "nbAF demo" layer and registers the volumes with nbAF (block B as
-    /// the target, every building with its own plot), so nbAF can be tried straight away. Running it again replaces
+    /// Demo: builds <see cref="AfDemoScene"/> on an "nbAF demo" layer and registers the volumes with nbAF (every
+    /// building with its own plot), so nbAF can be tried straight away. Running it again replaces
     /// the layer's contents. Shipped in every build but hidden. Dimensions are in metres and converted to the model's
     /// units, so it works in mm and m files alike.
     /// </summary>
@@ -44,7 +44,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
                 foreach (Brep v in b.Volumes)
                 {
                     var attr = new ObjectAttributes { LayerIndex = layer, Name = $"Block {b.Label}" };
-                    attr.SetUserString(AfInfo.RoleKey, b.Target ? "target" : "context");
+                    attr.SetUserString(AfInfo.RoleKey, AfModel.Tracked);
                     attr.SetUserString(AfInfo.PlotKey, plot.ToString());
                     if (doc.Objects.AddBrep(v, attr) != Guid.Empty) count++;
                 }
@@ -53,7 +53,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
             doc.Views.ActiveView?.ActiveViewport.ZoomExtents();
             doc.Views.Redraw();
             RhinoApp.WriteLine($"{AfInfo.Name}: added {count} storey volumes (blocks A–D, each with a plot 4 m around it) " +
-                               $"on layer \"{LayerName}\". Block B is the target. Run nbAF to see the Abstandsflächen.");
+                               $"on layer \"{LayerName}\". Run nbAF to see the Abstandsflächen.");
             return Result.Success;
         }
 
@@ -70,7 +70,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
     /// Blocks A–C are nbGFADemo's three apartment blocks (2, 4 and 6 storeys of 3.2 m, slightly rotated).
     /// Block A also gets a 35° gable roof as a separate volume. Block D steps back: its upper storeys cover only
     /// part of the floor below. Each building's plot is its ground-floor footprint offset by 4 m.
-    /// Block B is the target. The expected results are listed in CLAUDE.md (nbAF).
+    /// The expected results are listed in CLAUDE.md (nbAF).
     /// </summary>
     internal static class AfDemoScene
     {
@@ -88,7 +88,6 @@ namespace Numbat.Commands.Analysis.NumbatAf
         public sealed class DemoBuilding
         {
             public string Label;
-            public bool Target;
             public readonly List<Brep> Volumes = new List<Brep>();
             public Curve Plot;
         }
@@ -107,7 +106,7 @@ namespace Numbat.Commands.Analysis.NumbatAf
             for (int k = 0; k < Blocks.Length; k++)
             {
                 var b = Blocks[k];
-                var building = new DemoBuilding { Label = ((char)('A' + k)).ToString(), Target = k == 1 };
+                var building = new DemoBuilding { Label = ((char)('A' + k)).ToString() };
                 var origin = new Point3d(b.x * s, b.y * s, 0);
                 Transform rotate = Transform.Rotation(RhinoMath.ToRadians(b.rot), Vector3d.ZAxis, origin);
                 for (int i = 0; i < b.storeys; i++)

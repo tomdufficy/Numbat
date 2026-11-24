@@ -47,8 +47,8 @@ New and reworked windows and dialogs use the kit so all of Numbat looks and beha
 - Take colours from `Kit.Colours` at paint time (never cache them), so Rhino's light/dark mode and the display options apply live. Don't hard-code colours or fonts in commands.
 - Fonts come from `KitFonts`, icons from `KitIcons`, buttons and cards from `KitPaint` / `KitControls`, dialogs from `KitDialog`. Sizes are in design px; `KitCanvas` applies `Kit.Scale`.
 - `Display.Load()` applies the saved interface size and outline options; call it before showing a kit window.
-- Every window derives from `KitWindow` and every dialog from `KitDialog`. They replace the system title bar with `KitTitleBar`: logo brown (#6C4B33) in light and dark mode, white text, 36 px, drag to move. Its text, and the window's `Title`, is always `<command> – <full name>`, for example `nbGFA – Gross Floor Area` or `nbAF – Abstandsflächen` (German names keep their umlauts). Guides are `<that title> · Guide`; dialogs are `<command> – <what it edits>`.
-- Window-level buttons go in the title bar, right-aligned before the close button, in this order: view toggles, ? (guide), ⋯ (menu). Don't paint another header inside the content. No mark, logo or icon in the title bar until commands get their own icons.
+- Every window derives from `KitWindow` and every dialog from `KitDialog`. They keep the normal Windows title bar (a custom-drawn one looked worse) with Numbat's mark as the window icon (`KitMark`: logo-brown rounded square, white lower-case "nb", drawn in code). The title is always `<command> – <full name>`, for example `nbGFA – Gross Floor Area` or `nbAF – Abstandsflächen` (German names keep their umlauts). Guides are `<that title> · Guide`; dialogs are `<command> – <what it edits>`.
+- Inside the window, a `KitPaint.Header` band shows the command name with the window-level buttons on the right, in this order from the right: ⋯ (menu), ? (guide), then view toggles. Pass `null` as the letters: the mark is already in the title bar.
 - No how-to or instruction text in window footers. A footer holds status (for example limits met / broken) and the copyright only. Explain how things work in hover tips, the empty state of a list, or the user guide.
 - Keep kit types `internal` and free of command-specific code.
 - The accent comes from the Numbat logo palette (ink #2D2B28, tan #C79C69, cream #FFFBEA, brown #6C4B33, rust #A9714B): brown in light mode, tan in dark mode. Tan and rust are too light for text on light backgrounds. Keep every text/background pair at 4.5:1 contrast or better.
@@ -60,16 +60,16 @@ Guides are shown in Rhino by `KitHelpWindow`, which renders a small Markdown sub
 ## nbAF (`Commands/Analysis/NumbatAf/`)
 
 Abstandsflächen to HBauO § 6 (Hamburg, 2025 text). nbAF and nbGFA expect the same geometry: stacked closed volumes, one per storey or part; roofs may be separate volumes.
-- `AfModel` holds the live state. The truth lives on the objects: tracked volumes carry `numbat.af.role` (target/context) and `numbat.af.plot` user strings. Rule values are doc strings (section `numbat.af`), colours are per-user settings. One target at most; areas for all buildings, clashes only where the target is involved.
+- `AfModel` holds the live state. The truth lives on the objects: tracked volumes carry `numbat.af.role` (any value marks them; nbAF writes `tracked`, older files may say target/context) and `numbat.af.plot` user strings. Rule values are doc strings (section `numbat.af`), colours are per-user settings. There is no target building: every building is checked against every other. Plots are optional.
 - Recalculation runs only while the window is open, and only reads the document. `AfPreviewConduit` draws the result; `nbAFBake` writes it to `nbAF::` layers (one undo step), `nbAFClear` deletes it. Don't write output from idle or window events.
 - Output is one closed curve per building face (`AfFace`: all walls of a building facing the same way, areas unioned and clipped to outside the own footprint), never per wall or as surfaces. The checks run on these face regions. Clashes are numbered markers plus the window's list; depth labels are opt-in (`AfColours.ShowLabels`), drawn as plan text sized to fit each wall's area (`AfSolver.Labels`: deepest first, colliding or covered ones dropped, hidden on screen below 8 px).
 - `AfBuildings` (volumes to buildings, no boolean union), `AfWalls` (façades, H, area outlines per wall), `AfSolver` (faces, checks), `AfExporter` (DXF R12 / SVG / JPG), `AfRules`, `AfSources`, `AfColours`.
 - Rule values vary between Landesbauordnungen: keep them settings in `AfRules`, never constants, and name where a default comes from. Keep the rules table in `docs/sources/README.md` and the guide `docs/nbAF.md` up to date in the same change as any change to the rules, checks, window or export. Every source has a saved copy (where it may be redistributed) and its date in both `docs/sources/README.md` and `AfSources.cs`.
-- Test every change against `nbAFDemo`. Expected with the HBauO defaults: 19 volumes, 4 buildings: B1 = A, B2 = D, B3 = B (target), B4 = C.
+- Test every change against `nbAFDemo`. Expected with the HBauO defaults: 19 volumes, 4 buildings: B1 = A, B2 = D, B3 = B, B4 = C.
   - A (2 storeys + 35° roof volume): eaves sides H 7.80 = 6.40 + 4.20/3, depth 3.12. Gable ends depth 2.56–4.24.
   - B (4 storeys): depth 5.12. C (6 storeys): depth 7.68.
   - D (stepped): depths 7.68 (H 19.20), 6.40 (H 16.00) and 3.84 (H 9.60).
-  - 3 clashes, all B3/B4: 2 Overlap B3/B4 (17.7 and 2.5 m²) and 1 "B4 on plot of B3" (26.8 m²). B3's 5.12 m areas leave its 4 m plot on all sides but reach no other plot, so they are not flagged.
+  - 3 clashes, all B3/B4: 2 Overlap B3/B4 (17.7 and 2.5 m²) and 1 "B4 on plot of B3" (25.9 m², the part outside B4's own plot). B3's 5.12 m areas leave its 4 m plot but reach no other plot, so they are not flagged. Without plots: the 2 overlaps only.
 
 ## Preview commands (`Commands/Preview/`)
 

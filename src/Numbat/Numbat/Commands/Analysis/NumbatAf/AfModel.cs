@@ -13,7 +13,6 @@ namespace Numbat.Commands.Analysis.NumbatAf
         public int Index;
         public string Name;             // B1, B2, ... numbered west to east
         public List<Guid> Volumes = new List<Guid>();
-        public bool Target;
         public Guid Plot = Guid.Empty;  // empty, or the plot curve's id
         public bool PlotMissing;        // a plot was set but its curve is gone
         public int Flags;
@@ -29,6 +28,9 @@ namespace Numbat.Commands.Analysis.NumbatAf
     /// </summary>
     internal sealed class AfModel
     {
+        /// <summary>Value of the role user string on tracked volumes. Older files may say "target" or "context"; any value counts.</summary>
+        public const string Tracked = "tracked";
+
         private const double DelaySeconds = 0.3;
 
         private bool _attached, _writing, _pending;
@@ -47,8 +49,6 @@ namespace Numbat.Commands.Analysis.NumbatAf
 
         /// <summary>Raised after every recalculation.</summary>
         public event EventHandler Changed;
-
-        public Building Target => Buildings.FirstOrDefault(b => b.Target);
 
         // ---- document events -----------------------------------------------------------
 
@@ -164,7 +164,6 @@ namespace Numbat.Commands.Analysis.NumbatAf
                     RhinoObject obj = members[i];
                     b.Volumes.Add(obj.Id);
                     input.Volumes.Add(breps[i]);
-                    if (obj.Attributes.GetUserString(AfInfo.RoleKey) == "target") b.Target = true;
                     if (b.Plot == Guid.Empty && Guid.TryParse(obj.Attributes.GetUserString(AfInfo.PlotKey), out Guid plot)) b.Plot = plot;
                 }
                 if (b.Plot != Guid.Empty)
@@ -175,11 +174,6 @@ namespace Numbat.Commands.Analysis.NumbatAf
                 buildings.Add(b);
                 inputs.Add(input);
             }
-
-            // Only one target: if several buildings claim it (e.g. after joining), the first keeps it.
-            Building first = buildings.FirstOrDefault(b => b.Target);
-            foreach (Building b in buildings) b.Target = b == first;
-            foreach (Building b in buildings) inputs[b.Index].Target = b.Target;
 
             AfResult a = AfSolver.Run(inputs, Rules, doc);
             foreach (Building b in buildings) b.Flags = a.FlagCount(b.Index);
@@ -203,22 +197,18 @@ namespace Numbat.Commands.Analysis.NumbatAf
         // Each edit is one undo step. Undo of a role or plot change triggers a recalculation through the
         // attribute event, so the window follows.
 
-        /// <summary>Starts tracking these volumes. The first building added becomes the target if there is none.</summary>
+        /// <summary>Starts tracking these volumes.</summary>
         public int Add(RhinoDoc doc, IEnumerable<RhinoObject> volumes)
         {
             int n = 0;
-            bool hasTarget = Target != null;
             Edit(doc, "add volumes", () =>
             {
                 foreach (RhinoObject obj in volumes)
                 {
                     if (IsMember(obj.Attributes)) continue;
-                    SetStrings(doc, obj, hasTarget ? "context" : "target", null);
+                    SetStrings(doc, obj, Tracked, null);
                     n++;
                 }
-                Refresh(doc);
-                // Several new buildings may all have been marked "target": keep it on one, written to the objects too.
-                if (!hasTarget && Buildings.Count > 0) WriteTarget(doc, Target ?? Buildings[0]);
             });
             return n;
         }
@@ -240,21 +230,6 @@ namespace Numbat.Commands.Analysis.NumbatAf
                 }
             });
             return n;
-        }
-
-        public void SetTarget(RhinoDoc doc, Building target) =>
-            Edit(doc, $"make {target.Name} the target", () => WriteTarget(doc, target));
-
-        private void WriteTarget(RhinoDoc doc, Building target)
-        {
-            foreach (Building b in Buildings)
-            {
-                foreach (Guid id in b.Volumes)
-                {
-                    RhinoObject obj = doc.Objects.FindId(id);
-                    if (obj != null) SetStrings(doc, obj, b == target ? "target" : "context", null);
-                }
-            }
         }
 
         /// <param name="plot">The plot curve, or null to clear it.</param>
