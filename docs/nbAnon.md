@@ -26,7 +26,7 @@ nbAnon finds a word or phrase, such as your company's or a client's name, everyw
 
 ## 3. Review
 
-- Every place the phrase was found gets a row: where it is, the text now, and the text after.
+- Every place the phrase was found gets a row: where it is, the text now, and the text after. Text too long for its column ends in …; hover over it to read it in full.
 - Untick a row to leave it as it is. Tick all and Tick none change every row at once.
 - Rows marked report only can't be changed from nbAnon. Snapshot names are among them: rename those in the Snapshots panel.
 - Save report… writes the list to a text file, for your records.
