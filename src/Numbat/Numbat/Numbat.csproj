@@ -26,6 +26,14 @@
   <ItemGroup>
     <!-- The nbGFA how-to lives in docs/ (readable on GitHub) and is shown in Rhino by nbGFAHelp and the window's ? button. -->
     <EmbeddedResource Include="..\..\..\docs\nbGFA.md" LogicalName="Numbat.Docs.nbGFA.md" />
+    <!-- The nbAF guide, shown by nbAFHelp and the nbAF window's ? button. -->
+    <EmbeddedResource Include="..\..\..\docs\nbAF.md" LogicalName="Numbat.Docs.nbAF.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Saved copies of the legal texts behind nbAF's rules (see docs/sources/README.md), shipped next to the
+         plug-in so nbAF can open them offline. -->
+    <None Include="..\..\..\docs\sources\*.pdf" Link="sources\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!--

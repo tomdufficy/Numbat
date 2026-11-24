@@ -12,7 +12,7 @@ using SdColor = System.Drawing.Color;
 namespace Numbat.Commands.Analysis.NumbatGfa
 {
     /// <summary>
-    /// The content of the nbGFA window, drawn with the Rhino UI kit: header with title and icon buttons, summary
+    /// The content of the nbGFA window, drawn with the Numbat UI kit below the window's title bar: summary
     /// tiles, status callouts, then the uses as bars or a pie chart, and a footer. Clicking a use assigns the
     /// selected volumes; right-click (or Shift+F10) opens its options. Everything is keyboard reachable.
     /// </summary>
@@ -75,7 +75,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
         /// <summary>Top of the uses (bars or pie) at a width.</summary>
         private float BodyTop(float w)
         {
-            float y = Kit.HeaderH + Kit.Pad + TilesH + Kit.Pad;
+            float y = Kit.Pad + TilesH + Kit.Pad;
             var callouts = Callouts(_model.Current);
             foreach (var c in callouts) y += KitPaint.CalloutHeight(w - 2 * Kit.Pad, c.text, c.link != null) + Kit.Gap;
             if (callouts.Count > 0) y += 4;
@@ -113,8 +113,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             Tally t = _model.Current;
             float w = W;
 
-            DrawHeader(g, w);
-            float y = Kit.HeaderH + Kit.Pad;
+            float y = Kit.Pad;
             DrawTiles(g, t, w, y);
             y += TilesH + Kit.Pad;
 
@@ -147,25 +146,6 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             else DrawBars(g, t, y, w);
 
             DrawFooter(g, t, w);
-        }
-
-        private void DrawHeader(Graphics g, float w)
-        {
-            KitPaint.Header(g, w, null, GfaInfo.Name);
-
-            RectangleF more = KitPaint.HeaderButton(w, 0);
-            RectangleF help = KitPaint.HeaderButton(w, 1);
-            RectangleF chart = KitPaint.HeaderButton(w, 2);
-
-            KitPaint.Button(g, chart, null, ButtonKind.Ghost, StateOf("chart"), Pie ? KitIcon.Bars : KitIcon.Pie);
-            AddTarget("chart", chart, ToggleView, null, Pie ? "Show as bars" : "Show as pie chart");
-
-            KitPaint.Button(g, help, null, ButtonKind.Ghost, StateOf("help"), KitIcon.Help);
-            AddTarget("help", help, HelpWindow.ShowWindow, null, "How to use nbGFA (F1)");
-
-            KitPaint.Button(g, more, null, ButtonKind.Ghost, StateOf("more"), KitIcon.More);
-            AddTarget("more", more, () => ShowMainMenu(RhinoDoc.ActiveDoc, new PointF(more.X, more.Bottom + 2)),
-                null, "More options");
         }
 
         private void DrawTiles(Graphics g, Tally t, float w, float y)
@@ -584,8 +564,10 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             menu.Show(this, ToControl(location));
         }
 
-        private void ShowMainMenu(RhinoDoc doc, PointF location)
+        /// <summary>The window's ⋯ menu, opened from the title bar at a point in <paramref name="owner"/>'s pixels.</summary>
+        public void ShowMainMenu(Control owner, PointF location)
         {
+            RhinoDoc doc = RhinoDoc.ActiveDoc;
             if (doc == null) return;
             var menu = new ContextMenu();
 
@@ -610,7 +592,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
             menu.Items.Add(new SeparatorMenuItem());
             Display.AddMenuItems(menu, () => DisplayChanged?.Invoke(this, EventArgs.Empty));
 
-            menu.Show(this, ToControl(location));
+            menu.Show(owner, location);
         }
 
         /// <summary>Raised when interface size or outlines change, so the window can resize.</summary>

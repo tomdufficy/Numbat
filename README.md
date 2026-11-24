@@ -12,6 +12,7 @@ Architectural modelling and analysis tools for Rhino 8. Every command starts wit
 | Command | What it does |
 |---|---|
 | [`nbGFA`](#nbgfa) | Live gross floor area tracking by use, with limits and a total target. |
+| [`nbAF`](#nbaf) | Live Abstandsflächen (setback areas, HBauO § 6) with clash checks against neighbours and plots. |
 | [`nbTextureShuffle`](#nbtextureshuffle) | Breaks up repeating textures by shuffling their mapping. |
 | [`nbHandrail`](#nbhandrail) | Configurable handrails with rails, posts, infill and panels. |
 | [`nbPavementPlacer`](#nbpavementplacer) | Arrays a paving module along curves. |
@@ -37,6 +38,28 @@ Everything is done from the window. These helper commands are for macros and key
 | `nbGFACheck` | Checks assigned volumes: open, tilted, no flat bottom, overlapping. |
 | `nbGFAHelp` | Opens the guide. |
 | `nbGFADemo` | Adds three example blocks (2, 4 and 6 storeys) to try nbGFA on. |
+
+## nbAF
+
+Draws the Abstandsflächen of a massing model: the areas in front of outer walls that German building codes require to be kept free. Model buildings the same way as for nbGFA (one closed box per storey, stacked; a pitched roof can be its own volume), add them in the nbAF window and pick a target building. nbAF shows one Abstandsfläche per building face (stepped walls joined, as the Hamburg FAQ asks) as a live preview, and numbers and lists the clashes where the target is involved: overlapping areas, areas reaching into another building, and areas reaching another building's plot.
+
+- **Rules:** Hamburg, HBauO § 6 (2025 text). Depth 0.4 H, at least 2.50 m (0.2 H in GE/GI). Roofs under 70° add a third of their height to H, steeper roofs all of it, and gable walls count up to the ridge. Every value can be changed in the window, for example when a Bebauungsplan sets other depths, and is saved in the file.
+- **Bake** adds the result to `nbAF::` layers as closed curves, one per building face, in one undo step, with depth dimensions if you turned them on. **Export** saves a 2D top view as DXF, SVG (1:500) or JPG, in metres, with a legend: light blue Abstandsflächen, red clash zones, blue dashed plots, black footprints, and optional clash numbers, notes and dimensions.
+- Not covered yet: the half-road rule (an Abstandsfläche may cover a road only up to its middle), Baulasten, boundary walls, ignorable projections, dormers and sloping ground.
+
+The full guide is in [docs/nbAF.md](docs/nbAF.md), and in Rhino behind the window's **?** button. The legal texts, with saved copies, and which paragraphs are implemented are listed in [docs/sources/](docs/sources/README.md).
+
+Everything is done from the window. These helper commands are for macros and keyboard users. They don't appear as you type, but work when typed in full:
+
+| Command | What it does |
+|---|---|
+| `nbAFAdd` | Pick volumes to track. |
+| `nbAFSetPlot` | Set a building's plot curve, for example `nbAFSetPlot B2`. |
+| `nbAFBake` | Bake the current result to the `nbAF` layers. |
+| `nbAFClear` | Delete everything nbAF baked. The buildings stay tracked. |
+| `nbAFSources` | List the legal texts and open the saved copy or the live page. |
+| `nbAFHelp` | Opens the guide. |
+| `nbAFDemo` | Adds four example buildings with plots to try nbAF on. |
 
 ## nbTextureShuffle
 

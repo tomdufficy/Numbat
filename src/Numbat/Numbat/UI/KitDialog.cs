@@ -5,17 +5,27 @@ using Eto.Forms;
 namespace Numbat.UI
 {
     /// <summary>
-    /// Modal dialog in the kit's layout: surface background, 16 px body padding, a divider, and a footer with
-    /// optional ghost buttons on the left and Cancel / OK on the right (primary rightmost).
-    /// Enter presses <see cref="AcceptButton"/>, Esc presses <see cref="CancelButton"/>.
+    /// Modal dialog in the kit's layout: the brown title bar (as <see cref="KitWindow"/>), surface background, 16 px
+    /// body padding, a divider, and a footer with optional ghost buttons on the left and Cancel / OK on the right
+    /// (primary rightmost). Enter presses <see cref="AcceptButton"/>; Esc and the title bar's close button press
+    /// <see cref="CancelButton"/>.
     /// </summary>
     internal class KitDialog<T> : Dialog<T>
     {
         public KitDialog(string title)
         {
             Title = title;
+            WindowStyle = WindowStyle.None;
             Resizable = false;
             Padding = 0;
+            _titleBar = new KitTitleBar(this, title)
+            {
+                CloseAction = () =>
+                {
+                    if (CancelButton != null) CancelButton.PerformClick();
+                    else Close();
+                },
+            };
             BackgroundColor = Kit.Colours.Surface;
             KeyDown += (s, e) =>
             {
@@ -31,6 +41,8 @@ namespace Numbat.UI
                 }
             };
         }
+
+        private readonly KitTitleBar _titleBar;
 
         public KitButton AcceptButton { get; set; }
         public KitButton CancelButton { get; set; }
@@ -51,7 +63,7 @@ namespace Numbat.UI
             footer.Items.Add(new StackLayoutItem(null, true)); // spacer
             foreach (Control b in footerRight) footer.Items.Add(b);
 
-            Content = new StackLayout
+            Content = KitWindow.Frame(_titleBar, new StackLayout
             {
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 BackgroundColor = c.Surface,
@@ -61,7 +73,7 @@ namespace Numbat.UI
                     KitForm.Divider(),
                     footer,
                 },
-            };
+            });
         }
 
         /// <summary>Standard Cancel + primary OK pair, wired to the dialog's keys. Returns (ok, cancel).</summary>
