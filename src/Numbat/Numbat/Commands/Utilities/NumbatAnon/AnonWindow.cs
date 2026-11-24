@@ -92,6 +92,7 @@ namespace Numbat.Commands.Utilities.NumbatAnon
                 HeaderText = "",
                 Editable = true,
                 Width = (int)(28 * Kit.Scale),
+                AutoSize = false,
                 DataCell = new CheckBoxCell
                 {
                     Binding = Binding.Delegate<AnonHit, bool?>(h => h.Editable && h.Include, (h, v) =>
@@ -101,9 +102,11 @@ namespace Numbat.Commands.Utilities.NumbatAnon
                     }),
                 },
             });
-            _grid.Columns.Add(new GridColumn { HeaderText = "Where", Width = (int)(220 * Kit.Scale), DataCell = new TextBoxCell { Binding = Binding.Delegate<AnonHit, string>(h => h.Where) } });
-            _grid.Columns.Add(new GridColumn { HeaderText = "Now", Width = (int)(160 * Kit.Scale), Expand = true, DataCell = new TextBoxCell { Binding = Binding.Delegate<AnonHit, string>(h => OneLine(h.Text)) } });
-            _grid.Columns.Add(new GridColumn { HeaderText = "After", Width = (int)(160 * Kit.Scale), Expand = true, DataCell = new TextBoxCell { Binding = Binding.Delegate<AnonHit, string>(h => h.Editable ? OneLine(h.After) : "report only") } });
+            // Fixed columns: long names end in "…" and show in full on hover, so the window never scrolls sideways.
+            var text = new KitGridText(_grid);
+            text.Add<AnonHit>("Where", 220, h => h.Where);
+            text.Add<AnonHit>("Now", 160, h => h.Text, expand: true);
+            text.Add<AnonHit>("After", 160, h => h.Editable ? h.After : "report only", expand: true, secondary: h => !h.Editable);
 
             var all = new KitButton("Tick all", ButtonKind.Ghost);
             all.Click += (o, e) => SetAll(true);
@@ -126,7 +129,7 @@ namespace Numbat.Commands.Utilities.NumbatAnon
             _custom.TextChanged += (o, e) => { if (Mode == ReplaceMode.Text) NewReplacement(); };
             _reroll = new KitButton("New", ButtonKind.Ghost, KitIcon.Reset) { Tip = "Pick another random code or word" };
             _reroll.Click += (o, e) => NewReplacement();
-            _preview = KitForm.Caption(string.Empty);
+            _preview = KitForm.Caption(string.Empty, width - (int)(40 * Kit.Scale)); // wraps, so a long phrase can't widen the window
 
             _status = KitForm.Body("Type a phrase, choose where to look and click Scan.", width - (int)(40 * Kit.Scale), secondary: true);
             _report = new KitButton("Save report…", ButtonKind.Ghost, KitIcon.Folder) { Tip = "Save the list as a text file", Enabled = false };
