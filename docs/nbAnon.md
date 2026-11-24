@@ -1,13 +1,15 @@
 # How to use nbAnon
 
-nbAnon finds a word or phrase, such as your company's or a client's name, everywhere a Rhino file keeps text, and replaces it before you share the file. You see every place it was found first, and choose which ones to change.
+nbAnon finds words or phrases, such as your company's or a client's name, everywhere a Rhino file keeps text, and replaces it before you share the file. You see every place it was found first, and choose which ones to change.
 
 ## 1. Find
 
 - Type nbAnon on the command line to open the window.
 - The window has four sections: Find, Look in, Found and Replace with. Click a heading (or the arrow before it) to close or open that section; nbAnon remembers which ones you closed. A closed section still shows its count, for example how many places were found, and Tick all and Tick none still work while Found is closed.
 - Top right, in the window's header: ? opens this guide, ⋯ opens the menu (this guide and Save report…).
-- Type the phrase to look for, for example ACME. Upper and lower case are treated the same unless you turn on Match case.
+- Type what to look for, for example ACME. Upper and lower case are treated the same unless you turn on Match case.
+- To find several names at once, separate them with commas: ACME, Hamburg, Hafencity. A name alone is often not enough: "HUMO Architects Hamburg" still gives the office away, so add the place and anything else that identifies it. The number of names shows next to the FIND heading.
+- Where names overlap, the longer one wins: with ACME Architects, ACME, "ACME Architects" is replaced as a whole and "ACME site" gets the replacement for ACME.
 - Whole words only finds ACME but not ACMEBAU. Leave it off to catch the name inside longer words too.
 - Choose where to look (all places are on by default), then click Scan or press Enter.
 
@@ -33,11 +35,13 @@ nbAnon finds a word or phrase, such as your company's or a client's name, everyw
 
 ## 4. Replace and anonymise
 
-- Random code: a code such as QX7KMR.
-- Random word: a neutral word such as Heron. Click New for another one.
-- My text: type the replacement yourself, for example Client. The text box appears only in this mode.
-- Remove: the phrase is taken out. A name that would end up empty gets a random code instead.
-- The same replacement is used everywhere, so the layer, the block and the note all say the same thing afterwards.
+- Random code: random letters and digits such as QX7KMR. Choose the length, from 1 to 8 characters.
+- Random word: a neutral word such as Heron.
+- My text: type the replacement yourself, for example Client or X. The text box appears only in this mode. Every name becomes this text.
+- Remove: the names are taken out. A name that would end up empty gets a random code instead.
+- With random codes and words, each name gets its own (ACME becomes Heron, Hamburg becomes Linden), and it is the same everywhere, so the layer, the block and the note still match afterwards.
+- Turn on A different one in every place to use them like code words: every place gets its own code or word, so nobody can match places up afterwards. The After column shows exactly what each place gets.
+- Click New for other random codes or words. The line under the options says what each name becomes.
 - Click Anonymise. All changes together are one step: Ctrl+Z puts them back, except group names, named CPlanes and the document notes, which Rhino can't undo. Save the report first if you may need the old names.
 - nbAnon scans again straight away, so the list shows anything that is left.
 - If a new name is already taken, nbAnon adds a number (Heron 2).

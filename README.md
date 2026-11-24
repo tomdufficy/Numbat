@@ -67,7 +67,7 @@ Everything is done from the window. These helper commands are for macros and key
 
 ## nbAnon
 
-Finds a word or phrase, such as your company's or a client's name, everywhere a Rhino file keeps text, and replaces it before you share the file. It looks in layer names, blocks (including everything inside nested blocks), object names, hyperlinks and user text, text and dimensions, groups, document user text and notes, named views, CPlanes, positions, layer states and layouts, linetypes, hatch and dimension styles, materials, and reports file paths. You review every place it was found, untick what should stay, and choose a random code, a random word, your own text or nothing as the replacement. All changes are one undo step, and the list can be saved as a report.
+Finds words or phrases, such as your company's or a client's name and city (separate several with commas), everywhere a Rhino file keeps text, and replaces them before you share the file. It looks in layer names, blocks (including everything inside nested blocks), object names, hyperlinks and user text, text and dimensions, groups, document user text and notes, named views, CPlanes, positions, layer states and layouts, linetypes, hatch and dimension styles, materials, and reports file paths. You review every place it was found, untick what should stay, and choose a random code (1 to 8 characters), a random word, your own text or nothing as the replacement. Random codes and words can stay the same everywhere or differ in every place, like code words. All changes are one undo step, and the list can be saved as a report.
 
 The guide is in [docs/nbAnon.md](docs/nbAnon.md), and in Rhino behind the window's **?** button (or `nbAnonHelp`).
 

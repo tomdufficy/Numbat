@@ -28,6 +28,10 @@ namespace Numbat.Commands.Utilities.NumbatAnon
         public bool IsName;
         /// <summary>Text after anonymising, filled in for the preview and the report.</summary>
         public string After;
+        /// <summary>What each phrase becomes in this place (its own set when every place gets its own).</summary>
+        public IReadOnlyList<string> With;
+        /// <summary>The random code a name gets if replacing would leave it empty.</summary>
+        public string Fallback;
         internal Action<RhinoDoc, Rewrite> Apply;
     }
 
