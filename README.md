@@ -27,7 +27,7 @@ In Rhino, open the **Package Manager**, tick **Include pre-releases**, search fo
 
 ## nbGFA
 
-Tracks gross floor area while you model. Model each storey as one closed box and give it a use (Residential, Office, ..., or Unassigned while you decide). A floating window shows each use's GFA and share of the total, flags uses outside their limits (% or m²), and warns when the total is off its target. GFA is reported in m².
+Tracks gross floor area while you model. Model each storey as one closed box and give it a use (Residential, Office, ..., or Unassigned while you decide). A floating window shows each use's GFA and share of the total, flags uses outside their limits (% or m²) with the numbers on hover, and warns when the total is off its target. GFA is reported in m².
 
 The full guide is in [docs/nbGFA.md](docs/nbGFA.md), and in Rhino behind the window's **?** button.
 

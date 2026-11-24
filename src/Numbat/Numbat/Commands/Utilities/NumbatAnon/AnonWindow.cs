@@ -38,7 +38,11 @@ namespace Numbat.Commands.Utilities.NumbatAnon
         private readonly KitSegmented _mode;
         private readonly TextBox _custom;
         private readonly Label _preview, _status;
-        private readonly KitButton _apply, _report;
+        private readonly KitButton _apply, _report, _reroll;
+
+        private readonly KitSections _sections = new KitSections(AnonInfo.SettingsPrefix + "closed");
+        private readonly KitSection _find, _lookIn, _found, _replaceWith;
+        private readonly KitHeaderBar _header;
 
         private List<AnonHit> _hits = new List<AnonHit>();
         private AnonMatcher _matcher;
@@ -57,8 +61,6 @@ namespace Numbat.Commands.Utilities.NumbatAnon
             _wholeWord = new KitSwitch("Whole words only", s.GetBool(KeyWhole, false));
             var scan = new KitButton("Scan", ButtonKind.Secondary, KitIcon.Pick) { Tip = "Look for the phrase in the places ticked below" };
             scan.Click += (o, e) => Scan();
-            var help = new KitButton(null, ButtonKind.Ghost, KitIcon.Help) { Tip = "How to use nbAnon" };
-            help.Click += (o, e) => AnonHelp.Show();
 
             // ---- where
             string saved = s.GetString(KeyAreas, string.Join(",", AnonScanner.Areas.Select(a => a.area)));
@@ -99,9 +101,9 @@ namespace Numbat.Commands.Utilities.NumbatAnon
                     }),
                 },
             });
-            _grid.Columns.Add(new GridColumn { HeaderText = "Where", Width = (int)(240 * Kit.Scale), DataCell = new TextBoxCell { Binding = Binding.Delegate<AnonHit, string>(h => h.Where) } });
-            _grid.Columns.Add(new GridColumn { HeaderText = "Now", Width = (int)(160 * Kit.Scale), DataCell = new TextBoxCell { Binding = Binding.Delegate<AnonHit, string>(h => OneLine(h.Text)) } });
-            _grid.Columns.Add(new GridColumn { HeaderText = "After", Width = (int)(160 * Kit.Scale), DataCell = new TextBoxCell { Binding = Binding.Delegate<AnonHit, string>(h => h.Editable ? OneLine(h.After) : "report only") } });
+            _grid.Columns.Add(new GridColumn { HeaderText = "Where", Width = (int)(220 * Kit.Scale), DataCell = new TextBoxCell { Binding = Binding.Delegate<AnonHit, string>(h => h.Where) } });
+            _grid.Columns.Add(new GridColumn { HeaderText = "Now", Width = (int)(160 * Kit.Scale), Expand = true, DataCell = new TextBoxCell { Binding = Binding.Delegate<AnonHit, string>(h => OneLine(h.Text)) } });
+            _grid.Columns.Add(new GridColumn { HeaderText = "After", Width = (int)(160 * Kit.Scale), Expand = true, DataCell = new TextBoxCell { Binding = Binding.Delegate<AnonHit, string>(h => h.Editable ? OneLine(h.After) : "report only") } });
 
             var all = new KitButton("Tick all", ButtonKind.Ghost);
             all.Click += (o, e) => SetAll(true);
@@ -117,16 +119,16 @@ namespace Numbat.Commands.Utilities.NumbatAnon
             _mode.SelectedIndexChanged += (o, e) =>
             {
                 NumbatPlugin.Instance.Settings.SetInteger(KeyMode, _mode.SelectedIndex);
-                _custom.Enabled = Mode == ReplaceMode.Text;
+                ShowModeControls();
                 NewReplacement();
             };
-            _custom = new TextBox { PlaceholderText = "Replacement text", Enabled = Mode == ReplaceMode.Text };
+            _custom = new TextBox { PlaceholderText = "Replacement text" };
             _custom.TextChanged += (o, e) => { if (Mode == ReplaceMode.Text) NewReplacement(); };
-            var reroll = new KitButton("New", ButtonKind.Ghost, KitIcon.Reset) { Tip = "Pick another random code or word" };
-            reroll.Click += (o, e) => NewReplacement();
+            _reroll = new KitButton("New", ButtonKind.Ghost, KitIcon.Reset) { Tip = "Pick another random code or word" };
+            _reroll.Click += (o, e) => NewReplacement();
             _preview = KitForm.Caption(string.Empty);
 
-            _status = KitForm.Body("Type a phrase, choose where to look and click Scan.", width, secondary: true);
+            _status = KitForm.Body("Type a phrase, choose where to look and click Scan.", width - (int)(40 * Kit.Scale), secondary: true);
             _report = new KitButton("Save report…", ButtonKind.Ghost, KitIcon.Folder) { Tip = "Save the list as a text file", Enabled = false };
             _report.Click += (o, e) => SaveReport();
             _apply = new KitButton("Anonymise", ButtonKind.Primary) { Tip = "Replace the phrase in every ticked place (one undo step)", Enabled = false };
@@ -140,52 +142,84 @@ namespace Numbat.Commands.Utilities.NumbatAnon
                 Items = { _report, new StackLayoutItem(null, true), _apply },
             };
 
-            Body = new Scrollable
+            // ---- sections: each opens and closes; Tick all / none stay usable while Found is closed
+            _find = new KitSection(_sections, "find", "Find", KitForm.VStack(8, new StackLayout
             {
-                Border = BorderType.None,
+                Orientation = Orientation.Horizontal, Spacing = 8, VerticalContentAlignment = VerticalAlignment.Center,
+                Items = { new StackLayoutItem(_phrase, true), scan },
+            }, KitForm.HStack(_matchCase, _wholeWord)));
+            _lookIn = new KitSection(_sections, "lookin", "Look in", areaTable);
+            _found = new KitSection(_sections, "found", "Found", KitForm.VStack(8, _grid, _status), all, none);
+            _replaceWith = new KitSection(_sections, "replace", "Replace with", KitForm.VStack(8, KitForm.HStack(_mode, _reroll), _custom, _preview));
+            foreach (KitSwitch sw in _areas.Values) sw.CheckedChanged += (o, e) => UpdateCounts();
+
+            _header = new KitHeaderBar(AnonInfo.Name)
+                .Add(KitIcon.More, "More options", (bar, p) => ShowMainMenu(bar, p))
+                .Add(KitIcon.Help, "How to use nbAnon (F1)", AnonHelp.Show);
+            _header.HelpRequested += (o, e) => AnonHelp.Show();
+
+            var content = new StackLayout
+            {
+                Padding = new Padding(12, 12, 12, 8),
+                Spacing = 12,
                 BackgroundColor = Kit.Colours.Surface,
-                Content = new StackLayout
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                Items = { _find, _lookIn, _found, _replaceWith },
+            };
+
+            Body = new StackLayout
+            {
+                BackgroundColor = Kit.Colours.Surface,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                Items =
                 {
-                    Padding = new Padding(16, 16, 16, 16),
-                    Spacing = 10,
-                    BackgroundColor = Kit.Colours.Surface,
-                    HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                    Items =
+                    _header,
+                    new StackLayoutItem(new Scrollable
                     {
-                        new StackLayout
-                        {
-                            Orientation = Orientation.Horizontal, Spacing = 8, VerticalContentAlignment = VerticalAlignment.Center,
-                            Items = { KitForm.Section("Find"), new StackLayoutItem(null, true), help },
-                        },
-                        KitForm.HStack(_phrase, scan),
-                        KitForm.HStack(_matchCase, _wholeWord),
-                        KitForm.Divider(),
-                        KitForm.Section("Look in"),
-                        areaTable,
-                        KitForm.Divider(),
-                        new StackLayout
-                        {
-                            Orientation = Orientation.Horizontal, Spacing = 8, VerticalContentAlignment = VerticalAlignment.Center,
-                            Items = { KitForm.Section("Found"), new StackLayoutItem(null, true), all, none },
-                        },
-                        _grid,
-                        _status,
-                        KitForm.Divider(),
-                        KitForm.Section("Replace with"),
-                        KitForm.HStack(_mode, reroll),
-                        _custom,
-                        _preview,
-                        KitForm.Divider(),
-                        footer,
-                    },
+                        Border = BorderType.None,
+                        BackgroundColor = Kit.Colours.Surface,
+                        Content = content,
+                    }, true),
+                    KitForm.Divider(),
+                    new Panel { Padding = new Padding(16, 10, 16, 6), BackgroundColor = Kit.Colours.Surface, Content = footer },
+                    new Panel { Padding = new Padding(16, 0, 16, 10), BackgroundColor = Kit.Colours.Surface, Content = KitForm.Caption(AnonInfo.Copyright) },
                 },
             };
-            _phrase.Width = width - (int)(110 * Kit.Scale);
 
             Closing += (o, e) => SaveBounds();
             Closed += (o, e) => _instance = null;
             RestorePlace(width);
+            ShowModeControls();
             NewReplacement();
+            UpdateCounts();
+        }
+
+        /// <summary>The text box only for My text; New only for the random modes.</summary>
+        private void ShowModeControls()
+        {
+            _custom.Visible = Mode == ReplaceMode.Text;
+            _reroll.Enabled = Mode == ReplaceMode.RandomLetters || Mode == ReplaceMode.RandomWord;
+        }
+
+        /// <summary>Badges on the section headings, so a closed section still says what's in it.</summary>
+        private void UpdateCounts()
+        {
+            _lookIn.Count = $"{_areas.Values.Count(a => a.Checked)}/{_areas.Count}";
+            _found.Count = _matcher == null ? null : _hits.Count.ToString();
+        }
+
+        /// <summary>The window's ⋯ menu.</summary>
+        private void ShowMainMenu(Control owner, PointF location)
+        {
+            var menu = new ContextMenu();
+            var help = new ButtonMenuItem { Text = "How to use nbAnon" };
+            help.Click += (o, e) => AnonHelp.Show();
+            menu.Items.Add(help);
+            menu.Items.Add(new SeparatorMenuItem());
+            var report = new ButtonMenuItem { Text = "Save report…", Enabled = _hits.Count > 0 };
+            report.Click += (o, e) => SaveReport();
+            menu.Items.Add(report);
+            menu.Show(owner, location);
         }
 
         private ReplaceMode Mode => (ReplaceMode)Math.Max(0, _mode.SelectedIndex);
@@ -264,6 +298,7 @@ namespace Numbat.Commands.Utilities.NumbatAnon
             _apply.Enabled = ticked > 0;
             _apply.Text = ticked > 0 ? $"Anonymise {ticked}" : "Anonymise";
             _report.Enabled = _hits.Count > 0;
+            UpdateCounts();
         }
 
         private void SetAll(bool on)
