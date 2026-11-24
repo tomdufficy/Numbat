@@ -59,7 +59,7 @@ Everything is done from the window. These helper commands are for macros and key
 | `nbAFClear` | Delete everything nbAF baked. The buildings stay tracked. |
 | `nbAFSources` | List the legal texts and open the saved copy or the live page. |
 | `nbAFHelp` | Opens the guide. |
-| `nbAFDemo` | Adds four example buildings with plots to try nbAF on. |
+| `nbAFDemo` | Adds an example district (some 450 storey volumes in 26 buildings, with a ground surface) to try nbAF on. Scene=Blocks adds four small test buildings with plots instead. |
 
 ## nbTextureShuffle
 

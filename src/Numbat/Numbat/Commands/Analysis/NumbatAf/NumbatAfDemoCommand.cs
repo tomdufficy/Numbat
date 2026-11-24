@@ -6,67 +6,187 @@ using Rhino;
 using Rhino.Commands;
 using Rhino.DocObjects;
 using Rhino.Geometry;
+using Rhino.Input;
+using Rhino.Input.Custom;
 
 namespace Numbat.Commands.Analysis.NumbatAf
 {
     /// <summary>
-    /// Demo: builds <see cref="AfDemoScene"/> on an "nbAF demo" layer and registers the volumes with nbAF (every
-    /// building with its own plot), so nbAF can be tried straight away. Running it again replaces
-    /// the layer's contents. Shipped in every build but hidden. Dimensions are in metres and converted to the model's
-    /// units, so it works in mm and m files alike.
+    /// Demo: builds an example on an "nbAF demo" layer and registers the volumes with nbAF, so nbAF can be tried
+    /// straight away. Two scenes: Site (default) is a district mass model of some 450 storey volumes and a ground
+    /// surface (<see cref="AfDemoSite"/>); Blocks is four small test buildings with plots (<see cref="AfDemoScene"/>),
+    /// whose results are listed in CLAUDE.md. Running it again replaces the layer's contents. Shipped in every build
+    /// but hidden. Dimensions are in metres and converted to the model's units, so it works in mm and m files alike.
     /// </summary>
     // Hidden: works when typed in full, but doesn't appear in autocomplete, so typing "nb" only offers nbAF.
     [CommandStyle(Style.Hidden)]
     public class NumbatAfDemoCommand : Command
     {
         private const string LayerName = "nbAF demo";
+        private const string GroundLayerName = "Ground";
 
         public override string EnglishName => "nbAFDemo";
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
-            int layer = GetOrAddLayer(doc);
-            if (layer < 0)
+            bool blocks = false;
+            if (mode == RunMode.Interactive)
             {
-                RhinoApp.WriteLine($"{AfInfo.Name}: could not create the \"{LayerName}\" layer.");
-                return Result.Failure;
-            }
-            foreach (RhinoObject old in doc.Objects.FindByLayer(doc.Layers[layer]) ?? Array.Empty<RhinoObject>())
-            {
-                doc.Objects.Delete(old, true);
+                var go = new GetOption();
+                go.SetCommandPrompt("Demo scene (Enter for the site)");
+                go.AcceptNothing(true);
+                var scene = new OptionToggle(false, "Site", "Blocks");
+                go.AddOptionToggle("Scene", ref scene);
+                while (true)
+                {
+                    GetResult r = go.Get();
+                    if (r == GetResult.Option) continue;
+                    if (r == GetResult.Nothing) break;
+                    return Result.Cancel;
+                }
+                blocks = scene.CurrentValue;
             }
 
-            var scene = AfDemoScene.Build(RhinoMath.UnitScale(UnitSystem.Meters, doc.ModelUnitSystem));
+            int layer = GetOrAddLayer(doc, LayerName, Guid.Empty, Color.FromArgb(200, 200, 205));
+            int groundLayer = layer < 0 ? -1 : GetOrAddLayer(doc, GroundLayerName, doc.Layers[layer].Id, Color.FromArgb(150, 175, 130));
+            if (layer < 0 || groundLayer < 0)
+            {
+                RhinoApp.WriteLine($"{AfInfo.Name}: could not create the \"{LayerName}\" layers.");
+                return Result.Failure;
+            }
+            foreach (int index in new[] { layer, groundLayer })
+            {
+                foreach (RhinoObject old in doc.Objects.FindByLayer(doc.Layers[index]) ?? Array.Empty<RhinoObject>())
+                {
+                    doc.Objects.Delete(old, true);
+                }
+            }
+
+            double s = RhinoMath.UnitScale(UnitSystem.Meters, doc.ModelUnitSystem);
+            string message = blocks ? AddBlocks(doc, layer, s) : AddSite(doc, layer, groundLayer, s);
+            if (message == null) return Result.Failure;
+
+            doc.Views.ActiveView?.ActiveViewport.ZoomExtents();
+            doc.Views.Redraw();
+            RhinoApp.WriteLine($"{AfInfo.Name}: {message} Run nbAF to see the Abstandsflächen.");
+            return Result.Success;
+        }
+
+        private static ObjectAttributes Tracked(int layer)
+        {
+            var attr = new ObjectAttributes { LayerIndex = layer };
+            attr.SetUserString(AfInfo.RoleKey, AfModel.Tracked);
+            return attr;
+        }
+
+        private static string AddSite(RhinoDoc doc, int layer, int groundLayer, double s)
+        {
+            AfDemoSite site = AfDemoSite.Load();
+            if (site == null)
+            {
+                RhinoApp.WriteLine($"{AfInfo.Name}: the demo site was not included in this build.");
+                return null;
+            }
+            int count = 0;
+            foreach (Extrusion e in site.Volumes(s))
+            {
+                if (doc.Objects.AddExtrusion(e, Tracked(layer)) != Guid.Empty) count++;
+            }
+            Brep ground = site.Ground(s, doc.ModelAbsoluteTolerance);
+            if (ground != null) doc.Objects.AddBrep(ground, new ObjectAttributes { LayerIndex = groundLayer, Name = "Ground" });
+            return $"added a site of {count} storey volumes on layer \"{LayerName}\", and its ground surface (not tracked) on " +
+                   $"\"{LayerName}::{GroundLayerName}\". It has no plots.";
+        }
+
+        private static string AddBlocks(RhinoDoc doc, int layer, double s)
+        {
+            var scene = AfDemoScene.Build(s);
             int count = 0;
             foreach (AfDemoScene.DemoBuilding b in scene.Buildings)
             {
                 Guid plot = doc.Objects.AddCurve(b.Plot, new ObjectAttributes { LayerIndex = layer, Name = $"Plot {b.Label}" });
                 foreach (Brep v in b.Volumes)
                 {
-                    var attr = new ObjectAttributes { LayerIndex = layer, Name = $"Block {b.Label}" };
-                    attr.SetUserString(AfInfo.RoleKey, AfModel.Tracked);
+                    ObjectAttributes attr = Tracked(layer);
+                    attr.Name = $"Block {b.Label}";
                     attr.SetUserString(AfInfo.PlotKey, plot.ToString());
                     if (doc.Objects.AddBrep(v, attr) != Guid.Empty) count++;
                 }
             }
-
-            doc.Views.ActiveView?.ActiveViewport.ZoomExtents();
-            doc.Views.Redraw();
-            RhinoApp.WriteLine($"{AfInfo.Name}: added {count} storey volumes (blocks A–D, each with a plot 4 m around it) " +
-                               $"on layer \"{LayerName}\". Run nbAF to see the Abstandsflächen.");
-            return Result.Success;
+            return $"added {count} storey volumes (blocks A–D, each with a plot 4 m around it) on layer \"{LayerName}\".";
         }
 
-        private static int GetOrAddLayer(RhinoDoc doc)
+        private static int GetOrAddLayer(RhinoDoc doc, string name, Guid parent, Color colour)
         {
-            Layer existing = doc.Layers.FindName(LayerName);
-            if (existing != null) return existing.Index;
-            return doc.Layers.Add(new Layer { Name = LayerName, Color = Color.FromArgb(200, 200, 205) });
+            string path = parent == Guid.Empty ? name : $"{doc.Layers.FindId(parent).FullPath}::{name}";
+            int existing = doc.Layers.FindByFullPath(path, -1);
+            if (existing >= 0) return existing;
+            return doc.Layers.Add(new Layer { Name = name, Color = colour, ParentLayerId = parent });
         }
     }
 
     /// <summary>
-    /// The demo site, in the shape nbAF expects: one closed box per storey, stacked.
+    /// The demo site: storey volumes as plan outlines with a base height and a height, plus a ground surface, read
+    /// from AfDemoSite.txt (embedded). The file holds coordinates only, made from a real mass model that was
+    /// mirrored and rotated so it matches no real place.
+    /// </summary>
+    internal sealed class AfDemoSite
+    {
+        private readonly List<(double z0, double height, Point3d[] outline)> _volumes = new List<(double, double, Point3d[])>();
+        private Point3d[] _ground;
+
+        public static AfDemoSite Load()
+        {
+            System.Reflection.Assembly asm = typeof(AfDemoSite).Assembly;
+            string name = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith("AfDemoSite.txt"));
+            if (name == null) return null;
+            var site = new AfDemoSite();
+            using (var reader = new System.IO.StreamReader(asm.GetManifestResourceStream(name)))
+            {
+                string line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    string[] parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length == 0 || parts[0].StartsWith("#")) continue;
+                    double[] n = parts.Skip(1).Select(x => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+                    if (parts[0] == "V" && n.Length >= 8) site._volumes.Add((n[0], n[1], Points(n, 2)));
+                    else if (parts[0] == "G" && n.Length >= 6) site._ground = Points(n, 0);
+                }
+            }
+            return site;
+        }
+
+        private static Point3d[] Points(double[] n, int start)
+        {
+            var pts = new List<Point3d>();
+            for (int i = start; i + 1 < n.Length; i += 2) pts.Add(new Point3d(n[i], n[i + 1], 0));
+            return pts.ToArray();
+        }
+
+        /// <param name="s">One metre in model units.</param>
+        public IEnumerable<Extrusion> Volumes(double s)
+        {
+            foreach (var (z0, height, outline) in _volumes)
+            {
+                var pts = outline.Select(p => new Point3d(p.X * s, p.Y * s, z0 * s)).ToList();
+                pts.Add(pts[0]);
+                // Outlines run anticlockwise, so a positive height extrudes upwards.
+                Extrusion e = Extrusion.Create(new PolylineCurve(pts), height * s, true);
+                if (e != null) yield return e;
+            }
+        }
+
+        public Brep Ground(double s, double tol)
+        {
+            if (_ground == null) return null;
+            var pts = _ground.Select(p => new Point3d(p.X * s, p.Y * s, 0)).ToList();
+            pts.Add(pts[0]);
+            return Brep.CreatePlanarBreps(new PolylineCurve(pts), tol)?.FirstOrDefault();
+        }
+    }
+
+    /// <summary>
+    /// The Blocks demo scene, in the shape nbAF expects: one closed box per storey, stacked.
     /// Blocks A–C are nbGFADemo's three apartment blocks (2, 4 and 6 storeys of 3.2 m, slightly rotated).
     /// Block A also gets a 35° gable roof as a separate volume. Block D steps back: its upper storeys cover only
     /// part of the floor below. Each building's plot is its ground-floor footprint offset by 4 m.

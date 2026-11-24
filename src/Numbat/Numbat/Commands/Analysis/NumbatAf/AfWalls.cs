@@ -55,7 +55,9 @@ namespace Numbat.Commands.Analysis.NumbatAf
         {
             skipped = 0;
             double groundZ = volumes.Min(v => v.GetBoundingBox(true).Min.Z);
-            double planeTol = tol * 10;
+            // Walls count as flat within 5 mm (or 10 × the model tolerance, if larger): merging two almost-collinear
+            // faces of a real model leaves a face that is a hair off flat, and 5 mm is nothing against depths of 2.50 m or more.
+            double planeTol = Math.Max(tol * 10, 0.005 * metre);
             var facades = new List<Facade>();
 
             for (int v = 0; v < volumes.Count; v++)

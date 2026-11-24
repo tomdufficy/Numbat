@@ -106,7 +106,7 @@ nbAF draws the Abstandsflächen of your massing model: the areas in front of out
 - nbAFBake: bakes the current result to the nbAF layers.
 - nbAFClear: deletes everything nbAF baked.
 - nbAFSources: lists the legal texts and opens the saved copy or the live page.
-- nbAFDemo: adds four example buildings, each with a plot, on an "nbAF demo" layer, so you can try nbAF straight away. Running it again replaces them.
+- nbAFDemo: adds an example district of about 450 storey volumes (26 buildings) on an "nbAF demo" layer, with a ground surface on "nbAF demo::Ground" that nbAF ignores, so you can try nbAF straight away. It has no plots. Choose Scene=Blocks on the command line for four small test buildings that each have a plot. Running it again replaces them.
 - nbAFHelp: shows this guide. You can also open it with the ? button in the window, or press F1 there.
 
 All but nbAF are hidden: they don't appear as you type, but work when typed in full.

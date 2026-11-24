@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using Eto.Drawing;
 using Eto.Forms;
 
@@ -11,19 +13,75 @@ namespace Numbat.UI
     /// </summary>
     internal static class KitMark
     {
+        private static readonly (float scale, int px)[] Sizes = { (1f, 16), (1.25f, 20), (1.5f, 24), (2f, 32), (3f, 48) };
+
         private static Icon _icon;
+        private static byte[] _ico;
 
         /// <summary>The mark as a window icon (16 to 48 px, for 100 % to 300 % display scaling).</summary>
-        public static Icon Icon => _icon ?? (_icon = Make());
+        public static Icon Icon => _icon ?? (_icon = new Icon(Sizes.Select(s => new IconFrame(s.scale, Draw(s.px))).ToArray()));
 
-        private static Icon Make()
+        /// <summary>
+        /// Puts the mark in a window's title bar. Inside Rhino, Eto doesn't pass a window's icon on to the Windows
+        /// window, so on Windows the mark is also set on the native window directly (by reflection, so nothing here
+        /// depends on WPF at compile time). Elsewhere the Eto icon is all there is.
+        /// </summary>
+        public static void ApplyTo(Window window)
         {
-            var frames = new List<IconFrame>();
-            foreach (var (scale, px) in new[] { (1f, 16), (1.25f, 20), (1.5f, 24), (2f, 32), (3f, 48) })
+            window.Icon = Icon;
+            try
             {
-                frames.Add(IconFrame.FromControlObject(scale, Draw(px)));
+                object native = window.ControlObject;
+                System.Reflection.PropertyInfo prop = native?.GetType().GetProperty("Icon");
+                if (prop == null || prop.PropertyType.FullName != "System.Windows.Media.ImageSource") return;
+                Type frame = prop.PropertyType.Assembly.GetType("System.Windows.Media.Imaging.BitmapFrame");
+                System.Reflection.MethodInfo create = frame?.GetMethods().FirstOrDefault(m =>
+                    m.Name == "Create" && m.GetParameters().Length == 1 && m.GetParameters()[0].ParameterType == typeof(Stream));
+                if (create == null) return;
+                prop.SetValue(native, create.Invoke(null, new object[] { new MemoryStream(Ico()) }));
             }
-            return new Icon(frames.ToArray());
+            catch
+            {
+                // Not WPF, or it changed: the window keeps Rhino's icon. Purely cosmetic.
+            }
+        }
+
+        /// <summary>The mark as an .ico file in memory, one PNG frame per size.</summary>
+        private static byte[] Ico()
+        {
+            if (_ico != null) return _ico;
+            var pngs = new List<byte[]>();
+            foreach (var (_, px) in Sizes)
+            {
+                using (var ms = new MemoryStream())
+                {
+                    Draw(px).Save(ms, ImageFormat.Png);
+                    pngs.Add(ms.ToArray());
+                }
+            }
+            using (var ico = new MemoryStream())
+            using (var w = new BinaryWriter(ico))
+            {
+                w.Write((short)0);
+                w.Write((short)1); // icon
+                w.Write((short)pngs.Count);
+                int offset = 6 + 16 * pngs.Count;
+                for (int i = 0; i < pngs.Count; i++)
+                {
+                    w.Write((byte)Sizes[i].px);
+                    w.Write((byte)Sizes[i].px);
+                    w.Write((byte)0);
+                    w.Write((byte)0);
+                    w.Write((short)1);
+                    w.Write((short)32);
+                    w.Write(pngs[i].Length);
+                    w.Write(offset);
+                    offset += pngs[i].Length;
+                }
+                foreach (byte[] png in pngs) w.Write(png);
+                w.Flush();
+                return _ico = ico.ToArray();
+            }
         }
 
         /// <summary>The mark on a square bitmap of <paramref name="px"/> pixels.</summary>
@@ -58,7 +116,7 @@ namespace Numbat.UI
         {
             Title = title;
             WindowStyle = WindowStyle.Default; // Utility windows have no icon, so the mark wouldn't show
-            Icon = KitMark.Icon;
+            KitMark.ApplyTo(this);
             Minimizable = false;
             Maximizable = false;
             ShowInTaskbar = false;

@@ -15,7 +15,7 @@ namespace Numbat.UI
         public KitDialog(string title)
         {
             Title = title;
-            Icon = KitMark.Icon;
+            KitMark.ApplyTo(this);
             Resizable = false;
             Padding = 0;
             BackgroundColor = Kit.Colours.Surface;
