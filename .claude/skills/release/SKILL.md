@@ -33,7 +33,8 @@ Present the proposed version with a one-line justification and the changelog ent
    - Update the compare links at the bottom: `[Unreleased]` compares `v<version>...main`, and add `[<version>]` comparing the previous tag with `v<version>`.
 3. Set `<Version>` in `Numbat.csproj`.
 4. Make sure the README and the Package Manager listing (`description` and `keywords` in `src/Numbat/Numbat/manifest.yml`) reflect every command added, changed, withdrawn or removed in this release.
-5. Commit `chore(release): v<version>`, push, and open a PR. When CI is green and the maintainer approves, merge it (squash).
+5. Check the Food4Rhino page against this release, as described in `docs/food4rhino.md` ("When the page needs updating"): body, short description (at most 180 characters), project icon, platform, and new demo images only if better ones were added. If something needs changing, update the record in `docs/food4rhino.md` in this PR, and prepare for the maintainer the new text of each changed field and a zip of any files to upload (they paste it after the release is published, step 6). If nothing changed, say so.
+6. Commit `chore(release): v<version>`, push, and open a PR. When CI is green and the maintainer approves, merge it (squash).
 
 ## 4. Tag (only after an explicit go-ahead)
 
@@ -53,11 +54,10 @@ The Release workflow runs three jobs:
 
 Once test-publish has succeeded, give the maintainer:
 - the run link
-- the steps to test from the test server:
-  1. In Rhino, open `Options`, then Package Manager, and add the source `https://test.yak.rhino3d.com`.
-  2. Install the version with "Include pre-releases" ticked.
-  3. Restart Rhino and try the commands.
-  4. Remove the test source again.
+- the steps to test from the test server, or offer to run them yourself in a Rhino you start with the Rhino MCP tools (that is how 0.4.0-beta.1 was tested; the maintainer couldn't find a Package Manager page in Options to add the test source):
+  1. Close Rhino. Install the version from the test server with Rhino's Yak tool: `& "C:\Program Files\Rhino 8\System\Yak.exe" install --source=https://test.yak.rhino3d.com Numbat <version>`. This changes no Rhino settings.
+  2. Start Rhino, check that Numbat loads from `%APPDATA%\McNeel\Rhinoceros\packages\8.0\Numbat\<version>` (for example in `_PlugInManager`), and try the commands. A quick check: nbAFDemo, add all volumes with nbAFAdd, and compare with the expected results in CLAUDE.md.
+  3. Close Rhino and remove it again: `& "C:\Program Files\Rhino 8\System\Yak.exe" uninstall Numbat`. On a development machine, load the Debug `Numbat.rhp` once more afterwards, since the package took over Numbat's registration.
 - how to approve or reject: on the run page, click "Review deployments", tick `yak`, then choose Approve and deploy, or Reject.
 
 Never approve on the maintainer's behalf.
@@ -75,4 +75,4 @@ git push origin v<version>
 - The run finished green: `gh run list --workflow Release -L 1`.
 - `yak search --all --prerelease Numbat` lists the new version.
 - `gh release view v<version>` shows the release.
-- Report back with the links.
+- Report back with the links, and with the Food4Rhino changes from step 3 (the text for each changed field and the zip), or that the page needs no change. The maintainer edits the Food4Rhino page; never change it without being asked.

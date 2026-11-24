@@ -24,6 +24,8 @@ docs/audit-2026-11.md                audit backlog of known issues per command
 docs/nbGFA.md                        nbGFA user guide, embedded in the plugin and shown by nbGFAHelp
 docs/nbAF.md                         nbAF user guide, embedded in the plugin and shown by nbAFHelp
 docs/nbAnon.md                       nbAnon user guide, embedded in the plugin and shown by nbAnonHelp
+docs/food4rhino.md                   what is on the Food4Rhino page, and when it needs updating (checked at every release)
+docs/images/                         PNGs of the guides' diagrams, exported from code for GitHub
 docs/sources/                        legal texts behind nbAF's rules (PDFs ship with the plugin) and the rules table
 CHANGELOG.md                         Keep a Changelog; [Unreleased] is always current
 ```
