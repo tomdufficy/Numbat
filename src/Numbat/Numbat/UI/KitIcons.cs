@@ -1,11 +1,12 @@
 using System;
+using System.Collections.Generic;
 using Eto.Drawing;
 
 namespace Numbat.UI
 {
     internal enum KitIcon
     {
-        None, Pick, Preview, Layer, Reset, Folder, Help, Warning, Info, More, Plus, Minus, Close,
+        None, Pick, Eye, EyeClosed, Layer, Reset, Folder, Help, Warning, Info, More, Plus, Minus, Close,
         ChevronDown, ChevronRight, Check, Pie, Bars,
     }
 
@@ -39,6 +40,18 @@ namespace Numbat.UI
                     g.DrawPath(pen, path);
                 }
             }
+            // A smooth curve: quadratic from (x1, y1) to (x2, y2), pulled towards (cx, cy).
+            void Curve(float x1, float y1, float cx, float cy, float x2, float y2)
+            {
+                var pts = new List<float>();
+                for (int i = 0; i <= 12; i++)
+                {
+                    float t = i / 12f, u = 1 - t;
+                    pts.Add(u * u * x1 + 2 * u * t * cx + t * t * x2);
+                    pts.Add(u * u * y1 + 2 * u * t * cy + t * t * y2);
+                }
+                Poly(false, pts.ToArray());
+            }
 
             switch (icon)
             {
@@ -46,11 +59,17 @@ namespace Numbat.UI
                     g.DrawEllipse(pen, Circle(8, 8, 4.5f));
                     Line(8, 1.5f, 8, 4.5f); Line(8, 11.5f, 8, 14.5f); Line(1.5f, 8, 4.5f, 8); Line(11.5f, 8, 14.5f, 8);
                     break;
-                case KitIcon.Preview:
-                    // Eye: two arcs approximated with a polyline, pupil circle.
-                    Poly(true, 1.5f, 8, 3.2f, 5.6f, 5.5f, 4.0f, 8, 3.5f, 10.5f, 4.0f, 12.8f, 5.6f, 14.5f, 8,
-                        12.8f, 10.4f, 10.5f, 12.0f, 8, 12.5f, 5.5f, 12.0f, 3.2f, 10.4f);
-                    g.DrawEllipse(pen, Circle(8, 8, 2));
+                case KitIcon.Eye:
+                    // Open eye: both lids, the pupil, and three lashes on the upper lid.
+                    Curve(1.5f, 8.5f, 8, 1.5f, 14.5f, 8.5f);
+                    Curve(1.5f, 8.5f, 8, 15.5f, 14.5f, 8.5f);
+                    g.DrawEllipse(pen, Circle(8, 8.5f, 2.2f));
+                    Line(4.75f, 5.9f, 3.6f, 4.0f); Line(8, 5, 8, 2.8f); Line(11.25f, 5.9f, 12.4f, 4.0f);
+                    break;
+                case KitIcon.EyeClosed:
+                    // Closed eye: the lid as one curve, lashes pointing down.
+                    Curve(1.5f, 6.5f, 8, 13.5f, 14.5f, 6.5f);
+                    Line(4.75f, 9.1f, 3.6f, 11.0f); Line(8, 10, 8, 12.3f); Line(11.25f, 9.1f, 12.4f, 11.0f);
                     break;
                 case KitIcon.Layer:
                     Poly(true, 8, 2, 1.5f, 5.5f, 8, 9, 14.5f, 5.5f);

@@ -46,7 +46,7 @@ An Abstandsfläche is the area in front of an outer wall that has to be kept fre
 - Type nbAF on the command line.
 - The window stays on top. If you close it, type nbAF again and it reopens where you left it.
 - While the window is open, the Abstandsflächen are drawn in the viewports as a live preview. Closing the window hides the preview. Nothing is added to your model until you click Bake.
-- Top right, in the window's header: ? opens this guide (or press F1), and ⋯ opens the menu: this guide, the sources, Reset values, Reset colours, Update now, Delete baked output and the display options.
+- Top right, in the window's header: the eye shows or hides the preview in the viewports (see 13), ? opens this guide (or press F1), and ⋯ opens the menu: this guide, the sources, Reset values, Reset colours, Update now, Delete baked output and the display options.
 - Drag the window edges to resize it. If the content doesn't fit, the window scrolls.
 - Every section (BUILDINGS, ROAD CENTRE LINES, CLASHES, MODEL, RULE VALUES, COLOURS) opens and closes with the arrow in front of its heading. A closed section shows how many items it holds. nbAF remembers which sections you closed.
 - Two switches sit above BUILDINGS: Colour by building (on by default) and Depth labels (see 10).
@@ -121,7 +121,7 @@ Walls that are almost flat (within 5 mm) count as flat, and walls of one buildin
 - Click a colour in the COLOURS section to change it. The colours apply to the preview, to new baked layers and to exports, and are remembered for your next files.
 - Layers that were baked before keep their colour. Change them in the Layers panel.
 - Colour by building tints each building in its own colour and labels it (see 7).
-- Depth labels is off by default, so only clashes are marked. Turn it on to show a depth dimension for each wall: a line with ticks from the middle of the wall straight out to the edge of its Abstandsfläche, with the depth written beside it.
+- Depth labels is off by default, so only clashes are marked. Turn it on to show a depth dimension for each wall: a line with ticks from the middle of the wall straight out to the edge of its Abstandsfläche, with the depth written beside it. The dimensions are white with a thin dark edge, so they read on the areas and on any background.
 - The dimensions are drawn on the ground, like dimensions on a plan, and read from the bottom or the right. They grow and shrink as you zoom, and text too small to read is hidden until you zoom in. A gable wall's dimension gives the depth at the middle of the wall.
 - A wall gets no dimension where its whole area lies over the building itself, or inside the area of a higher wall of the same face. Where two dimensions would overlap, the deeper wall keeps its dimension.
 
@@ -144,6 +144,7 @@ Walls that are almost flat (within 5 mm) count as flat, and walls of one buildin
 
 ## 13. Display options
 
+- When nbGFA and nbAF are both open, only one of them shows its preview in the viewports, so they don't mix: the one you opened (or brought back with its command) last. The eye in each window's header shows whose preview you see: open in the tool that is shown, closed in the others. Click a closed eye to show that tool's preview instead; click the open eye to hide it. Hidden, nbAF keeps checking, so the window stays up to date.
 - ⋯ > Interface size makes the window and its text larger (100 %, 115 % or 130 %).
 - ⋯ > Stronger outlines draws darker borders on buttons, rows and dividers.
 - These options are shared with the other Numbat windows. The window follows Rhino's light or dark mode.

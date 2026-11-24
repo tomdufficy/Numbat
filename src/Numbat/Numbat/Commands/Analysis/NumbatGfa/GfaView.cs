@@ -176,7 +176,12 @@ namespace Numbat.Commands.Analysis.NumbatGfa
 
             RectangleF more = KitPaint.HeaderButton(w, 0);
             RectangleF help = KitPaint.HeaderButton(w, 1);
-            RectangleF chart = KitPaint.HeaderButton(w, 2);
+            RectangleF eye = KitPaint.HeaderButton(w, 2);
+            RectangleF chart = KitPaint.HeaderButton(w, 3);
+
+            bool shown = KitPreview.IsShown(GfaPreviewConduit.Tool);
+            KitPaint.Button(g, eye, null, ButtonKind.Ghost, StateOf("eye"), shown ? KitIcon.Eye : KitIcon.EyeClosed);
+            AddTarget("eye", eye, () => KitPreview.Toggle(GfaPreviewConduit.Tool), null, KitPreview.Tip(GfaPreviewConduit.Tool, GfaInfo.Name));
 
             KitPaint.Button(g, chart, null, ButtonKind.Ghost, StateOf("chart"), Pie ? KitIcon.Bars : KitIcon.Pie);
             AddTarget("chart", chart, ToggleView, null, Pie ? "Show as bars" : "Show as pie chart");
@@ -702,7 +707,7 @@ namespace Numbat.Commands.Analysis.NumbatGfa
                   "volumes onto them, remembering the layer each came from. From then on, moving a volume onto a " +
                   "use's layer assigns it."
                 : "Track uses by object?\n\nVolumes go back to the layers they came from; their use is stored on the " +
-                  "object and shown by object colour.";
+                  "object and shown in its colour while the nbGFA window is open.";
             if (MessageBox.Show(this, message, GfaInfo.Name, MessageBoxButtons.OKCancel, MessageBoxType.Question)
                 != DialogResult.Ok) return;
 

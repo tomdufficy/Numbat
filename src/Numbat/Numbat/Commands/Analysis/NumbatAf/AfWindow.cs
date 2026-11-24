@@ -54,13 +54,16 @@ namespace Numbat.Commands.Analysis.NumbatAf
 
 
             _model.Changed += OnModelChanged;
+            KitPreview.Changed += OnPreviewChanged;
             Closing += (s, e) => SaveBounds();
             Closed += (s, e) =>
             {
                 _model.Changed -= OnModelChanged;
+                KitPreview.Changed -= OnPreviewChanged;
                 _model.Live = false;
-                AfPreviewConduit.Show(false, RhinoDoc.ActiveDoc);
                 _instance = null;
+                KitPreview.Closed(AfPreviewConduit.Tool);
+                AfPreviewConduit.Sync(false, RhinoDoc.ActiveDoc);
             };
 
             RestoreSize();
@@ -77,10 +80,10 @@ namespace Numbat.Commands.Analysis.NumbatAf
         {
             model.Live = true;
             model.Refresh(doc);
-            AfPreviewConduit.Show(true, doc);
             if (_instance != null)
             {
                 _instance.BringToFront();
+                KitPreview.Opened(AfPreviewConduit.Tool); // brought back: its preview is shown again
                 return;
             }
 
@@ -89,6 +92,15 @@ namespace Numbat.Commands.Analysis.NumbatAf
             _instance.RestoreLocation();
             _instance.Show();
             _instance.BringToFront();
+            KitPreview.Opened(AfPreviewConduit.Tool);
+            AfPreviewConduit.Sync(true, doc);
+        }
+
+        /// <summary>Another tool's colours were shown, or this window's eye was clicked.</summary>
+        private void OnPreviewChanged(object sender, EventArgs e)
+        {
+            AfPreviewConduit.Sync(true, RhinoDoc.ActiveDoc);
+            _view.Invalidate();
         }
 
         private void RestoreLocation()

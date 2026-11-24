@@ -17,6 +17,8 @@ namespace Numbat.Commands.Analysis.NumbatAf
     /// </summary>
     internal sealed class AfPreviewConduit : DisplayConduit
     {
+        public const string Tool = "af";
+
         public static readonly AfPreviewConduit Instance = new AfPreviewConduit();
 
         private readonly List<(Mesh mesh, Element element)> _fills = new List<(Mesh, Element)>();
@@ -169,20 +171,33 @@ namespace Numbat.Commands.Analysis.NumbatAf
 
             // Depth dimensions: a line from the wall to the edge of its area with oblique ticks at both ends, and the
             // depth beside it. They scale with the view; text too small to read on screen is skipped.
+            // White with a thin dark edge, so they read on the blue areas, on white ground and on dark backgrounds.
             if (!AfColours.ShowLabels) return;
-            Color ink = Color.FromArgb(45, 45, 45);
+            Color ink = Color.White, edge = Color.FromArgb(40, 40, 40);
             foreach (AfLabel l in _labels)
             {
-                e.Display.DrawLine(l.Start, l.End, ink, 1);
                 Vector3d along = l.End - l.Start;
                 along.Unitize();
                 Vector3d tick = along + Vector3d.CrossProduct(Vector3d.ZAxis, along);
                 tick.Unitize();
                 tick *= l.Height * 0.6;
-                e.Display.DrawLine(l.Start - tick, l.Start + tick, ink, 2);
-                e.Display.DrawLine(l.End - tick, l.End + tick, ink, 2);
+                foreach (var (width, colour) in new[] { (3, edge), (1, ink) })
+                {
+                    e.Display.DrawLine(l.Start, l.End, colour, width);
+                    e.Display.DrawLine(l.Start - tick, l.Start + tick, colour, width + 1);
+                    e.Display.DrawLine(l.End - tick, l.End + tick, colour, width + 1);
+                }
 
                 if (!e.Viewport.GetWorldToScreenScale(l.At, out double pixelsPerUnit) || l.Height * pixelsPerUnit < MinLabelPixels) continue;
+                // The edge: the text in dark, nudged a little each way, then the white text on top.
+                double nudge = Math.Max(l.Height * 0.06, 1.0 / pixelsPerUnit);
+                foreach (Vector3d d in new[] { l.Plane.XAxis, -l.Plane.XAxis, l.Plane.YAxis, -l.Plane.YAxis })
+                {
+                    Plane p = l.Plane;
+                    p.Origin += d * nudge;
+                    e.Display.Draw3dText(l.Text, edge, p, l.Height, "Arial", false, false,
+                        TextHorizontalAlignment.Center, TextVerticalAlignment.Middle);
+                }
                 e.Display.Draw3dText(l.Text, ink, l.Plane, l.Height, "Arial", false, false,
                     TextHorizontalAlignment.Center, TextVerticalAlignment.Middle);
             }
@@ -200,9 +215,13 @@ namespace Numbat.Commands.Analysis.NumbatAf
             foreach (var m in _markers) e.Display.DrawDot(m.at, m.text, m.check ? AfColours.CheckColour : clash, Color.White);
         }
 
-        /// <summary>Turns the preview on or off and redraws.</summary>
-        public static void Show(bool on, RhinoDoc doc)
+        /// <summary>
+        /// Shows the preview when the window is open and its eye is open (<see cref="Numbat.UI.KitPreview"/>);
+        /// otherwise hides it. The result keeps updating while it is hidden.
+        /// </summary>
+        public static void Sync(bool windowOpen, RhinoDoc doc)
         {
+            bool on = windowOpen && Numbat.UI.KitPreview.IsShown(Tool);
             if (Instance.Enabled == on) return;
             Instance.Enabled = on;
             doc?.Views.Redraw();
