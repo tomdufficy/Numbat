@@ -12,6 +12,7 @@ src/Numbat/Numbat/UI/               Numbat's shared Eto UI kit (Kit*, Display): 
 src/Numbat/Numbat/Commands/
   Analysis/                          nbGFA (live GFA window + nbGFAAssign/Check/Help), nbAF (Abstandsflächen window + helpers)
   Modelling/                         nbHandrail, nbPavementPlacer, nbRandomColour, nbTextureShuffle
+  Utilities/                         nbAnon (find and anonymise a phrase everywhere in the file)
   Preview/                           in rework, Debug builds only: nbStair*, nbPV (see "Preview commands")
 scripts/Build-YakPackage.ps1         build + package into dist/*.yak (used by CI and locally)
 .github/workflows/ci.yml             build + package on push to main and on every PR; .yak uploaded as an artifact
@@ -22,6 +23,7 @@ scripts/Build-YakPackage.ps1         build + package into dist/*.yak (used by CI
 docs/audit-2026-11.md                audit backlog of known issues per command
 docs/nbGFA.md                        nbGFA user guide, embedded in the plugin and shown by nbGFAHelp
 docs/nbAF.md                         nbAF user guide, embedded in the plugin and shown by nbAFHelp
+docs/nbAnon.md                       nbAnon user guide, embedded in the plugin and shown by nbAnonHelp
 docs/sources/                        legal texts behind nbAF's rules (PDFs ship with the plugin) and the rules table
 CHANGELOG.md                         Keep a Changelog; [Unreleased] is always current
 ```
@@ -43,13 +45,16 @@ Each tool has one discoverable command (`nbGFA`, `nbTextureShuffle`, ...). Helpe
 
 ## Shared UI kit (`src/Numbat/Numbat/UI/`)
 
-New and reworked windows and dialogs use the kit so all of Numbat looks and behaves the same. nbGFA, nbAF and nbTextureShuffle are on it; the others move over as they are reworked, and new commands start on it.
+New and reworked windows and dialogs use the kit so all of Numbat looks and behaves the same. nbGFA, nbAF, nbAnon and nbTextureShuffle are on it; the others move over as they are reworked, and new commands start on it.
 - Take colours from `Kit.Colours` at paint time (never cache them), so Rhino's light/dark mode and the display options apply live. Don't hard-code colours or fonts in commands.
 - Fonts come from `KitFonts`, icons from `KitIcons`, buttons and cards from `KitPaint` / `KitControls`, dialogs from `KitDialog`. Sizes are in design px; `KitCanvas` applies `Kit.Scale`.
 - `Display.Load()` applies the saved interface size and outline options; call it before showing a kit window.
 - Every window derives from `KitWindow` and every dialog from `KitDialog`. They keep the normal Windows title bar (a custom-drawn one looked worse) with Numbat's mark as the window icon (`KitMark`: logo-brown rounded square, white lower-case "nb", drawn in code). The title is always `<command> – <full name>`, for example `nbGFA – Gross Floor Area` or `nbAF – Abstandsflächen` (German names keep their umlauts). Guides are `<that title> · Guide`; dialogs are `<command> – <what it edits>`.
 - Every section of a kit window opens and closes: draw its heading with `KitPaint.SectionToggle` (chevron right when closed, down when open, optional count badge) and keep the state in a `KitSections` (one settings key per window, e.g. `af.closed`, `gfa.closed`). Section-level buttons (Add, Reset) stay visible on a closed section. Size the content by measuring the same layout code that paints it (`KitCanvas.Measure`), not by a separate height sum.
 - Inside the window, a `KitPaint.Header` band shows the command name with the window-level buttons on the right, in this order from the right: ⋯ (menu), ? (guide), then view toggles. Pass `null` as the letters: the mark is already in the title bar.
+- Windows built from native Eto controls (text boxes, grids; nbAnon) use the same parts as controls from `KitNative.cs`: `KitHeaderBar` for the header band, `KitSection` for each collapsible section (heading, count badge, section buttons, content; state in the window's `KitSections`), and `KitGridText` for read-only grid columns (fixed width, "…" for long text, full text in a `KitTip` on hover, so a grid never widens its window). Use `KitTip` wherever a native control needs a tip that changes as the mouse moves: the native tooltip is only looked up when the mouse enters a control. `KitSection` insets by 4 px for the heading's hover area, so its layout gets 12 px side padding instead of 16.
+- A window opens at the height its content needs, as far as the screen allows, so it has no scrollbar by default; long lists scroll inside themselves. Keep the window's own scrolling as the fallback when the user makes it smaller or the interface size is large, rather than locking the minimum size to the content (a window taller than the screen can't be used).
+- Hover tips explain limits and problems with the numbers behind them (how far over or under, in which unit, how many objects), like nbAF's clash rows and nbGFA's uses and status line.
 - No how-to or instruction text in window footers. A footer holds status (for example limits met / broken) and the copyright only. Explain how things work in hover tips, the empty state of a list, or the user guide.
 - Keep kit types `internal` and free of command-specific code.
 - The accent comes from the Numbat logo palette (ink #2D2B28, tan #C79C69, cream #FFFBEA, brown #6C4B33, rust #A9714B): brown in light mode, tan in dark mode. Tan and rust are too light for text on light backgrounds. Keep every text/background pair at 4.5:1 contrast or better.

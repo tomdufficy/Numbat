@@ -28,6 +28,8 @@
     <EmbeddedResource Include="..\..\..\docs\nbGFA.md" LogicalName="Numbat.Docs.nbGFA.md" />
     <!-- The nbAF guide, shown by nbAFHelp and the nbAF window's ? button. -->
     <EmbeddedResource Include="..\..\..\docs\nbAF.md" LogicalName="Numbat.Docs.nbAF.md" />
+    <!-- The nbAnon guide, shown by nbAnonHelp and the ? button in the nbAnon window. -->
+    <EmbeddedResource Include="..\..\..\docs\nbAnon.md" LogicalName="Numbat.Docs.nbAnon.md" />
     <!-- nbAFDemo's site: plain coordinates (see the file's header), built into Rhino geometry by the command. -->
     <EmbeddedResource Include="Commands\Analysis\NumbatAf\AfDemoSite.txt" LogicalName="Numbat.Demo.AfDemoSite.txt" />
   </ItemGroup>
