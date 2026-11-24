@@ -23,7 +23,6 @@ namespace Numbat.Commands.Utilities.NumbatAnon
         private const string KeyX = AnonInfo.SettingsPrefix + "window.x";
         private const string KeyY = AnonInfo.SettingsPrefix + "window.y";
         private const string KeyW = AnonInfo.SettingsPrefix + "window.w";
-        private const string KeyH = AnonInfo.SettingsPrefix + "window.h";
         private const string KeyCase = AnonInfo.SettingsPrefix + "matchCase";
         private const string KeyWhole = AnonInfo.SettingsPrefix + "wholeWord";
         private const string KeyMode = AnonInfo.SettingsPrefix + "mode";
@@ -50,6 +49,14 @@ namespace Numbat.Commands.Utilities.NumbatAnon
         private readonly KitSections _sections = new KitSections(AnonInfo.SettingsPrefix + "closed");
         private readonly KitSection _find, _lookIn, _found, _replaceWith;
         private readonly KitHeaderBar _header;
+        private readonly StackLayout _content;
+        private readonly Scrollable _scroll;
+
+        /// <summary>Places to look in per row: two rows for all ten.</summary>
+        private const int AreaColumns = 5;
+
+        /// <summary>Smallest window height in design px. Below the content's height the window scrolls.</summary>
+        private const int MinHeight = 320;
 
         private List<AnonHit> _hits = new List<AnonHit>();
         private AnonMatcher _matcher;
@@ -72,28 +79,28 @@ namespace Numbat.Commands.Utilities.NumbatAnon
 
             // ---- where
             string saved = s.GetString(KeyAreas, string.Join(",", AnonScanner.Areas.Select(a => a.area)));
-            var areaTable = new TableLayout { Spacing = new Size(16, 4) };
+            var areaTable = new TableLayout { Spacing = new Size(8, 4) };
             TableRow row = null;
             for (int i = 0; i < AnonScanner.Areas.Count; i++)
             {
                 var a = AnonScanner.Areas[i];
                 var sw = new KitSwitch(a.label, saved.Split(',').Contains(a.area.ToString())) { ToolTip = a.tip };
                 _areas[a.area] = sw;
-                if (i % 2 == 0)
+                if (i % AreaColumns == 0)
                 {
                     row = new TableRow();
                     areaTable.Rows.Add(row);
                 }
                 row.Cells.Add(new TableCell(sw, true));
             }
-            if (AnonScanner.Areas.Count % 2 == 1) row.Cells.Add(new TableCell(null, true));
+            for (int i = AnonScanner.Areas.Count % AreaColumns; i > 0 && i < AreaColumns; i++) row.Cells.Add(new TableCell(null, true));
 
             // ---- results
             _grid = new GridView
             {
                 AllowMultipleSelection = false,
                 ShowHeader = true,
-                Height = (int)(240 * Kit.Scale),
+                Height = (int)(150 * Kit.Scale), // about six rows; a longer list scrolls inside the grid
             };
             _grid.Columns.Add(new GridColumn
             {
@@ -156,7 +163,7 @@ namespace Numbat.Commands.Utilities.NumbatAnon
             _reroll.Click += (o, e) => NewReplacement();
             _preview = KitForm.Caption(string.Empty, width - (int)(40 * Kit.Scale)); // wraps, so a long phrase can't widen the window
 
-            _status = KitForm.Body("Type a phrase, choose where to look and click Scan.", width - (int)(40 * Kit.Scale), secondary: true);
+            _status = KitForm.Body("Type the names to find, choose where to look and click Scan.", width - (int)(40 * Kit.Scale), secondary: true);
             _report = new KitButton("Save report…", ButtonKind.Ghost, KitIcon.Folder) { Tip = "Save the list as a text file", Enabled = false };
             _report.Click += (o, e) => SaveReport();
             _apply = new KitButton("Anonymise", ButtonKind.Primary) { Tip = "Replace the names in every ticked place (one undo step)", Enabled = false };
@@ -180,13 +187,15 @@ namespace Numbat.Commands.Utilities.NumbatAnon
             _found = new KitSection(_sections, "found", "Found", KitForm.VStack(8, _grid, _status), all, none);
             _replaceWith = new KitSection(_sections, "replace", "Replace with", KitForm.VStack(8, KitForm.HStack(_mode, _reroll), _lengthRow, _custom, _perPlace, _preview));
             foreach (KitSwitch sw in _areas.Values) sw.CheckedChanged += (o, e) => UpdateCounts();
+            foreach (KitSection section in new[] { _find, _lookIn, _found, _replaceWith })
+                section.Toggled += (o, e) => Application.Instance.AsyncInvoke(FitHeight); // after the layout has updated
 
             _header = new KitHeaderBar(AnonInfo.Name)
                 .Add(KitIcon.More, "More options", (bar, p) => ShowMainMenu(bar, p))
                 .Add(KitIcon.Help, "How to use nbAnon (F1)", AnonHelp.Show);
             _header.HelpRequested += (o, e) => AnonHelp.Show();
 
-            var content = new StackLayout
+            _content = new StackLayout
             {
                 Padding = new Padding(12, 12, 12, 8),
                 Spacing = 12,
@@ -202,11 +211,11 @@ namespace Numbat.Commands.Utilities.NumbatAnon
                 Items =
                 {
                     _header,
-                    new StackLayoutItem(new Scrollable
+                    new StackLayoutItem(_scroll = new Scrollable
                     {
                         Border = BorderType.None,
                         BackgroundColor = Kit.Colours.Surface,
-                        Content = content,
+                        Content = _content,
                     }, true),
                     KitForm.Divider(),
                     new Panel { Padding = new Padding(16, 10, 16, 6), BackgroundColor = Kit.Colours.Surface, Content = footer },
@@ -230,6 +239,7 @@ namespace Numbat.Commands.Utilities.NumbatAnon
             _custom.Visible = Mode == ReplaceMode.Text;
             _perPlace.Visible = random;
             _reroll.Enabled = random;
+            if (Loaded) Application.Instance.AsyncInvoke(FitHeight);
         }
 
         private int Length => Lengths[Math.Max(0, Math.Min(Lengths.Length - 1, _length.SelectedIndex))];
@@ -273,6 +283,7 @@ namespace Numbat.Commands.Utilities.NumbatAnon
             Display.Load();
             _instance = new AnonWindow { Owner = RhinoEtoApp.MainWindow };
             _instance.Show();
+            _instance.FitHeight();
             _instance.BringToFront();
             _instance._phrase.Focus();
         }
@@ -299,6 +310,7 @@ namespace Numbat.Commands.Utilities.NumbatAnon
             // Keep the replacements unless the number of names changed.
             if (_plan == null || _plan.Shared.Count != _matcher.Phrases.Count) NewReplacement();
             else Preview();
+            Application.Instance.AsyncInvoke(FitHeight); // the status line may have grown
         }
 
         /// <summary>Draws new replacements for the current mode and names, then refreshes the preview.</summary>
@@ -468,16 +480,39 @@ namespace Numbat.Commands.Utilities.NumbatAnon
 
         // ---- position and size ------------------------------------------------------------------
 
+        /// <summary>
+        /// Width as the user left it (never narrower than the content). The height always fits the content (see
+        /// <see cref="FitHeight"/>), so it isn't restored.
+        /// </summary>
         private void RestorePlace(int width)
         {
             var s = NumbatPlugin.Instance.Settings;
-            int w = s.GetInteger(KeyW, -1), h = s.GetInteger(KeyH, -1);
-            ClientSize = new Size(Math.Max(w, width + (int)(32 * Kit.Scale)), h > 200 ? h : (int)(720 * Kit.Scale));
+            int minW = width + (int)(32 * Kit.Scale);
+            MinimumSize = new Size(minW, (int)(MinHeight * Kit.Scale));
+            ClientSize = new Size(Math.Max(s.GetInteger(KeyW, -1), minW), (int)(720 * Kit.Scale));
             int x = s.GetInteger(KeyX, int.MinValue), y = s.GetInteger(KeyY, int.MinValue);
             if (x != int.MinValue && y != int.MinValue && Screen.Screens.Any(sc => sc.WorkingArea.Contains(new PointF(x + 40, y + 10))))
             {
                 Location = new Point(x, y);
             }
+        }
+
+        /// <summary>
+        /// Makes the window just tall enough for its content, so it opens without a scrollbar, as far as the screen
+        /// allows. Runs on opening and when a section opens or closes. If the user makes the window smaller, or the
+        /// screen is too small, the content scrolls rather than being cut off.
+        /// </summary>
+        private void FitHeight()
+        {
+            if (!Loaded || _scroll.ClientSize.Height <= 0) return;
+            UpdateLayout(); // sections that just opened or closed must count
+            float content = _content.GetPreferredSize(new SizeF(_scroll.ClientSize.Width, float.PositiveInfinity)).Height;
+            int wanted = ClientSize.Height + (int)Math.Ceiling(content) - _scroll.ClientSize.Height;
+            RectangleF area = (Screen ?? Screen.PrimaryScreen).WorkingArea;
+            // Room for the title bar, and keep the window's bottom on screen from where it is.
+            int room = (int)(area.Bottom - Math.Max(area.Top, Location.Y) - 48 * Kit.Scale);
+            int height = Math.Max(MinimumSize.Height, Math.Min(wanted, Math.Max(room, MinimumSize.Height)));
+            if (height != ClientSize.Height) ClientSize = new Size(ClientSize.Width, height);
         }
 
         private void SaveBounds()
@@ -486,7 +521,6 @@ namespace Numbat.Commands.Utilities.NumbatAnon
             s.SetInteger(KeyX, Location.X);
             s.SetInteger(KeyY, Location.Y);
             s.SetInteger(KeyW, ClientSize.Width);
-            s.SetInteger(KeyH, ClientSize.Height);
         }
     }
 
